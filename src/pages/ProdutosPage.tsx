@@ -9,23 +9,34 @@ import {
   ChevronRight, 
   Layers, 
   Boxes,
-  X
+  X,
+  Edit2,
+  Archive,
+  Trash2,
+  RotateCcw,
+  AlertTriangle
 } from 'lucide-react';
 import { ProductImage } from '../components/common/ProductImage';
 import { NovoProdutoModal } from '../components/modals/NovoProdutoModal';
+import { EditarProdutoModal } from '../components/modals/EditarProdutoModal';
 import { Modal } from '../components/common/Modal';
 import { ExportMenu } from '../components/common/ExportMenu';
 import { exportReportToPdf } from '../services/pdfExportService';
 import { excelService } from '../services/excelService';
 
 export const ProdutosPage: React.FC = () => {
-  const { models, variants } = useERP();
+  const { models, variants, sales, movements, archiveModel, reactivateModel, deleteModel } = useERP();
   const { user, hasPermission } = useAuth();
 
   const canReadCosts = hasPermission('products.cost.read');
 
   const [isNovoProdutoOpen, setIsNovoProdutoOpen] = useState(false);
   const [selectedModel, setSelectedModel] = useState<ProductModel | null>(null);
+  const [modelToEdit, setModelToEdit] = useState<ProductModel | null>(null);
+  const [modelToArchive, setModelToArchive] = useState<ProductModel | null>(null);
+  const [modelToDelete, setModelToDelete] = useState<ProductModel | null>(null);
+  const [deleteErrorMessage, setDeleteErrorMessage] = useState<string | null>(null);
+  const [statusTab, setStatusTab] = useState<'Ativos' | 'Arquivados' | 'Todos'>('Ativos');
 
   // Filters state
   const [search, setSearch] = useState('');
@@ -98,9 +109,13 @@ export const ProdutosPage: React.FC = () => {
         if (selectedStockStatus === 'zero' && stats.totalStock !== 0) return false;
       }
 
+      // Status tab
+      if (statusTab === 'Ativos' && m.status === 'Arquivado') return false;
+      if (statusTab === 'Arquivados' && m.status !== 'Arquivado') return false;
+
       return true;
     });
-  }, [models, search, selectedCategory, selectedCollection, selectedStockStatus, variants]);
+  }, [models, search, selectedCategory, selectedCollection, selectedStockStatus, statusTab, variants]);
 
   const activeFiltersCount = 
     (selectedCategory !== 'all' ? 1 : 0) + 
@@ -235,8 +250,26 @@ export const ProdutosPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. Search & Discreet Filters Bar */}
+      {/* 2. Status Tabs & Search & Discreet Filters Bar */}
       <div className="space-y-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
+          <div className="flex items-center gap-1 bg-[#F2F4F7] p-1 rounded-lg text-xs font-semibold">
+            {(['Ativos', 'Arquivados', 'Todos'] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setStatusTab(tab)}
+                className={`px-3 py-1 rounded-md transition-all ${
+                  statusTab === tab
+                    ? 'bg-white text-[#101828] shadow-xs'
+                    : 'text-[#475467] hover:text-[#101828]'
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
           {/* Search Box */}
           <div className="relative flex-1">
@@ -476,13 +509,43 @@ export const ProdutosPage: React.FC = () => {
                       </span>
                     </div>
 
-                    <button
-                      onClick={() => setSelectedModel(model)}
-                      className="uze-btn-secondary text-xs px-3 py-1.5 shrink-0"
-                    >
-                      <span>Ver detalhes</span>
-                      <ChevronRight size={13} />
-                    </button>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        onClick={() => setSelectedModel(model)}
+                        className="uze-btn-secondary text-xs px-2.5 py-1.5"
+                        title="Ver detalhes"
+                      >
+                        <span>Detalhes</span>
+                        <ChevronRight size={13} />
+                      </button>
+                      {hasPermission('products.edit') && (
+                        <button
+                          onClick={() => setModelToEdit(model)}
+                          className="uze-btn-secondary text-xs px-2 py-1.5 text-[#173E75] hover:bg-[#173E75]/10"
+                          title="Editar modelo e variantes"
+                        >
+                          <Edit2 size={13} />
+                        </button>
+                      )}
+                      {hasPermission('products.delete') && (
+                        <>
+                          <button
+                            onClick={() => setModelToArchive(model)}
+                            className="uze-btn-secondary text-xs px-2 py-1.5 text-[#B54708] hover:bg-[#B54708]/10"
+                            title={model.status === 'Arquivado' ? 'Reativar produto' : 'Arquivar produto'}
+                          >
+                            {model.status === 'Arquivado' ? <RotateCcw size={13} /> : <Archive size={13} />}
+                          </button>
+                          <button
+                            onClick={() => setModelToDelete(model)}
+                            className="uze-btn-secondary text-xs px-2 py-1.5 text-[#B42318] hover:bg-[#B42318]/10"
+                            title="Excluir produto"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -531,14 +594,43 @@ export const ProdutosPage: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Row 3: Action Button */}
-                  <button
-                    onClick={() => setSelectedModel(model)}
-                    className="w-full uze-btn-secondary text-xs justify-center py-2"
-                  >
-                    <span>Ver detalhes do modelo</span>
-                    <ChevronRight size={13} />
-                  </button>
+                  {/* Row 3: Action Buttons */}
+                  <div className="flex items-center gap-1.5 pt-1">
+                    <button
+                      onClick={() => setSelectedModel(model)}
+                      className="flex-1 uze-btn-secondary text-xs justify-center py-1.5"
+                    >
+                      <span>Detalhes</span>
+                      <ChevronRight size={13} />
+                    </button>
+                    {hasPermission('products.edit') && (
+                      <button
+                        onClick={() => setModelToEdit(model)}
+                        className="uze-btn-secondary text-xs p-1.5 text-[#173E75]"
+                        title="Editar produto"
+                      >
+                        <Edit2 size={14} />
+                      </button>
+                    )}
+                    {hasPermission('products.delete') && (
+                      <>
+                        <button
+                          onClick={() => setModelToArchive(model)}
+                          className="uze-btn-secondary text-xs p-1.5 text-[#B54708]"
+                          title={model.status === 'Arquivado' ? 'Reativar' : 'Arquivar'}
+                        >
+                          {model.status === 'Arquivado' ? <RotateCcw size={14} /> : <Archive size={14} />}
+                        </button>
+                        <button
+                          onClick={() => setModelToDelete(model)}
+                          className="uze-btn-secondary text-xs p-1.5 text-[#B42318]"
+                          title="Excluir"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             );
@@ -551,6 +643,155 @@ export const ProdutosPage: React.FC = () => {
         isOpen={isNovoProdutoOpen}
         onClose={() => setIsNovoProdutoOpen(false)}
       />
+
+      {/* Modal Edição de Produto */}
+      {modelToEdit && (
+        <EditarProdutoModal
+          isOpen={!!modelToEdit}
+          model={modelToEdit}
+          onClose={() => setModelToEdit(null)}
+        />
+      )}
+
+      {/* Modal Confirmação de Arquivamento / Reativação */}
+      {modelToArchive && (
+        <Modal
+          isOpen={!!modelToArchive}
+          onClose={() => setModelToArchive(null)}
+          title={modelToArchive.status === 'Arquivado' ? 'Reativar Produto' : 'Arquivar Produto'}
+          subtitle={`Modelo: ${modelToArchive.name}`}
+          maxWidth="md"
+        >
+          <div className="space-y-4 text-xs">
+            <div className="p-3 bg-[#FEF6EE] border border-[#F9DBAF] rounded-lg text-[#B54708] flex items-start gap-2.5">
+              <AlertTriangle size={18} className="shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold">
+                  {modelToArchive.status === 'Arquivado'
+                    ? 'Deseja reativar este produto?'
+                    : 'Deseja arquivar este produto?'}
+                </p>
+                <p className="mt-1 text-[#344054]">
+                  {modelToArchive.status === 'Arquivado'
+                    ? 'O produto voltará a ficar disponível para seleção em novas vendas no catálogo comercial.'
+                    : 'Este produto não ficará disponível em novas vendas, mas continuará preservado no histórico, relatórios e vendas passadas.'}
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2 border-t border-[#D0D5DD]">
+              <button onClick={() => setModelToArchive(null)} className="uze-btn-secondary text-xs">
+                Cancelar
+              </button>
+              <button
+                onClick={async () => {
+                  if (modelToArchive.status === 'Arquivado') {
+                    await reactivateModel(modelToArchive.id);
+                  } else {
+                    await archiveModel(modelToArchive.id);
+                  }
+                  setModelToArchive(null);
+                  if (selectedModel?.id === modelToArchive.id) setSelectedModel(null);
+                }}
+                className={`uze-btn-primary text-xs ${
+                  modelToArchive.status === 'Arquivado' ? 'bg-[#027A48] hover:bg-[#05603A]' : 'bg-[#B54708] hover:bg-[#93370D]'
+                }`}
+              >
+                {modelToArchive.status === 'Arquivado' ? 'Confirmar Reativação' : 'Confirmar Arquivamento'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Modal Exclusão de Produto (com Validação Segura) */}
+      {modelToDelete && (
+        <Modal
+          isOpen={!!modelToDelete}
+          onClose={() => { setModelToDelete(null); setDeleteErrorMessage(null); }}
+          title="Excluir Produto"
+          subtitle={`Modelo: ${modelToDelete.name}`}
+          maxWidth="md"
+        >
+          <div className="space-y-4 text-xs">
+            {(() => {
+              const modelVarIds = variants.filter(v => v.modelId === modelToDelete.id).map(v => v.id);
+              const hasSalesHistory = sales.some(s => s.items.some(it => it.variantId && modelVarIds.includes(it.variantId)));
+              const hasMovementHistory = movements.some(m => modelVarIds.includes(m.variantId));
+              const cannotDelete = hasSalesHistory || hasMovementHistory;
+
+              if (cannotDelete) {
+                return (
+                  <div className="p-3 bg-[#FEF3F2] border border-[#FECDCA] rounded-lg text-[#B42318] space-y-2">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle size={18} className="shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-bold">Exclusão física bloqueada por segurança</p>
+                        <p className="mt-1 text-[#475467]">
+                          Este produto possui {hasSalesHistory ? 'vendas realizadas' : ''}{hasSalesHistory && hasMovementHistory ? ' e ' : ''}{hasMovementHistory ? 'movimentações de estoque registradas' : ''}. Para proteger a integridade contábil e de auditoria, ele não pode ser apagado fisicamente.
+                        </p>
+                        <p className="mt-2 text-xs font-semibold text-[#173E75]">
+                          Recomendação: utilize a opção "Arquivar produto" para removê-lo de novas operações mantendo o histórico intacto.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2 pt-2 border-t border-[#FECDCA]">
+                      <button
+                        onClick={() => {
+                          const toArch = modelToDelete;
+                          setModelToDelete(null);
+                          setModelToArchive(toArch);
+                        }}
+                        className="uze-btn-primary bg-[#B54708] hover:bg-[#93370D] text-xs"
+                      >
+                        <Archive size={13} /> Arquivar Produto
+                      </button>
+                      <button onClick={() => setModelToDelete(null)} className="uze-btn-secondary text-xs">
+                        Fechar
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="space-y-4">
+                  <div className="p-3 bg-[#FEF3F2] border border-[#FECDCA] rounded-lg text-[#B42318] flex items-start gap-2">
+                    <AlertTriangle size={18} className="shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold">Atenção: Exclusão permanente</p>
+                      <p className="mt-1 text-[#475467]">
+                        Este produto não possui histórico comercial e pode ser removido do banco de dados definitivamente junto com suas variantes não utilizadas.
+                      </p>
+                    </div>
+                  </div>
+                  {deleteErrorMessage && (
+                    <p className="text-xs text-[#B42318] font-semibold">{deleteErrorMessage}</p>
+                  )}
+                  <div className="flex justify-end gap-2 pt-2 border-t border-[#D0D5DD]">
+                    <button onClick={() => setModelToDelete(null)} className="uze-btn-secondary text-xs">
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={async () => {
+                        try {
+                          await deleteModel(modelToDelete.id);
+                          setModelToDelete(null);
+                          if (selectedModel?.id === modelToDelete.id) setSelectedModel(null);
+                        } catch (err: any) {
+                          setDeleteErrorMessage(err.message || 'Erro ao excluir modelo');
+                        }
+                      }}
+                      className="uze-btn-primary bg-[#B42318] hover:bg-[#912018] text-xs"
+                    >
+                      Confirmar Exclusão
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </Modal>
+      )}
 
       {/* Modal Detalhes do Produto e Variantes */}
       {selectedModel && (
@@ -573,7 +814,9 @@ export const ProdutosPage: React.FC = () => {
               <div className="space-y-1.5 flex-1 min-w-0">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-bold text-[#101828]">{selectedModel.name}</h3>
-                  <span className="uze-badge uze-badge-gold">{selectedModel.status}</span>
+                  <span className={`uze-badge ${selectedModel.status === 'Arquivado' ? 'uze-badge-warning' : 'uze-badge-gold'}`}>
+                    {selectedModel.status}
+                  </span>
                 </div>
                 <p className="text-[#344054] font-medium leading-relaxed">{selectedModel.description}</p>
                 <div className="flex flex-wrap items-center gap-4 pt-2 border-t border-[#D0D5DD] font-medium text-[#101828]">
@@ -583,6 +826,47 @@ export const ProdutosPage: React.FC = () => {
                   )}
                   <span>Gênero: <strong className="text-[#101828] font-bold">{selectedModel.gender}</strong></span>
                   <span>SKU Base: <code className="font-mono text-[#173E75] font-bold bg-[#EFF4FF] px-1 py-0.5 rounded border border-[#D0D5DD]">{selectedModel.id}</code></span>
+                </div>
+
+                {/* Action buttons inside details modal */}
+                <div className="flex items-center gap-2 pt-3 border-t border-[#D0D5DD]">
+                  {hasPermission('products.edit') && (
+                    <button
+                      onClick={() => {
+                        const m = selectedModel;
+                        setSelectedModel(null);
+                        setModelToEdit(m);
+                      }}
+                      className="uze-btn-secondary text-xs text-[#173E75]"
+                    >
+                      <Edit2 size={13} /> Editar Modelo
+                    </button>
+                  )}
+                  {hasPermission('products.delete') && (
+                    <>
+                      <button
+                        onClick={() => {
+                          const m = selectedModel;
+                          setSelectedModel(null);
+                          setModelToArchive(m);
+                        }}
+                        className="uze-btn-secondary text-xs text-[#B54708]"
+                      >
+                        {selectedModel.status === 'Arquivado' ? <RotateCcw size={13} /> : <Archive size={13} />}
+                        {selectedModel.status === 'Arquivado' ? 'Reativar' : 'Arquivar'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          const m = selectedModel;
+                          setSelectedModel(null);
+                          setModelToDelete(m);
+                        }}
+                        className="uze-btn-secondary text-xs text-[#B42318]"
+                      >
+                        <Trash2 size={13} /> Excluir
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

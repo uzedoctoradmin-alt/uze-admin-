@@ -6,7 +6,7 @@ import { DataTable } from '../components/common/DataTable';
 import type { Sale, SaleStatus } from '../types';
 import { StatCard } from '../components/common/StatCard';
 import { SaleStatusBadge } from '../components/common/Badge';
-import { Plus, Eye } from 'lucide-react';
+import { Plus, Eye, Edit2, XCircle, AlertTriangle } from 'lucide-react';
 import { NovaVendaModal } from '../components/modals/NovaVendaModal';
 import { Modal } from '../components/common/Modal';
 import { ExportMenu } from '../components/common/ExportMenu';
@@ -14,11 +14,13 @@ import { exportReportToPdf } from '../services/pdfExportService';
 import { excelService } from '../services/excelService';
 
 export const VendasPage: React.FC = () => {
-  const { filteredSales, dashboardMetrics, updateSaleStatus, periodFilter } = useERP();
+  const { filteredSales, dashboardMetrics, updateSaleStatus, cancelSale, periodFilter } = useERP();
   const { user, hasPermission } = useAuth();
 
   const [isNovaVendaOpen, setIsNovaVendaOpen] = useState(false);
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
+  const [saleToEdit, setSaleToEdit] = useState<Sale | null>(null);
+  const [saleToCancel, setSaleToCancel] = useState<Sale | null>(null);
 
   const columns: Column<Sale>[] = [
     {
@@ -300,22 +302,105 @@ export const VendasPage: React.FC = () => {
           },
         ]}
         actions={(s) => (
-          <button
-            onClick={() => setSelectedSale(s)}
-            className="p-1 text-[#475467] hover:text-[#173E75] hover:bg-[#F2F4F7] rounded transition-colors"
-            title="Ver detalhes"
-          >
-            <Eye size={15} />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setSelectedSale(s)}
+              className="p-1 text-[#475467] hover:text-[#173E75] hover:bg-[#F2F4F7] rounded transition-colors"
+              title="Ver detalhes"
+            >
+              <Eye size={15} />
+            </button>
+            {hasPermission('sales.edit') && s.status !== 'Cancelado' && (
+              <button
+                onClick={() => setSaleToEdit(s)}
+                className="p-1 text-[#173E75] hover:text-[#0C2340] hover:bg-[#173E75]/10 rounded transition-colors"
+                title="Editar venda"
+              >
+                <Edit2 size={15} />
+              </button>
+            )}
+            {hasPermission('sales.cancel') && s.status !== 'Cancelado' && (
+              <button
+                onClick={() => setSaleToCancel(s)}
+                className="p-1 text-[#B42318] hover:text-[#912018] hover:bg-[#FEF3F2] rounded transition-colors"
+                title="Cancelar venda"
+              >
+                <XCircle size={15} />
+              </button>
+            )}
+          </div>
         )}
       />
       )}
 
-      {/* Nova Venda Modal */}
+      {/* Nova Venda / Edição de Venda Modal */}
       <NovaVendaModal
-        isOpen={isNovaVendaOpen}
-        onClose={() => setIsNovaVendaOpen(false)}
+        isOpen={isNovaVendaOpen || !!saleToEdit}
+        onClose={() => {
+          setIsNovaVendaOpen(false);
+          setSaleToEdit(null);
+        }}
+        saleToEdit={saleToEdit}
       />
+
+      {/* Cancellation Confirmation Modal */}
+      {saleToCancel && (
+        <Modal
+          isOpen={!!saleToCancel}
+          onClose={() => setSaleToCancel(null)}
+          title={`Cancelar Venda #${saleToCancel.id}`}
+          subtitle={`Cliente: ${saleToCancel.customerName}`}
+          maxWidth="md"
+        >
+          <div className="space-y-4 text-xs">
+            <div className="p-3.5 bg-[#FEF3F2] border border-[#FECDCA] rounded-lg text-[#B42318] space-y-2">
+              <div className="flex items-start gap-2.5">
+                <AlertTriangle size={18} className="shrink-0 mt-0.5" />
+                <div className="space-y-1.5">
+                  <p className="font-bold text-sm">Confirma o cancelamento desta venda?</p>
+                  <p className="text-[#344054] leading-relaxed">
+                    Esta ação executará a conciliação comercial e contábil completa:
+                  </p>
+                  <ul className="list-disc pl-4 space-y-1 text-[#475467]">
+                    <li>
+                      <strong>Devolução de estoque:</strong> Todas as peças físicas vinculadas ao catálogo retornarão ao saldo de estoque com movimentação do tipo <em>Devolução</em>.
+                    </li>
+                    <li>
+                      <strong>Conciliação financeira:</strong> O lançamento de receita correspondente será marcado como <em>Cancelado</em>, ajustando faturamento e relatórios.
+                    </li>
+                    <li>
+                      <strong>Histórico preservado:</strong> A venda permanecerá registrada no sistema com status <em>Cancelado</em> para auditoria contábil.
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-[#D0D5DD]">
+              <button
+                type="button"
+                onClick={() => setSaleToCancel(null)}
+                className="uze-btn-secondary text-xs"
+              >
+                Voltar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  cancelSale(saleToCancel.id);
+                  setSaleToCancel(null);
+                  if (selectedSale?.id === saleToCancel.id) {
+                    setSelectedSale({ ...selectedSale, status: 'Cancelado' });
+                  }
+                }}
+                className="uze-btn-primary bg-[#B42318] hover:bg-[#912018] text-xs"
+              >
+                Confirmar Cancelamento
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {/* Sale Detail Drawer / Modal */}
       {selectedSale && (
@@ -331,7 +416,7 @@ export const VendasPage: React.FC = () => {
               <div>
                 <p className="text-[10px] font-bold uppercase text-[#344054]">Cliente</p>
                 <h3 className="font-bold text-sm text-[#101828]">{selectedSale.customerName}</h3>
-                <p className="text-[#475467] font-medium">{selectedSale.customerEmail}</p>
+                <p className="text-[#475467] font-medium">{selectedSale.customerEmail || 'E-mail não informado'}</p>
               </div>
 
               <div className="text-right space-y-1">
@@ -371,8 +456,26 @@ export const VendasPage: React.FC = () => {
                   <tbody className="divide-y divide-[#D0D5DD]">
                     {selectedSale.items.map((item: any, idx: number) => (
                       <tr key={idx}>
-                        <td className="p-2 font-medium text-[#101828]">{item.productName} ({item.colorName} - {item.size})</td>
-                        <td className="p-2 font-mono text-[10px] text-[#344054] font-semibold">{item.sku}</td>
+                        <td className="p-2 font-medium text-[#101828]">
+                          <div className="flex items-center gap-1.5">
+                            <span>{item.productName}</span>
+                            {item.isCustom ? (
+                              <span className="uze-badge uze-badge-gold text-[9px] py-0 px-1 font-bold">
+                                Item Avulso
+                              </span>
+                            ) : (
+                              <span className="text-[#475467] text-[11px]">
+                                ({item.colorName} - {item.size})
+                              </span>
+                            )}
+                          </div>
+                          {item.notes && (
+                            <p className="text-[10px] text-[#475467] italic mt-0.5">{item.notes}</p>
+                          )}
+                        </td>
+                        <td className="p-2 font-mono text-[10px] text-[#344054] font-semibold">
+                          {item.isCustom ? 'AVULSO' : item.sku}
+                        </td>
                         <td className="p-2 text-center font-bold text-[#101828]">{item.quantity}</td>
                         <td className="p-2 text-right text-[#475467] font-medium">R$ {item.unitPrice.toFixed(2)}</td>
                         <td className="p-2 text-right font-bold text-[#101828]">R$ {item.subtotal.toFixed(2)}</td>
@@ -403,6 +506,34 @@ export const VendasPage: React.FC = () => {
                 </p>
               </div>
             </div>
+
+            {/* Actions in detail drawer */}
+            {hasPermission('sales.edit') && selectedSale.status !== 'Cancelado' && (
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#D0D5DD]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const s = selectedSale;
+                    setSelectedSale(null);
+                    setSaleToEdit(s);
+                  }}
+                  className="uze-btn-secondary text-xs text-[#173E75]"
+                >
+                  <Edit2 size={13} /> Editar Venda
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const s = selectedSale;
+                    setSelectedSale(null);
+                    setSaleToCancel(s);
+                  }}
+                  className="uze-btn-secondary text-xs text-[#B42318]"
+                >
+                  <XCircle size={13} /> Cancelar Venda
+                </button>
+              </div>
+            )}
           </div>
         </Modal>
       )}

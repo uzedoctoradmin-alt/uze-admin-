@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import type { Column } from '../components/common/DataTable';
 import { DataTable } from '../components/common/DataTable';
 import type { Customer } from '../types';
-import { UserPlus, Eye, ShoppingBag } from 'lucide-react';
+import { UserPlus, Eye, ShoppingBag, Edit2, Archive, Trash2, RotateCcw, AlertTriangle } from 'lucide-react';
 import { NovoClienteModal } from '../components/modals/NovoClienteModal';
 import { Modal } from '../components/common/Modal';
 import { ExportMenu } from '../components/common/ExportMenu';
@@ -12,11 +12,22 @@ import { exportReportToPdf } from '../services/pdfExportService';
 import { excelService } from '../services/excelService';
 
 export const ClientesPage: React.FC = () => {
-  const { customers, sales } = useERP();
+  const { customers, sales, archiveCustomer, reactivateCustomer, deleteCustomer } = useERP();
   const { user, hasPermission } = useAuth();
 
   const [isNovoClienteOpen, setIsNovoClienteOpen] = useState(false);
+  const [customerToEdit, setCustomerToEdit] = useState<Customer | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [customerToArchive, setCustomerToArchive] = useState<Customer | null>(null);
+  const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
+  const [deleteErrorMessage, setDeleteErrorMessage] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'Ativos' | 'Arquivados' | 'Todos'>('Ativos');
+
+  const filteredCustomers = customers.filter(c => {
+    if (statusFilter === 'Ativos') return c.status !== 'Arquivado' && c.status !== 'Inativo';
+    if (statusFilter === 'Arquivados') return c.status === 'Arquivado' || c.status === 'Inativo';
+    return true;
+  });
 
   const columns: Column<Customer>[] = [
     {
@@ -78,6 +89,17 @@ export const ClientesPage: React.FC = () => {
       cell: (c) => (
         <span className="font-bold text-sm text-[#101828]">
           R$ {c.totalSpent.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+        </span>
+      ),
+    },
+    {
+      header: 'Status',
+      accessorKey: 'status',
+      sortable: true,
+      align: 'center',
+      cell: (c) => (
+        <span className={`uze-badge ${c.status === 'Arquivado' ? 'uze-badge-gray' : 'uze-badge-green'}`}>
+          {c.status || 'Ativo'}
         </span>
       ),
     },
@@ -173,6 +195,23 @@ export const ClientesPage: React.FC = () => {
     });
   };
 
+  const handleConfirmArchive = () => {
+    if (!customerToArchive) return;
+    archiveCustomer(customerToArchive.id);
+    setCustomerToArchive(null);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!customerToDelete) return;
+    const result = deleteCustomer(customerToDelete.id);
+    if (!result.success) {
+      setDeleteErrorMessage(result.reason || 'Não foi possível excluir o cliente.');
+    } else {
+      setCustomerToDelete(null);
+      setDeleteErrorMessage(null);
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Page Header */}
@@ -185,10 +224,30 @@ export const ClientesPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Status Filter Tabs */}
+          <div className="flex bg-[#F2F4F7] p-0.5 rounded-lg border border-[#D0D5DD] text-xs font-semibold mr-1">
+            {(['Ativos', 'Arquivados', 'Todos'] as const).map(tab => (
+              <button
+                key={tab}
+                onClick={() => setStatusFilter(tab)}
+                className={`px-3 py-1 rounded-md transition-colors cursor-pointer ${
+                  statusFilter === tab 
+                    ? 'bg-white text-[#173E75] shadow-xs font-bold' 
+                    : 'text-[#475467] hover:text-[#101828]'
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+
           <ExportMenu onExportPdf={handleExportPdf} onExportExcel={handleExportExcel} />
           {hasPermission('customers.create') && (
             <button
-              onClick={() => setIsNovoClienteOpen(true)}
+              onClick={() => {
+                setCustomerToEdit(null);
+                setIsNovoClienteOpen(true);
+              }}
               className="uze-btn-primary text-xs cursor-pointer"
             >
               <UserPlus size={14} /> Novo Cliente
@@ -198,44 +257,101 @@ export const ClientesPage: React.FC = () => {
       </div>
 
       {/* Customers Table or Empty State */}
-      {customers.length === 0 ? (
+      {filteredCustomers.length === 0 ? (
         <div className="bg-white border border-[#D0D5DD] rounded-lg p-12 text-center flex flex-col items-center justify-center space-y-3">
           <div className="w-14 h-14 rounded-full bg-[#EFF4FF] border border-[#D0D5DD] flex items-center justify-center text-[#173E75]">
             <UserPlus size={28} />
           </div>
-          <h3 className="text-base font-bold text-[#101828]">Nenhum cliente cadastrado</h3>
+          <h3 className="text-base font-bold text-[#101828]">Nenhum cliente nesta visualização</h3>
           <p className="text-xs text-[#475467] font-medium max-w-md leading-relaxed">
-            Cadastre os médicos, clínicas e profissionais de saúde para associar vendas, histórico de medidas e personalizações da UZE DOCTOR.
+            {statusFilter === 'Arquivados' 
+              ? 'Não há clientes arquivados no momento.' 
+              : 'Cadastre os médicos, clínicas e profissionais de saúde para associar vendas, histórico de medidas e personalizações da UZE DOCTOR.'}
           </p>
-          <button
-            onClick={() => setIsNovoClienteOpen(true)}
-            className="mt-2 uze-btn-primary text-xs shadow-xs"
-          >
-            <UserPlus size={14} />
-            <span>Cadastrar primeiro cliente</span>
-          </button>
+          {statusFilter !== 'Arquivados' && (
+            <button
+              onClick={() => {
+                setCustomerToEdit(null);
+                setIsNovoClienteOpen(true);
+              }}
+              className="mt-2 uze-btn-primary text-xs shadow-xs"
+            >
+              <UserPlus size={14} />
+              <span>Cadastrar cliente</span>
+            </button>
+          )}
         </div>
       ) : (
         <DataTable
           columns={columns}
-          data={customers}
+          data={filteredCustomers}
           searchPlaceholder="Buscar por nome, e-mail, telefone ou cidade..."
-          searchField={(c) => `${c.name} ${c.email} ${c.phone} ${c.city} ${c.document}`}
+          searchField={(c) => `${c.name} ${c.email || ''} ${c.phone || ''} ${c.city || ''} ${c.document || ''}`}
           actions={(c) => (
-            <button
-              onClick={() => setSelectedCustomer(c)}
-              className="p-1 text-xs font-bold text-[#173E75] hover:bg-[#F2F4F7] rounded transition-colors inline-flex items-center gap-1"
-            >
-              <Eye size={13} /> Histórico
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setSelectedCustomer(c)}
+                className="p-1.5 text-[#173E75] hover:bg-[#F2F4F7] rounded transition-colors cursor-pointer"
+                title="Ver Histórico & Ficha"
+              >
+                <Eye size={14} />
+              </button>
+              {hasPermission('customers.edit') && (
+                <button
+                  onClick={() => {
+                    setCustomerToEdit(c);
+                    setIsNovoClienteOpen(true);
+                  }}
+                  className="p-1.5 text-[#475467] hover:text-[#101828] hover:bg-[#F2F4F7] rounded transition-colors cursor-pointer"
+                  title="Editar Cliente"
+                >
+                  <Edit2 size={14} />
+                </button>
+              )}
+              {hasPermission('customers.edit') && (
+                c.status === 'Arquivado' ? (
+                  <button
+                    onClick={() => reactivateCustomer(c.id)}
+                    className="p-1.5 text-emerald-700 hover:bg-emerald-50 rounded transition-colors cursor-pointer"
+                    title="Reativar Cliente"
+                  >
+                    <RotateCcw size={14} />
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setCustomerToArchive(c)}
+                    className="p-1.5 text-amber-600 hover:bg-amber-50 rounded transition-colors cursor-pointer"
+                    title="Arquivar Cliente"
+                  >
+                    <Archive size={14} />
+                  </button>
+                )
+              )}
+              {hasPermission('customers.edit') && (
+                <button
+                  onClick={() => {
+                    setDeleteErrorMessage(null);
+                    setCustomerToDelete(c);
+                  }}
+                  className="p-1.5 text-rose-600 hover:bg-rose-50 rounded transition-colors cursor-pointer"
+                  title="Excluir Cliente"
+                >
+                  <Trash2 size={14} />
+                </button>
+              )}
+            </div>
           )}
         />
       )}
 
-      {/* Novo Cliente Modal */}
+      {/* Novo / Editar Cliente Modal */}
       <NovoClienteModal
         isOpen={isNovoClienteOpen}
-        onClose={() => setIsNovoClienteOpen(false)}
+        onClose={() => {
+          setIsNovoClienteOpen(false);
+          setCustomerToEdit(null);
+        }}
+        customerToEdit={customerToEdit}
       />
 
       {/* Customer History Modal */}
@@ -317,6 +433,115 @@ export const ClientesPage: React.FC = () => {
                 </table>
               </div>
             </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Modal Confirmação de Arquivamento */}
+      {customerToArchive && (
+        <Modal
+          isOpen={!!customerToArchive}
+          onClose={() => setCustomerToArchive(null)}
+          title="Arquivar Cliente?"
+          subtitle="Preservação de histórico com desativação para novas vendas"
+          maxWidth="md"
+        >
+          <div className="space-y-4 text-xs text-[#344054]">
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-md flex items-start gap-2 text-amber-900">
+              <AlertTriangle size={18} className="shrink-0 text-amber-600 mt-0.5" />
+              <div>
+                <p className="font-bold">O cliente <b>{customerToArchive.name}</b> será arquivado.</p>
+                <p className="mt-1 leading-relaxed text-amber-800">
+                  O cliente <b>não aparecerá por padrão na seleção de novas vendas</b>. Todo o histórico de compras, pedidos passados e pagamentos permanecerá 100% íntegro e auditável. O cliente poderá ser reativado a qualquer momento.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-[#D0D5DD]">
+              <button
+                onClick={() => setCustomerToArchive(null)}
+                className="uze-btn uze-btn-secondary text-xs"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmArchive}
+                className="uze-btn bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold"
+              >
+                Confirmar Arquivamento
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Modal Confirmação de Exclusão Física (Com checagem de histórico) */}
+      {customerToDelete && (
+        <Modal
+          isOpen={!!customerToDelete}
+          onClose={() => {
+            setCustomerToDelete(null);
+            setDeleteErrorMessage(null);
+          }}
+          title="Excluir Cliente"
+          subtitle="Verificação de integridade e histórico comercial"
+          maxWidth="md"
+        >
+          <div className="space-y-4 text-xs text-[#344054]">
+            {sales.some(s => s.customerId === customerToDelete.id) ? (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-md text-rose-900 space-y-2">
+                <div className="flex items-center gap-2 font-bold text-rose-800">
+                  <AlertTriangle size={16} />
+                  <span>Exclusão Proibida: Histórico Comercial Existente</span>
+                </div>
+                <p className="leading-relaxed">
+                  O cliente <b>{customerToDelete.name}</b> possui pedidos vinculados na base de dados.
+                  Para preservar a integridade fiscal, contábil e de relatórios, <b>não é permitido apagar este registro fisicamente</b>.
+                </p>
+                <p className="font-medium text-rose-800">
+                  Recomendação: utilize a opção <b>Arquivar cliente</b>.
+                </p>
+                <div className="pt-2 flex justify-end gap-2">
+                  <button
+                    onClick={() => {
+                      setCustomerToArchive(customerToDelete);
+                      setCustomerToDelete(null);
+                    }}
+                    className="uze-btn bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold"
+                  >
+                    Arquivar Cliente em vez de Excluir
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="leading-relaxed">
+                  Tem certeza que deseja excluir o cliente <b>{customerToDelete.name}</b>?
+                </p>
+                <p className="text-[#475467]">
+                  Este cliente não possui nenhum pedido ou movimentação associada e será removido permanentemente da base.
+                </p>
+                {deleteErrorMessage && (
+                  <div className="p-2.5 bg-rose-50 text-rose-800 border border-rose-200 rounded text-[11px]">
+                    {deleteErrorMessage}
+                  </div>
+                )}
+                <div className="flex justify-end gap-2 pt-3 border-t border-[#D0D5DD]">
+                  <button
+                    onClick={() => setCustomerToDelete(null)}
+                    className="uze-btn uze-btn-secondary text-xs"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleConfirmDelete}
+                    className="uze-btn bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold"
+                  >
+                    Excluir Definitivamente
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </Modal>
       )}

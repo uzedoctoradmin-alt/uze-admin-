@@ -113,22 +113,91 @@ export const supabaseService = {
     }
   },
 
-  async updateVariantStock(variantId: string, newStock: number): Promise<boolean> {
+  async updateModel(id: string, updates: Partial<ProductModel>): Promise<boolean> {
     try {
-      const { error } = await supabase
-        .from('variants')
-        .update({ current_stock: newStock })
-        .eq('id', variantId);
+      const payload: Record<string, any> = {};
+      if (updates.name !== undefined) payload.name = updates.name;
+      if (updates.category !== undefined) payload.category = updates.category;
+      if (updates.collection !== undefined) payload.collection = updates.collection;
+      if (updates.description !== undefined) payload.description = updates.description;
+      if (updates.gender !== undefined) payload.gender = updates.gender;
+      if (updates.basePrice !== undefined) payload.base_price = updates.basePrice;
+      if (updates.baseCost !== undefined) payload.base_cost = updates.baseCost;
+      if (updates.status !== undefined) {
+        payload.status = updates.status;
+        payload.is_active = updates.status !== 'Inativo' && updates.status !== 'Arquivado';
+      }
+      if (updates.imageUrl !== undefined) payload.image_url = updates.imageUrl;
+      payload.updated_at = new Date().toISOString();
 
+      const { error } = await supabase.from('models').update(payload).eq('id', id);
       if (error) {
-        console.error('[Supabase] updateVariantStock error:', error);
+        console.error('[Supabase] updateModel error:', error);
         return false;
       }
       return true;
     } catch (err) {
-      console.error('[Supabase] updateVariantStock exception:', err);
+      console.error('[Supabase] updateModel exception:', err);
       return false;
     }
+  },
+
+  async deleteModel(id: string): Promise<boolean> {
+    try {
+      const { error } = await supabase.from('models').delete().eq('id', id);
+      if (error) {
+        console.error('[Supabase] deleteModel error:', error);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.error('[Supabase] deleteModel exception:', err);
+      return false;
+    }
+  },
+
+  async updateVariant(id: string, updates: Partial<ProductVariant>): Promise<boolean> {
+    try {
+      const payload: Record<string, any> = {};
+      if (updates.colorName !== undefined) payload.color_name = updates.colorName;
+      if (updates.colorHex !== undefined) payload.color_hex = updates.colorHex;
+      if (updates.size !== undefined) payload.size = updates.size;
+      if (updates.sku !== undefined) payload.sku = updates.sku;
+      if (updates.currentStock !== undefined) payload.current_stock = updates.currentStock;
+      if (updates.minStock !== undefined) payload.min_stock = updates.minStock;
+      if (updates.status !== undefined) {
+        payload.is_active = updates.status !== 'Inativo' && updates.status !== 'Arquivado';
+      }
+      payload.updated_at = new Date().toISOString();
+
+      const { error } = await supabase.from('variants').update(payload).eq('id', id);
+      if (error) {
+        console.error('[Supabase] updateVariant error:', error);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.error('[Supabase] updateVariant exception:', err);
+      return false;
+    }
+  },
+
+  async deleteVariant(id: string): Promise<boolean> {
+    try {
+      const { error } = await supabase.from('variants').delete().eq('id', id);
+      if (error) {
+        console.error('[Supabase] deleteVariant error:', error);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.error('[Supabase] deleteVariant exception:', err);
+      return false;
+    }
+  },
+
+  async updateVariantStock(variantId: string, newStock: number): Promise<boolean> {
+    return this.updateVariant(variantId, { currentStock: newStock });
   },
 
   // ==========================================
@@ -154,6 +223,8 @@ export const supabaseService = {
         document: row.document || '',
         city: row.city || '',
         state: row.state || '',
+        notes: row.notes || '',
+        status: row.is_active === false ? 'Arquivado' : (row.status || 'Ativo'),
         firstPurchaseDate: row.first_purchase_date || '',
         lastPurchaseDate: row.last_purchase_date || '',
         totalOrders: Number(row.total_orders) || 0,
@@ -170,15 +241,17 @@ export const supabaseService = {
       const { error } = await supabase.from('customers').insert({
         id: customer.id,
         name: customer.name,
-        email: customer.email,
-        phone: customer.phone,
-        document: customer.document,
-        city: customer.city,
-        state: customer.state,
+        email: customer.email || null,
+        phone: customer.phone || null,
+        document: customer.document || null,
+        city: customer.city || null,
+        state: customer.state || null,
+        notes: customer.notes || null,
         first_purchase_date: customer.firstPurchaseDate || null,
         last_purchase_date: customer.lastPurchaseDate || null,
         total_orders: customer.totalOrders,
         total_spent: customer.totalSpent,
+        is_active: customer.status !== 'Arquivado' && customer.status !== 'Inativo',
       });
 
       if (error) {
@@ -188,6 +261,50 @@ export const supabaseService = {
       return true;
     } catch (err) {
       console.error('[Supabase] insertCustomer exception:', err);
+      return false;
+    }
+  },
+
+  async updateCustomer(id: string, updates: Partial<Customer>): Promise<boolean> {
+    try {
+      const payload: Record<string, any> = {};
+      if (updates.name !== undefined) payload.name = updates.name;
+      if (updates.email !== undefined) payload.email = updates.email || null;
+      if (updates.phone !== undefined) payload.phone = updates.phone || null;
+      if (updates.document !== undefined) payload.document = updates.document || null;
+      if (updates.city !== undefined) payload.city = updates.city || null;
+      if (updates.state !== undefined) payload.state = updates.state || null;
+      if (updates.notes !== undefined) payload.notes = updates.notes || null;
+      if (updates.status !== undefined) {
+        payload.is_active = updates.status !== 'Arquivado' && updates.status !== 'Inativo';
+      }
+      if (updates.totalOrders !== undefined) payload.total_orders = updates.totalOrders;
+      if (updates.totalSpent !== undefined) payload.total_spent = updates.totalSpent;
+      if (updates.lastPurchaseDate !== undefined) payload.last_purchase_date = updates.lastPurchaseDate;
+      payload.updated_at = new Date().toISOString();
+
+      const { error } = await supabase.from('customers').update(payload).eq('id', id);
+      if (error) {
+        console.error('[Supabase] updateCustomer error:', error);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.error('[Supabase] updateCustomer exception:', err);
+      return false;
+    }
+  },
+
+  async deleteCustomer(id: string): Promise<boolean> {
+    try {
+      const { error } = await supabase.from('customers').delete().eq('id', id);
+      if (error) {
+        console.error('[Supabase] deleteCustomer error:', error);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.error('[Supabase] deleteCustomer exception:', err);
       return false;
     }
   },
@@ -286,11 +403,61 @@ export const supabaseService = {
     }
   },
 
+  async updateSale(sale: Sale): Promise<boolean> {
+    try {
+      const { error } = await supabase.from('sales').update({
+        customer_id: sale.customerId,
+        customer_name: sale.customerName,
+        customer_email: sale.customerEmail || null,
+        subtotal: sale.subtotal,
+        discount: sale.discount,
+        shipping: sale.shipping,
+        total: sale.total,
+        total_cost: sale.totalCost,
+        estimated_profit: sale.estimatedProfit,
+        payment_method: sale.paymentMethod,
+        status: sale.status,
+        notes: sale.notes || null,
+        items: sale.items,
+        updated_at: new Date().toISOString(),
+      }).eq('id', sale.id);
+
+      if (error) {
+        console.error('[Supabase] updateSale error:', error);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.error('[Supabase] updateSale exception:', err);
+      return false;
+    }
+  },
+
+  async updateRevenueByReference(referenceId: string, updates: Partial<Revenue>): Promise<boolean> {
+    try {
+      const payload: Record<string, any> = {};
+      if (updates.amount !== undefined) payload.amount = updates.amount;
+      if (updates.paymentMethod !== undefined) payload.payment_method = updates.paymentMethod;
+      if (updates.status !== undefined) payload.status = updates.status;
+      payload.updated_at = new Date().toISOString();
+
+      const { error } = await supabase.from('revenues').update(payload).eq('reference_id', referenceId);
+      if (error) {
+        console.error('[Supabase] updateRevenueByReference error:', error);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.error('[Supabase] updateRevenueByReference exception:', err);
+      return false;
+    }
+  },
+
   async updateSaleStatus(saleId: string, newStatus: string): Promise<boolean> {
     try {
       const { error } = await supabase
         .from('sales')
-        .update({ status: newStatus })
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
         .eq('id', saleId);
 
       if (error) {

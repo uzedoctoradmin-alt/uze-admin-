@@ -1,6 +1,6 @@
 export type PeriodFilter = 'Hoje' | '7d' | '30d' | 'Este mês' | 'Mês anterior' | 'Personalizado';
 
-export type ProductStatus = 'Ativo' | 'Inativo';
+export type ProductStatus = 'Ativo' | 'Inativo' | 'Arquivado';
 export type GenderCategory = 'Feminino' | 'Masculino' | 'Unissex';
 export type VariantSize = 'PP' | 'P' | 'M' | 'G' | 'GG' | 'XGG';
 
@@ -27,6 +27,7 @@ export interface ProductVariant {
   size: VariantSize;
   currentStock: number;
   minStock: number;
+  status?: string;
 }
 
 export type MovementType = 'Entrada' | 'Venda' | 'Ajuste' | 'Devolução' | 'Perda' | 'Troca';
@@ -48,30 +49,34 @@ export interface StockMovement {
 export interface Customer {
   id: string;
   name: string;
-  email: string;
-  phone: string;
-  document: string;
-  city: string;
-  state: string;
+  email?: string;
+  phone?: string;
+  document?: string;
+  city?: string;
+  state?: string;
   firstPurchaseDate: string;
   lastPurchaseDate: string;
   totalOrders: number;
   totalSpent: number;
   notes?: string;
+  status?: 'Ativo' | 'Arquivado' | 'Inativo';
 }
 
 export interface SaleItem {
   id: string;
-  variantId: string;
-  modelId: string;
+  variantId?: string;
+  modelId?: string;
   productName: string;
-  colorName: string;
-  size: string;
-  sku: string;
+  colorName?: string;
+  size?: string;
+  sku?: string;
   unitPrice: number;
   unitCost: number;
   quantity: number;
   subtotal: number;
+  isCustom?: boolean;
+  customDescription?: string;
+  notes?: string;
 }
 
 export type SaleStatus = 
@@ -94,7 +99,7 @@ export interface Sale {
   date: string;
   customerId: string;
   customerName: string;
-  customerEmail: string;
+  customerEmail?: string;
   items: SaleItem[];
   subtotal: number;
   discount: number;
@@ -104,6 +109,7 @@ export interface Sale {
   estimatedProfit: number;
   paymentMethod: PaymentMethod;
   status: SaleStatus;
+  notes?: string;
 }
 
 export type RevenueCategory = 
@@ -120,6 +126,7 @@ export interface Revenue {
   category: RevenueCategory;
   amount: number;
   paymentMethod: string;
+  status?: 'Pendente' | 'Pago' | 'Cancelado';
 }
 
 export type ExpenseCategory = 
@@ -191,12 +198,15 @@ export type Permission =
   | 'sales.read'
   | 'sales.create'
   | 'sales.edit'
+  | 'sales.cancel'
   | 'customers.read'
   | 'customers.create'
   | 'customers.edit'
+  | 'customers.delete'
   | 'products.read'
   | 'products.create'
   | 'products.edit'
+  | 'products.delete'
   | 'products.cost.read'
   | 'inventory.read'
   | 'inventory.adjust'
