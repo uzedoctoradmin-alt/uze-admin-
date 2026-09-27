@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useERP } from '../context/ERPContext';
+import { useAuth } from '../context/AuthContext';
 import type { Column } from '../components/common/DataTable';
 import { DataTable } from '../components/common/DataTable';
 import type { Customer } from '../types';
@@ -9,6 +10,7 @@ import { Modal } from '../components/common/Modal';
 
 export const ClientesPage: React.FC = () => {
   const { customers, sales } = useERP();
+  const { hasPermission } = useAuth();
 
   const [isNovoClienteOpen, setIsNovoClienteOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -93,12 +95,14 @@ export const ClientesPage: React.FC = () => {
           </p>
         </div>
 
-        <button
-          onClick={() => setIsNovoClienteOpen(true)}
-          className="uze-btn-primary text-xs"
-        >
-          <UserPlus size={14} /> Novo Cliente
-        </button>
+        {hasPermission('customers.create') && (
+          <button
+            onClick={() => setIsNovoClienteOpen(true)}
+            className="uze-btn-primary text-xs cursor-pointer"
+          >
+            <UserPlus size={14} /> Novo Cliente
+          </button>
+        )}
       </div>
 
       {/* Customers Table or Empty State */}

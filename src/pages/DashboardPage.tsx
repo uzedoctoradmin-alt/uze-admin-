@@ -73,7 +73,7 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <div className="space-y-5 sm:space-y-6 max-w-7xl mx-auto">
-      {/* Indicadores Principais (KPIs com dados reais ou zerados) */}
+      {/* Indicadores Principais (Composição Comercial para Vendedor vs Completa para Administrador) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatCard
           title="Faturamento"
@@ -97,16 +97,26 @@ export const DashboardPage: React.FC = () => {
           subtitle={dashboardMetrics.vendasCount > 0 ? `Faturamento ÷ ${dashboardMetrics.vendasCount} vendas` : "Média por pedido"}
         />
 
-        <StatCard
-          title="Lucro Estimado"
-          value={`R$ ${dashboardMetrics.lucroEstimado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-          subtitle={dashboardMetrics.lucroEstimado === 0 ? "Sem dados de margem" : undefined}
-          trend={dashboardMetrics.lucroEstimado > 0 ? 14.1 : undefined}
-          trendLabel={dashboardMetrics.lucroEstimado > 0 ? `Margem de ${dashboardMetrics.margemMedia.toFixed(1)}%` : undefined}
-        />
+        {dashboardMetrics.isCommercialOnly ? (
+          <StatCard
+            title="Peças Vendidas"
+            value={`${dashboardMetrics.produtosVendidos} un.`}
+            subtitle={dashboardMetrics.produtosVendidos > 0 ? "Volume total comercializado" : "Nenhuma peça faturada"}
+            trend={dashboardMetrics.produtosVendidos > 0 ? 10.4 : undefined}
+            trendLabel={dashboardMetrics.produtosVendidos > 0 ? "Volume de saída" : undefined}
+          />
+        ) : (
+          <StatCard
+            title="Lucro Estimado"
+            value={`R$ ${dashboardMetrics.lucroEstimado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+            subtitle={dashboardMetrics.lucroEstimado === 0 ? "Sem dados de margem" : undefined}
+            trend={dashboardMetrics.lucroEstimado > 0 ? 14.1 : undefined}
+            trendLabel={dashboardMetrics.lucroEstimado > 0 ? `Margem de ${dashboardMetrics.margemMedia.toFixed(1)}%` : undefined}
+          />
+        )}
       </div>
 
-      {/* Grid: Gráfico (8 colunas) + Situação do Estoque (4 colunas). No mobile: Gráfico primeiro, Estoque abaixo */}
+      {/* Grid: Gráfico (8 colunas) + Situação do Estoque (4 colunas) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 items-start">
         {/* Gráfico Principal (col-span-8) */}
         <div className="lg:col-span-8 bg-white border border-[#D0D5DD] rounded-lg p-4 sm:p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03)] overflow-hidden">
@@ -116,7 +126,7 @@ export const DashboardPage: React.FC = () => {
               <p className="text-xs text-[#475467] font-medium">Acompanhamento da receita ao longo do período selecionado</p>
             </div>
 
-            {/* Alternador de Métrica (Faturamento | Pedidos | Lucro) */}
+            {/* Alternador de Métrica (Faturamento | Pedidos | Lucro apenas se não for Vendedor) */}
             <div className="flex items-center gap-1 bg-[#F9FAFB] p-1 rounded-md border border-[#D0D5DD] self-start sm:self-auto">
               <button
                 onClick={() => setChartMetric('faturamento')}
@@ -138,16 +148,18 @@ export const DashboardPage: React.FC = () => {
               >
                 Pedidos
               </button>
-              <button
-                onClick={() => setChartMetric('lucro')}
-                className={`px-2.5 py-1 text-xs font-semibold rounded transition-colors ${
-                  chartMetric === 'lucro' 
-                    ? 'bg-[#173E75] text-white shadow-xs' 
-                    : 'text-[#344054] hover:text-[#101828] hover:bg-[#F2F4F7]'
-                }`}
-              >
-                Lucro
-              </button>
+              {!dashboardMetrics.isCommercialOnly && (
+                <button
+                  onClick={() => setChartMetric('lucro')}
+                  className={`px-2.5 py-1 text-xs font-semibold rounded transition-colors ${
+                    chartMetric === 'lucro' 
+                      ? 'bg-[#173E75] text-white shadow-xs' 
+                      : 'text-[#344054] hover:text-[#101828] hover:bg-[#F2F4F7]'
+                  }`}
+                >
+                  Lucro
+                </button>
+              )}
             </div>
           </div>
 

@@ -106,6 +106,35 @@ CREATE TABLE IF NOT EXISTS public.expenses (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- 8. TABELA DE USUÁRIOS (AUTENTICAÇÃO & RBAC)
+CREATE TABLE IF NOT EXISTS public.users (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  salt TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('ADMINISTRADOR', 'VENDEDOR', 'VISUALIZACAO')),
+  status TEXT NOT NULL DEFAULT 'Ativo' CHECK (status IN ('Ativo', 'Inativo', 'Bloqueado')),
+  must_change_password BOOLEAN NOT NULL DEFAULT true,
+  last_login_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  created_by TEXT
+);
+
+-- 9. TABELA DE AUDITORIA & SEGURANÇA (AUDIT LOGS)
+CREATE TABLE IF NOT EXISTS public.audit_logs (
+  id TEXT PRIMARY KEY,
+  actor_id TEXT NOT NULL,
+  actor_name TEXT NOT NULL,
+  actor_email TEXT NOT NULL,
+  action TEXT NOT NULL,
+  target_id TEXT,
+  target_name TEXT,
+  details JSONB,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
 -- ==============================================================================
 -- HABILITAR ROW LEVEL SECURITY (RLS) E POLÍTICAS DE ACESSO
 -- ==============================================================================
@@ -117,8 +146,10 @@ ALTER TABLE public.sales ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.stock_movements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.revenues ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.expenses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 
--- Políticas de acesso público/anon para o sistema ERP interno
+-- Políticas de acesso para a API
 DROP POLICY IF EXISTS "Public full access models" ON public.models;
 CREATE POLICY "Public full access models" ON public.models FOR ALL USING (true) WITH CHECK (true);
 
@@ -140,8 +171,17 @@ CREATE POLICY "Public full access revenues" ON public.revenues FOR ALL USING (tr
 DROP POLICY IF EXISTS "Public full access expenses" ON public.expenses;
 CREATE POLICY "Public full access expenses" ON public.expenses FOR ALL USING (true) WITH CHECK (true);
 
--- Índices de performance
+DROP POLICY IF EXISTS "Public full access users" ON public.users;
+CREATE POLICY "Public full access users" ON public.users FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Public full access audit_logs" ON public.audit_logs;
+CREATE POLICY "Public full access audit_logs" ON public.audit_logs FOR ALL USING (true) WITH CHECK (true);
+
+-- Índices de performance e unicidade case-insensitive
 CREATE INDEX IF NOT EXISTS idx_variants_model_id ON public.variants(model_id);
 CREATE INDEX IF NOT EXISTS idx_variants_sku ON public.variants(sku);
 CREATE INDEX IF NOT EXISTS idx_sales_customer_id ON public.sales(customer_id);
 CREATE INDEX IF NOT EXISTS idx_stock_movements_variant ON public.stock_movements(variant_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_lower ON public.users (LOWER(email));
+CREATE INDEX IF NOT EXISTS idx_audit_logs_actor ON public.audit_logs(actor_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON public.audit_logs(created_at);

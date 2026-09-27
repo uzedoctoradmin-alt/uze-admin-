@@ -156,4 +156,67 @@ export type ViewTab =
   | 'financeiro-despesas'
   | 'relatorio-mensal'
   | 'desempenho'
-  | 'configuracoes';
+  | 'configuracoes'
+  | 'administracao';
+
+// ==========================================
+// AUTENTICAÇÃO E CONTROLE DE ACESSO (RBAC)
+// ==========================================
+
+export type UserRole = 'ADMINISTRADOR' | 'VENDEDOR' | 'VISUALIZACAO';
+export type UserStatus = 'Ativo' | 'Inativo' | 'Bloqueado';
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  status: UserStatus;
+  mustChangePassword: boolean;
+  lastLoginAt?: string;
+  createdAt: string;
+  updatedAt?: string;
+  createdBy?: string;
+}
+
+export interface DatabaseUser extends User {
+  passwordHash: string;
+  salt: string;
+}
+
+export type Permission = 
+  | 'dashboard.read'
+  | 'dashboard.financial.read'
+  | 'sales.read'
+  | 'sales.create'
+  | 'sales.edit'
+  | 'customers.read'
+  | 'customers.create'
+  | 'customers.edit'
+  | 'products.read'
+  | 'products.create'
+  | 'products.edit'
+  | 'products.cost.read'
+  | 'inventory.read'
+  | 'inventory.adjust'
+  | 'movements.read'
+  | 'finance.read'
+  | 'finance.manage'
+  | 'reports.read'
+  | 'reports.financial.read'
+  | 'admin.users.manage'
+  | 'admin.logs.read'
+  | 'settings.manage';
+
+export interface AuditLog {
+  id: string;
+  actorId: string;
+  actorName: string;
+  actorEmail: string;
+  action: string;
+  targetId?: string;
+  targetName?: string;
+  details?: Record<string, any>;
+  createdAt: string;
+}
+

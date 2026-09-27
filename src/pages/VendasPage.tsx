@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useERP } from '../context/ERPContext';
+import { useAuth } from '../context/AuthContext';
 import type { Column } from '../components/common/DataTable';
 import { DataTable } from '../components/common/DataTable';
 import type { Sale, SaleStatus } from '../types';
@@ -11,6 +12,7 @@ import { Modal } from '../components/common/Modal';
 
 export const VendasPage: React.FC = () => {
   const { filteredSales, dashboardMetrics, updateSaleStatus } = useERP();
+  const { hasPermission } = useAuth();
 
   const [isNovaVendaOpen, setIsNovaVendaOpen] = useState(false);
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
@@ -108,12 +110,14 @@ export const VendasPage: React.FC = () => {
           </p>
         </div>
 
-        <button
-          onClick={() => setIsNovaVendaOpen(true)}
-          className="uze-btn-primary text-xs"
-        >
-          <Plus size={14} /> Nova Venda
-        </button>
+        {hasPermission('sales.create') && (
+          <button
+            onClick={() => setIsNovaVendaOpen(true)}
+            className="uze-btn-primary text-xs cursor-pointer"
+          >
+            <Plus size={14} /> Nova Venda
+          </button>
+        )}
       </div>
 
       {/* Top 4 KPI Cards */}
@@ -262,7 +266,7 @@ export const VendasPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#D0D5DD]">
-                    {selectedSale.items.map((item, idx) => (
+                    {selectedSale.items.map((item: any, idx: number) => (
                       <tr key={idx}>
                         <td className="p-2 font-medium text-[#101828]">{item.productName} ({item.colorName} - {item.size})</td>
                         <td className="p-2 font-mono text-[10px] text-[#344054] font-semibold">{item.sku}</td>
@@ -279,8 +283,12 @@ export const VendasPage: React.FC = () => {
             <div className="grid grid-cols-2 gap-3">
               <div className="p-3 bg-[#F9FAFB] rounded border border-[#D0D5DD] space-y-1">
                 <p className="font-bold text-[#101828]">Forma: <span className="text-[#173E75]">{selectedSale.paymentMethod}</span></p>
-                <p className="text-[#475467] font-medium">Custo Peças: R$ {selectedSale.totalCost.toFixed(2)}</p>
-                <p className="text-[#027A48] font-bold">Lucro Líquido: R$ {selectedSale.estimatedProfit.toFixed(2)}</p>
+                {hasPermission('finance.read') && (
+                  <>
+                    <p className="text-[#475467] font-medium">Custo Peças: R$ {selectedSale.totalCost.toFixed(2)}</p>
+                    <p className="text-[#027A48] font-bold">Lucro Líquido: R$ {selectedSale.estimatedProfit.toFixed(2)}</p>
+                  </>
+                )}
               </div>
 
               <div className="p-3 bg-[#07101F] text-white rounded border border-slate-800 space-y-1 text-right">

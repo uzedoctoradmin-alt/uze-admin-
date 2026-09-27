@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useERP } from '../context/ERPContext';
+import { useAuth } from '../context/AuthContext';
 import type { Column } from '../components/common/DataTable';
 import { DataTable } from '../components/common/DataTable';
 import type { ProductVariant } from '../types';
@@ -11,6 +12,10 @@ import { ProductImage } from '../components/common/ProductImage';
 
 export const EstoquePage: React.FC = () => {
   const { variants, models, setCurrentTab } = useERP();
+  const { hasPermission } = useAuth();
+
+  const canReadCosts = hasPermission('products.cost.read');
+  const canAdjustInventory = hasPermission('inventory.adjust');
 
   const [isAjustarOpen, setIsAjustarOpen] = useState(false);
   const [targetVariantId, setTargetVariantId] = useState<string | undefined>(undefined);
@@ -122,35 +127,39 @@ export const EstoquePage: React.FC = () => {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setCurrentTab('movimentacoes')}
-            className="uze-btn-secondary text-xs"
+            className="uze-btn-secondary text-xs cursor-pointer"
           >
             <ArrowLeftRight size={13} /> Movimentações
           </button>
-          <button
-            onClick={() => {
-              setTargetVariantId(undefined);
-              setIsAjustarOpen(true);
-            }}
-            className="uze-btn-primary text-xs"
-          >
-            <Edit3 size={13} /> Ajustar Estoque
-          </button>
+          {canAdjustInventory && (
+            <button
+              onClick={() => {
+                setTargetVariantId(undefined);
+                setIsAjustarOpen(true);
+              }}
+              className="uze-btn-primary text-xs cursor-pointer"
+            >
+              <Edit3 size={13} /> Ajustar Estoque
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Top 5 KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+      {/* KPI Cards (4 cards para Vendedor sem custos vs 5 cards completos) */}
+      <div className={`grid grid-cols-1 sm:grid-cols-2 ${canReadCosts ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-3.5`}>
         <StatCard
           title="Total de Peças"
           value={`${totalUnits} un`}
           subtitle="Inventário físico"
         />
 
-        <StatCard
-          title="Valor de Custo"
-          value={`R$ ${costValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-          subtitle="Investimento em estoque"
-        />
+        {canReadCosts && (
+          <StatCard
+            title="Valor de Custo"
+            value={`R$ ${costValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+            subtitle="Investimento em estoque"
+          />
+        )}
 
         <StatCard
           title="Potencial de Venda"

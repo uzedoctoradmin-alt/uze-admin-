@@ -25,6 +25,7 @@ import {
 
 import { supabaseService } from '../services/supabaseService';
 import { checkSupabaseHealth, type SupabaseHealth } from '../services/supabase';
+import { useAuth } from './AuthContext';
 
 interface DashboardMetrics {
   faturamento: number;
@@ -36,12 +37,13 @@ interface DashboardMetrics {
   margemMedia: number;
   produtosVendidos: number;
   custoTotalVendas: number;
+  isCommercialOnly?: boolean;
 }
 
 export type SupabaseStatus = 'connecting' | 'connected' | 'needs_tables' | 'error' | 'disconnected';
 
 interface ERPContextType {
-  // State
+  // State (Sanitizado de acordo com o perfil autenticado)
   models: ProductModel[];
   variants: ProductVariant[];
   customers: Customer[];
@@ -61,7 +63,7 @@ interface ERPContextType {
   isLoadingData: boolean;
   refreshData: () => Promise<void>;
 
-  // Setters & Actions
+  // Setters & Actions (Protegidos por RBAC)
   setPeriodFilter: (filter: PeriodFilter) => void;
   setCurrentTab: (tab: ViewTab) => void;
   setSearchQuery: (query: string) => void;
@@ -93,13 +95,16 @@ interface ERPContextType {
 const ERPContext = createContext<ERPContextType | undefined>(undefined);
 
 export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [models, setModels] = useState<ProductModel[]>(INITIAL_MODELS);
-  const [variants, setVariants] = useState<ProductVariant[]>(INITIAL_VARIANTS);
-  const [customers, setCustomers] = useState<Customer[]>(INITIAL_CUSTOMERS);
-  const [sales, setSales] = useState<Sale[]>(INITIAL_SALES);
-  const [movements, setMovements] = useState<StockMovement[]>(INITIAL_MOVEMENTS);
-  const [revenues, setRevenues] = useState<Revenue[]>(INITIAL_REVENUES);
-  const [expenses, setExpenses] = useState<Expense[]>(INITIAL_EXPENSES);
+  const { user, hasPermission } = useAuth();
+
+  const [rawModels, setRawModels] = useState<ProductModel[]>(INITIAL_MODELS);
+  const [rawVariants, setRawVariants] = useState<ProductVariant[]>(INITIAL_VARIANTS);
+  const [rawCustomers, setRawCustomers] = useState<Customer[]>(INITIAL_CUSTOMERS);
+  const [rawSales, setRawSales] = useState<Sale[]>(INITIAL_SALES);
+  const [rawMovements, setRawMovements] = useState<StockMovement[]>(INITIAL_MOVEMENTS);
+  const [rawRevenues, setRawRevenues] = useState<Revenue[]>(INITIAL_REVENUES);
+  const [rawExpenses, setRawExpenses] = useState<Expense[]>(INITIAL_EXPENSES);
+  
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('Este mês');
   const [currentTab, setCurrentTab] = useState<ViewTab>('dashboard');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -159,13 +164,13 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           supabaseService.fetchExpenses(),
         ]);
 
-        if (remoteModels !== null) setModels(remoteModels);
-        if (remoteVariants !== null) setVariants(remoteVariants);
-        if (remoteCustomers !== null) setCustomers(remoteCustomers);
-        if (remoteSales !== null) setSales(remoteSales);
-        if (remoteMovements !== null) setMovements(remoteMovements);
-        if (remoteRevenues !== null) setRevenues(remoteRevenues);
-        if (remoteExpenses !== null) setExpenses(remoteExpenses);
+        if (remoteModels !== null) setRawModels(remoteModels);
+        if (remoteVariants !== null) setRawVariants(remoteVariants);
+        if (remoteCustomers !== null) setRawCustomers(remoteCustomers);
+        if (remoteSales !== null) setRawSales(remoteSales);
+        if (remoteMovements !== null) setRawMovements(remoteMovements);
+        if (remoteRevenues !== null) setRawRevenues(remoteRevenues);
+        if (remoteExpenses !== null) setRawExpenses(remoteExpenses);
       }
     } catch (err) {
       console.warn('[ERPContext] Error syncing with Supabase:', err);
@@ -179,9 +184,70 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     refreshData();
   }, [refreshData]);
 
-  // Add Sale Workflow: automatically adjusts stock, creates logs & revenue + syncs with Supabase
+  // ============================================================================
+  // RBAC DATA SANITIZATION (Vendedor NÃO recebe custos nem lucros)
+  // ============================================================================
+  const isSeller = user?.role === 'VENDEDOR';
+  const canReadCosts = hasPermission('products.cost.read');
+  const canReadFinance = hasPermission('finance.read');
+
+  const models = useMemo<ProductModel[]>(() => {
+    if (!canReadCosts) {
+      return rawModels.map(m => ({
+        ...m,
+        baseCost: 0,
+      }));
+    }
+    return rawModels;
+  }, [rawModels, canReadCosts]);
+
+  const variants = useMemo<ProductVariant[]>(() => {
+    return rawVariants;
+  }, [rawVariants]);
+
+  const customers = useMemo<Customer[]>(() => {
+    return rawCustomers;
+  }, [rawCustomers]);
+
+  const sales = useMemo<Sale[]>(() => {
+    if (isSeller) {
+      return rawSales.map(s => ({
+        ...s,
+        totalCost: 0,
+        estimatedProfit: 0,
+        items: s.items.map(item => ({
+          ...item,
+          unitCost: 0,
+        })),
+      }));
+    }
+    return rawSales;
+  }, [rawSales, isSeller]);
+
+  const movements = useMemo<StockMovement[]>(() => {
+    return rawMovements;
+  }, [rawMovements]);
+
+  const revenues = useMemo<Revenue[]>(() => {
+    if (!canReadFinance) return [];
+    return rawRevenues;
+  }, [rawRevenues, canReadFinance]);
+
+  const expenses = useMemo<Expense[]>(() => {
+    if (!canReadFinance) return [];
+    return rawExpenses;
+  }, [rawExpenses, canReadFinance]);
+
+  // ============================================================================
+  // MUTATIONS (PROTEGIDAS CONTRA MANIPULAÇÃO DE FRONTEND / RBAC ENFORCEMENT)
+  // ============================================================================
+
   const addSale = (saleData: Omit<Sale, 'id' | 'date'>): Sale => {
-    const saleId = `#${String(sales.length + 185).padStart(5, '0')}`;
+    if (!hasPermission('sales.create')) {
+      throw new Error('403 Forbidden: Usuário não tem permissão para cadastrar vendas.');
+    }
+
+    const saleId = `#${String(rawSales.length + 185).padStart(5, '0')}`;
     const nowStr = new Date().toISOString().replace('T', ' ').slice(0, 16);
     
     const newSale: Sale = {
@@ -190,12 +256,12 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       date: nowStr,
     };
 
-    setSales(prev => [newSale, ...prev]);
+    setRawSales(prev => [newSale, ...prev]);
 
     // Update variant stocks & log movements
     newSale.items.forEach(item => {
       let updatedStock = 0;
-      setVariants(prevVariants => 
+      setRawVariants(prevVariants => 
         prevVariants.map(v => {
           if (v.id === item.variantId) {
             updatedStock = Math.max(0, v.currentStock - item.quantity);
@@ -217,17 +283,16 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         type: 'Venda',
         quantity: -item.quantity,
         reason: `Venda ${saleId} registrada`,
-        user: 'Sistema ERP',
+        user: user?.name || 'Sistema ERP',
       };
 
-      setMovements(prev => [newMovement, ...prev]);
+      setRawMovements(prev => [newMovement, ...prev]);
 
-      // Sync movement & stock update to Supabase
       supabaseService.insertMovement(newMovement);
       supabaseService.updateVariantStock(item.variantId, updatedStock);
     });
 
-    // Create automated revenue record if payment is made/pending
+    // Create automated revenue record
     if (newSale.status !== 'Cancelado' && newSale.status !== 'Orçamento') {
       const newRevenue: Revenue = {
         id: `rev-${Date.now()}`,
@@ -238,18 +303,18 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         amount: newSale.total,
         paymentMethod: newSale.paymentMethod,
       };
-      setRevenues(prev => [newRevenue, ...prev]);
+      setRawRevenues(prev => [newRevenue, ...prev]);
       supabaseService.insertRevenue(newRevenue);
     }
 
     // Update customer stats
-    const targetCustomer = customers.find(c => c.id === newSale.customerId);
+    const targetCustomer = rawCustomers.find(c => c.id === newSale.customerId);
     if (targetCustomer) {
       const updatedTotalOrders = targetCustomer.totalOrders + 1;
       const updatedTotalSpent = targetCustomer.totalSpent + newSale.total;
       const todayDate = nowStr.split(' ')[0];
 
-      setCustomers(prev => 
+      setRawCustomers(prev => 
         prev.map(c => {
           if (c.id === newSale.customerId) {
             return {
@@ -266,14 +331,15 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       supabaseService.updateCustomerStats(targetCustomer.id, todayDate, updatedTotalOrders, updatedTotalSpent);
     }
 
-    // Sync Sale to Supabase
     supabaseService.insertSale(newSale);
-
     return newSale;
   };
 
   const updateSaleStatus = (saleId: string, newStatus: SaleStatus) => {
-    setSales(prev => 
+    if (!hasPermission('sales.edit')) {
+      throw new Error('403 Forbidden: Usuário não tem permissão para alterar vendas.');
+    }
+    setRawSales(prev => 
       prev.map(s => s.id === saleId ? { ...s, status: newStatus } : s)
     );
     supabaseService.updateSaleStatus(saleId, newStatus);
@@ -283,7 +349,11 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     modelData: Omit<ProductModel, 'id' | 'createdAt'>, 
     variantsData: Array<Omit<ProductVariant, 'id' | 'modelId'>>
   ) => {
-    const modelId = `mod-${String(models.length + 1).padStart(3, '0')}`;
+    if (!hasPermission('products.create')) {
+      throw new Error('403 Forbidden: Usuário não tem permissão para cadastrar modelos.');
+    }
+
+    const modelId = `mod-${String(rawModels.length + 1).padStart(3, '0')}`;
     const newModel: ProductModel = {
       ...modelData,
       id: modelId,
@@ -296,21 +366,24 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       modelId: modelId,
     }));
 
-    setModels(prev => [...prev, newModel]);
-    setVariants(prev => [...prev, ...newVariants]);
+    setRawModels(prev => [...prev, newModel]);
+    setRawVariants(prev => [...prev, ...newVariants]);
 
-    // Sync Model & Variants to Supabase
     supabaseService.insertModel(newModel, newVariants);
   };
 
   const updateVariantStock = (variantId: string, newQty: number, type: MovementType, reason: string) => {
-    const targetVariant = variants.find(v => v.id === variantId);
+    if (!hasPermission('inventory.adjust')) {
+      throw new Error('403 Forbidden: Usuário não tem permissão para ajustar estoque.');
+    }
+
+    const targetVariant = rawVariants.find(v => v.id === variantId);
     if (!targetVariant) return;
 
     const diff = newQty - targetVariant.currentStock;
-    const model = models.find(m => m.id === targetVariant.modelId);
+    const model = rawModels.find(m => m.id === targetVariant.modelId);
 
-    setVariants(prev => 
+    setRawVariants(prev => 
       prev.map(v => v.id === variantId ? { ...v, currentStock: newQty } : v)
     );
 
@@ -325,25 +398,28 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       type,
       quantity: diff,
       reason,
-      user: 'Operador ERP',
+      user: user?.name || 'Operador ERP',
     };
 
-    setMovements(prev => [newMovement, ...prev]);
+    setRawMovements(prev => [newMovement, ...prev]);
 
-    // Sync to Supabase
     supabaseService.updateVariantStock(variantId, newQty);
     supabaseService.insertMovement(newMovement);
   };
 
   const addStockMovement = (variantId: string, type: MovementType, qty: number, reason: string) => {
-    const targetVariant = variants.find(v => v.id === variantId);
+    if (!hasPermission('inventory.adjust')) {
+      throw new Error('403 Forbidden: Usuário não tem permissão para registrar movimentações.');
+    }
+
+    const targetVariant = rawVariants.find(v => v.id === variantId);
     if (!targetVariant) return;
 
     const delta = (type === 'Venda' || type === 'Perda') ? -Math.abs(qty) : Math.abs(qty);
     const newStock = Math.max(0, targetVariant.currentStock + delta);
-    const model = models.find(m => m.id === targetVariant.modelId);
+    const model = rawModels.find(m => m.id === targetVariant.modelId);
 
-    setVariants(prev => 
+    setRawVariants(prev => 
       prev.map(v => v.id === variantId ? { ...v, currentStock: newStock } : v)
     );
 
@@ -358,52 +434,63 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       type,
       quantity: delta,
       reason,
-      user: 'Operador ERP',
+      user: user?.name || 'Operador ERP',
     };
 
-    setMovements(prev => [newMovement, ...prev]);
+    setRawMovements(prev => [newMovement, ...prev]);
 
-    // Sync to Supabase
     supabaseService.updateVariantStock(variantId, newStock);
     supabaseService.insertMovement(newMovement);
   };
 
   const addCustomer = (customerData: Omit<Customer, 'id' | 'firstPurchaseDate' | 'lastPurchaseDate' | 'totalOrders' | 'totalSpent'>): Customer => {
+    if (!hasPermission('customers.create')) {
+      throw new Error('403 Forbidden: Usuário não tem permissão para cadastrar clientes.');
+    }
+
     const todayStr = new Date().toISOString().split('T')[0];
     const newCustomer: Customer = {
       ...customerData,
-      id: `cust-${String(customers.length + 1).padStart(3, '0')}`,
+      id: `cust-${String(rawCustomers.length + 1).padStart(3, '0')}`,
       firstPurchaseDate: todayStr,
       lastPurchaseDate: todayStr,
       totalOrders: 0,
       totalSpent: 0,
     };
-    setCustomers(prev => [...prev, newCustomer]);
+    setRawCustomers(prev => [...prev, newCustomer]);
     supabaseService.insertCustomer(newCustomer);
     return newCustomer;
   };
 
   const addRevenue = (revenueData: Omit<Revenue, 'id'>): Revenue => {
+    if (!hasPermission('finance.manage')) {
+      throw new Error('403 Forbidden: Usuário não tem permissão para lançar receitas.');
+    }
+
     const newRev: Revenue = {
       ...revenueData,
       id: `rev-${Date.now()}`,
     };
-    setRevenues(prev => [newRev, ...prev]);
+    setRawRevenues(prev => [newRev, ...prev]);
     supabaseService.insertRevenue(newRev);
     return newRev;
   };
 
   const addExpense = (expenseData: Omit<Expense, 'id'>): Expense => {
+    if (!hasPermission('finance.manage')) {
+      throw new Error('403 Forbidden: Usuário não tem permissão para lançar despesas.');
+    }
+
     const newExp: Expense = {
       ...expenseData,
       id: `exp-${Date.now()}`,
     };
-    setExpenses(prev => [newExp, ...prev]);
+    setRawExpenses(prev => [newExp, ...prev]);
     supabaseService.insertExpense(newExp);
     return newExp;
   };
 
-  // Filter Sales according to selected PeriodFilter
+  // Filter Sales according to selected PeriodFilter and Search
   const filteredSales = useMemo(() => {
     return sales.filter(s => {
       if (searchQuery) {
@@ -425,13 +512,10 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return expenses;
   }, [expenses]);
 
-  // Dashboard Metrics Calculation
+  // Dashboard Metrics Calculation (Composiçâo Comercial para Vendedor vs Administrativa Completa)
   const dashboardMetrics: DashboardMetrics = useMemo(() => {
     const completedSales = filteredSales.filter(s => s.status !== 'Cancelado');
     const faturamento = completedSales.reduce((acc, s) => acc + s.total, 0);
-    const custoTotalVendas = completedSales.reduce((acc, s) => acc + s.totalCost, 0);
-    const lucroEstimado = faturamento - custoTotalVendas;
-    const margemMedia = faturamento > 0 ? (lucroEstimado / faturamento) * 100 : 0;
     const vendasCount = completedSales.length;
     const ticketMedio = vendasCount > 0 ? faturamento / vendasCount : 0;
     const produtosVendidos = completedSales.reduce((acc, s) => 
@@ -440,6 +524,26 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const faturamentoPrevious = faturamento * 0.88;
     const vendasPreviousCount = Math.round(vendasCount * 0.9);
+
+    // Se o usuário for vendedor, BLOQUEIA cálculos estratégicos de custo, lucro e margem
+    if (isSeller) {
+      return {
+        faturamento,
+        faturamentoPrevious,
+        vendasCount,
+        vendasPreviousCount,
+        ticketMedio,
+        lucroEstimado: 0,
+        margemMedia: 0,
+        produtosVendidos,
+        custoTotalVendas: 0,
+        isCommercialOnly: true,
+      };
+    }
+
+    const custoTotalVendas = completedSales.reduce((acc, s) => acc + s.totalCost, 0);
+    const lucroEstimado = faturamento - custoTotalVendas;
+    const margemMedia = faturamento > 0 ? (lucroEstimado / faturamento) * 100 : 0;
 
     return {
       faturamento,
@@ -451,8 +555,9 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       margemMedia,
       produtosVendidos,
       custoTotalVendas,
+      isCommercialOnly: false,
     };
-  }, [filteredSales]);
+  }, [filteredSales, isSeller]);
 
   return (
     <ERPContext.Provider value={{

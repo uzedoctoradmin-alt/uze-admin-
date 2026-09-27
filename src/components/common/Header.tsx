@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useERP } from '../../context/ERPContext';
+import { useAuth } from '../../context/AuthContext';
 import type { PeriodFilter } from '../../types';
 import { 
   Search, 
@@ -10,7 +11,8 @@ import {
   Cross, 
   PanelLeftClose, 
   PanelLeftOpen,
-  X
+  X,
+  LogOut
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -29,6 +31,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNovaVendaModal }) => {
     setIsMobileSidebarOpen,
     supabaseStatus
   } = useERP();
+
+  const { user, hasPermission, logout } = useAuth();
 
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
 
@@ -67,6 +71,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNovaVendaModal }) => {
         return { title: 'Desempenho', subtitle: 'Ranking de modelos e produtos mais vendidos' };
       case 'configuracoes':
         return { title: 'Configurações', subtitle: 'Parâmetros empresariais e regras do sistema' };
+      case 'administracao':
+        return { title: 'Administração & Usuários', subtitle: 'Gestão de acessos, contas e auditoria de segurança' };
       default:
         return { title: 'Visão Geral', subtitle: 'Acompanhe o desempenho da UZE DOCTOR' };
     }
@@ -200,20 +206,22 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNovaVendaModal }) => {
           </select>
         </div>
 
-        {/* Primary Action Button: Nova Venda (Responsive) */}
-        <button
-          onClick={onOpenNovaVendaModal}
-          className="uze-btn-primary h-8 px-2.5 sm:px-3.5 text-xs shadow-xs shrink-0 flex items-center gap-1.5"
-          title="Registrar nova venda"
-        >
-          <Plus size={14} />
-          <span className="hidden sm:inline">Nova venda</span>
-          <span className="sm:hidden text-[11px] font-semibold">Venda</span>
-        </button>
+        {/* Primary Action Button: Nova Venda (Somente para perfis com permissão sales.create) */}
+        {hasPermission('sales.create') && (
+          <button
+            onClick={onOpenNovaVendaModal}
+            className="uze-btn-primary h-8 px-2.5 sm:px-3.5 text-xs shadow-xs shrink-0 flex items-center gap-1.5 cursor-pointer"
+            title="Registrar nova venda"
+          >
+            <Plus size={14} />
+            <span className="hidden sm:inline">Nova venda</span>
+            <span className="sm:hidden text-[11px] font-semibold">Venda</span>
+          </button>
+        )}
 
         {/* Notifications */}
         <button 
-          className="h-8 w-8 flex items-center justify-center text-[#475467] hover:text-[#101828] hover:bg-[#F2F4F7] rounded-md transition-colors relative shrink-0"
+          className="h-8 w-8 flex items-center justify-center text-[#475467] hover:text-[#101828] hover:bg-[#F2F4F7] rounded-md transition-colors relative shrink-0 cursor-pointer"
           title="Notificações"
           aria-label="Notificações"
         >
@@ -221,15 +229,30 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNovaVendaModal }) => {
           <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[#C69A43] rounded-full" />
         </button>
 
-        {/* Profile Avatar */}
+        {/* Profile Avatar & Quick Logout */}
         <div className="flex items-center gap-2 pl-1 sm:pl-2 border-l border-[#D0D5DD] shrink-0">
-          <div className="w-7 h-7 rounded-full bg-[#07101F] text-[#C69A43] flex items-center justify-center text-[10px] font-bold border border-[#C69A43]/40">
-            UD
+          <div 
+            className="w-7 h-7 rounded-full bg-[#07101F] text-[#C69A43] flex items-center justify-center text-[10px] font-bold border border-[#C69A43]/40"
+            title={user ? `${user.name} (${user.role})` : 'Usuário'}
+          >
+            {user ? user.name.slice(0, 2).toUpperCase() : 'UD'}
           </div>
           <div className="hidden xl:block text-left">
-            <p className="text-xs font-bold text-[#101828] leading-none">Diretoria</p>
-            <p className="text-[10px] text-[#475467] font-medium leading-none mt-0.5">UZE DOCTOR</p>
+            <p className="text-xs font-bold text-[#101828] leading-none truncate max-w-[120px]">
+              {user ? user.name : 'Diretoria'}
+            </p>
+            <p className="text-[10px] text-[#475467] font-semibold leading-none mt-0.5 capitalize">
+              {user ? user.role.toLowerCase() : 'UZE DOCTOR'}
+            </p>
           </div>
+          <button
+            onClick={logout}
+            className="p-1 text-[#475467] hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors ml-1 cursor-pointer"
+            title="Sair do sistema"
+            aria-label="Sair"
+          >
+            <LogOut size={15} />
+          </button>
         </div>
       </div>
 

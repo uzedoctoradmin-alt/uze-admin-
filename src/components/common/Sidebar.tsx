@@ -1,5 +1,6 @@
 import React from 'react';
 import { useERP } from '../../context/ERPContext';
+import { useAuth } from '../../context/AuthContext';
 import type { ViewTab } from '../../types';
 import { 
   LayoutDashboard, 
@@ -18,7 +19,9 @@ import {
   X,
   Cross,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  ShieldCheck,
+  LogOut
 } from 'lucide-react';
 
 interface NavGroup {
@@ -27,6 +30,7 @@ interface NavGroup {
     tab: ViewTab;
     label: string;
     icon: React.ElementType;
+    requiredPermission?: string;
   }[];
 }
 
@@ -40,7 +44,9 @@ export const Sidebar: React.FC = () => {
     setIsMobileSidebarOpen 
   } = useERP();
 
-  const navGroups: NavGroup[] = [
+  const { user, hasPermission, logout } = useAuth();
+
+  const allNavGroups: NavGroup[] = [
     {
       items: [
         { tab: 'dashboard', label: 'Visão Geral', icon: LayoutDashboard },
@@ -65,9 +71,9 @@ export const Sidebar: React.FC = () => {
     {
       groupLabel: 'Financeiro',
       items: [
-        { tab: 'financeiro-visao', label: 'Visão Financeira', icon: DollarSign },
-        { tab: 'financeiro-receitas', label: 'Receitas', icon: ArrowUpRight },
-        { tab: 'financeiro-despesas', label: 'Despesas', icon: ArrowDownLeft },
+        { tab: 'financeiro-visao', label: 'Visão Financeira', icon: DollarSign, requiredPermission: 'finance.read' },
+        { tab: 'financeiro-receitas', label: 'Receitas', icon: ArrowUpRight, requiredPermission: 'finance.read' },
+        { tab: 'financeiro-despesas', label: 'Despesas', icon: ArrowDownLeft, requiredPermission: 'finance.read' },
       ],
     },
     {
@@ -78,16 +84,41 @@ export const Sidebar: React.FC = () => {
       ],
     },
     {
-      groupLabel: 'Sistema',
+      groupLabel: 'Administração',
       items: [
-        { tab: 'configuracoes', label: 'Configurações', icon: Settings },
+        { tab: 'administracao', label: 'Administração', icon: ShieldCheck, requiredPermission: 'admin.users.manage' },
+        { tab: 'configuracoes', label: 'Configurações', icon: Settings, requiredPermission: 'settings.manage' },
       ],
     },
   ];
 
+  // Filtra itens de acordo com as permissões do perfil autenticado
+  const filteredNavGroups = allNavGroups
+    .map(group => ({
+      ...group,
+      items: group.items.filter(item => {
+        if (!item.requiredPermission) return true;
+        return hasPermission(item.requiredPermission as any);
+      }),
+    }))
+    .filter(group => group.items.length > 0);
+
   const handleSelectTab = (tab: ViewTab) => {
     setCurrentTab(tab);
     setIsMobileSidebarOpen(false);
+  };
+
+  const getRoleDisplayName = (role?: string) => {
+    switch (role) {
+      case 'ADMINISTRADOR':
+        return 'Administrador';
+      case 'VENDEDOR':
+        return 'Vendedor';
+      case 'VISUALIZACAO':
+        return 'Visualização';
+      default:
+        return 'Colaborador';
+    }
   };
 
   return (
@@ -101,14 +132,12 @@ export const Sidebar: React.FC = () => {
         />
       )}
 
-      {/* Main Sidebar (Desktop Collapsible & Mobile Slide-in Drawer) */}
+      {/* Main Sidebar */}
       <aside 
         className={`
           fixed top-0 bottom-0 left-0 z-50 bg-[#07101F] text-white flex flex-col border-r border-slate-800/80
           transition-[width,transform] duration-200 ease-in-out lg:static lg:z-auto shrink-0 select-none
-          ${/* Mobile drawer behavior */ ''}
           ${isMobileSidebarOpen ? 'translate-x-0 w-64 shadow-2xl' : '-translate-x-full lg:translate-x-0'}
-          ${/* Desktop collapsible width behavior */ ''}
           ${isSidebarCollapsed ? 'lg:w-[72px]' : 'lg:w-60'}
         `}
       >
@@ -138,11 +167,11 @@ export const Sidebar: React.FC = () => {
             )}
           </div>
 
-          {/* Desktop Toggle Button (Visible only when expanded on desktop) */}
+          {/* Desktop Toggle Button */}
           {!isSidebarCollapsed && (
             <button
               onClick={toggleSidebarCollapse}
-              className="hidden lg:flex items-center justify-center w-7 h-7 rounded text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+              className="hidden lg:flex items-center justify-center w-7 h-7 rounded text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
               title="Recolher menu lateral"
               aria-label="Recolher menu lateral"
             >
@@ -153,19 +182,19 @@ export const Sidebar: React.FC = () => {
           {/* Mobile Close Button */}
           <button 
             onClick={() => setIsMobileSidebarOpen(false)}
-            className="lg:hidden text-slate-300 hover:text-white p-1 rounded-md hover:bg-slate-800"
+            className="lg:hidden text-slate-300 hover:text-white p-1 rounded-md hover:bg-slate-800 cursor-pointer"
             aria-label="Fechar menu"
           >
             <X size={18} />
           </button>
         </div>
 
-        {/* Collapsed Toggle Button at the top bar when desktop is collapsed */}
+        {/* Collapsed Toggle Button */}
         {isSidebarCollapsed && (
           <div className="hidden lg:flex justify-center py-2 border-b border-slate-800/40">
             <button
               onClick={toggleSidebarCollapse}
-              className="w-8 h-7 rounded text-slate-300 hover:text-[#C69A43] hover:bg-slate-800 flex items-center justify-center transition-colors"
+              className="w-8 h-7 rounded text-slate-300 hover:text-[#C69A43] hover:bg-slate-800 flex items-center justify-center transition-colors cursor-pointer"
               title="Expandir menu lateral"
               aria-label="Expandir menu lateral"
             >
@@ -176,7 +205,7 @@ export const Sidebar: React.FC = () => {
 
         {/* Navigation Links */}
         <nav className={`flex-1 overflow-y-auto py-3 space-y-3 ${isSidebarCollapsed ? 'px-2' : 'px-3'}`}>
-          {navGroups.map((group, groupIdx) => (
+          {filteredNavGroups.map((group, groupIdx) => (
             <div key={groupIdx} className="space-y-1">
               {group.groupLabel && (
                 <>
@@ -201,7 +230,7 @@ export const Sidebar: React.FC = () => {
                     onClick={() => handleSelectTab(item.tab)}
                     title={isItemCollapsed ? item.label : undefined}
                     className={`
-                      w-full flex items-center rounded-md text-xs transition-all duration-150 relative group
+                      w-full flex items-center rounded-md text-xs transition-all duration-150 relative group cursor-pointer
                       ${isItemCollapsed ? 'justify-center h-10 px-0' : 'gap-2.5 px-3 py-2 text-left'}
                       ${isActive 
                         ? 'bg-[#173E75] text-white font-bold shadow-xs' 
@@ -218,7 +247,6 @@ export const Sidebar: React.FC = () => {
                       <span className="truncate">{item.label}</span>
                     )}
 
-                    {/* Active Accent Indicator */}
                     {isActive && (
                       <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-[#C69A43] rounded-r-full" />
                     )}
@@ -229,27 +257,51 @@ export const Sidebar: React.FC = () => {
           ))}
         </nav>
 
-        {/* Footer Brand Info */}
-        <div className={`py-3 border-t border-slate-800/60 bg-[#050C17] text-slate-300 text-xs ${
-          isSidebarCollapsed && !isMobileSidebarOpen 
-            ? 'px-2 flex flex-col items-center justify-center gap-1.5' 
-            : 'px-4 flex items-center justify-between'
-        }`}>
-          {(!isSidebarCollapsed || isMobileSidebarOpen) ? (
-            <>
-              <span className="text-[11px] font-semibold text-slate-300">UZE DOCTOR v1.0</span>
-              <div className="flex items-center gap-1.5" title="Sistema Online">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-emerald-400/20" />
-                <span className="text-[10px] text-emerald-300 font-bold">Online</span>
+        {/* User Profile & Logout Section */}
+        {user && (
+          <div className="border-t border-slate-800/80 p-2.5 bg-[#050C17]">
+            {(!isSidebarCollapsed || isMobileSidebarOpen) ? (
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-8 h-8 rounded-full bg-[#173E75] text-[#C69A43] flex items-center justify-center text-xs font-bold shrink-0 border border-[#C69A43]/40">
+                    {user.name.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-white truncate leading-none">{user.name}</p>
+                    <p className="text-[10px] text-[#C69A43] font-semibold mt-1 truncate">
+                      {getRoleDisplayName(user.role)}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={logout}
+                  className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-md transition-colors shrink-0 cursor-pointer"
+                  title="Sair do sistema (Logout)"
+                  aria-label="Sair"
+                >
+                  <LogOut size={16} />
+                </button>
               </div>
-            </>
-          ) : (
-            <div className="flex flex-col items-center gap-1" title="UZE DOCTOR v1.0 - Online">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-emerald-400/20" />
-              <span className="text-[9px] font-mono text-slate-400">v1.0</span>
-            </div>
-          )}
-        </div>
+            ) : (
+              <div className="flex flex-col items-center gap-2">
+                <div 
+                  className="w-8 h-8 rounded-full bg-[#173E75] text-[#C69A43] flex items-center justify-center text-xs font-bold border border-[#C69A43]/40 cursor-default"
+                  title={`${user.name} (${getRoleDisplayName(user.role)})`}
+                >
+                  {user.name.slice(0, 2).toUpperCase()}
+                </div>
+                <button
+                  onClick={logout}
+                  className="p-1 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded transition-colors cursor-pointer"
+                  title="Sair do sistema"
+                >
+                  <LogOut size={15} />
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </aside>
     </>
   );

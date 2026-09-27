@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useERP } from '../context/ERPContext';
+import { useAuth } from '../context/AuthContext';
 import { 
   Printer, 
   Calendar, 
@@ -14,9 +15,12 @@ import {
 
 export const RelatorioMensalPage: React.FC = () => {
   const { dashboardMetrics, models, variants, customers, expenses } = useERP();
+  const { hasPermission } = useAuth();
 
   const [selectedMonth, setSelectedMonth] = useState('09');
   const [selectedYear, setSelectedYear] = useState('2026');
+
+  const canReadFinance = hasPermission('finance.read');
 
   const topModel = models[0];
   const slowestModel = models[models.length - 1];
@@ -25,8 +29,8 @@ export const RelatorioMensalPage: React.FC = () => {
   const lowStockCount = variants.filter(v => v.currentStock > 0 && v.currentStock <= v.minStock).length;
   const totalStockUnits = variants.reduce((sum, v) => sum + v.currentStock, 0);
 
-  const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
-  const lucroLiquidoFinal = dashboardMetrics.lucroEstimado - totalExpenses;
+  const totalExpenses = canReadFinance ? expenses.reduce((sum, e) => sum + e.amount, 0) : 0;
+  const lucroLiquidoFinal = canReadFinance ? dashboardMetrics.lucroEstimado - totalExpenses : 0;
 
   const handlePrint = () => {
     window.print();
@@ -94,43 +98,73 @@ export const RelatorioMensalPage: React.FC = () => {
           </div>
         </div>
 
-        {/* 1. Resultado Geral */}
+        {/* 1. Resultado Geral (Financeiro se autorizado, Comercial se Vendedor) */}
         <div>
           <h3 className="text-xs font-bold text-[#101828] uppercase tracking-wider mb-2.5 flex items-center gap-1.5 pb-1 border-b border-[#D0D5DD]">
-            <TrendingUp size={14} className="text-[#173E75]" /> 1. Resultado Financeiro
+            <TrendingUp size={14} className="text-[#173E75]" /> 
+            {canReadFinance ? '1. Resultado Financeiro' : '1. Desempenho Comercial Consolidado'}
           </h3>
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 p-3.5 bg-[#F9FAFB] rounded-lg border border-[#D0D5DD] text-xs">
-            <div>
-              <span className="text-[10px] text-[#344054] uppercase font-bold block">Faturamento</span>
-              <span className="font-black text-sm text-[#101828]">
-                R$ {dashboardMetrics.faturamento.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </span>
+          {canReadFinance ? (
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 p-3.5 bg-[#F9FAFB] rounded-lg border border-[#D0D5DD] text-xs">
+              <div>
+                <span className="text-[10px] text-[#344054] uppercase font-bold block">Faturamento</span>
+                <span className="font-black text-sm text-[#101828]">
+                  R$ {dashboardMetrics.faturamento.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] text-[#344054] uppercase font-bold block">Custos (CMV)</span>
+                <span className="font-semibold text-[#101828]">
+                  R$ {dashboardMetrics.custoTotalVendas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] text-[#344054] uppercase font-bold block">Despesas</span>
+                <span className="font-bold text-[#B42318]">
+                  R$ {totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] text-[#344054] uppercase font-bold block">Lucro Líquido</span>
+                <span className="font-black text-sm text-[#027A48]">
+                  R$ {lucroLiquidoFinal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] text-[#344054] uppercase font-bold block">Margem Líquida</span>
+                <span className="font-black text-sm text-[#173E75]">
+                  {dashboardMetrics.faturamento > 0 ? ((lucroLiquidoFinal / dashboardMetrics.faturamento) * 100).toFixed(1) : 0}%
+                </span>
+              </div>
             </div>
-            <div>
-              <span className="text-[10px] text-[#344054] uppercase font-bold block">Custos (CMV)</span>
-              <span className="font-semibold text-[#101828]">
-                R$ {dashboardMetrics.custoTotalVendas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </span>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3.5 bg-[#F9FAFB] rounded-lg border border-[#D0D5DD] text-xs">
+              <div>
+                <span className="text-[10px] text-[#344054] uppercase font-bold block">Faturamento Comercial</span>
+                <span className="font-black text-sm text-[#101828]">
+                  R$ {dashboardMetrics.faturamento.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] text-[#344054] uppercase font-bold block">Pedidos Faturados</span>
+                <span className="font-black text-sm text-[#101828]">
+                  {dashboardMetrics.vendasCount} vendas
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] text-[#344054] uppercase font-bold block">Ticket Médio</span>
+                <span className="font-black text-sm text-[#173E75]">
+                  R$ {dashboardMetrics.ticketMedio.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] text-[#344054] uppercase font-bold block">Volume de Peças</span>
+                <span className="font-black text-sm text-[#101828]">
+                  {dashboardMetrics.produtosVendidos} unidades
+                </span>
+              </div>
             </div>
-            <div>
-              <span className="text-[10px] text-[#344054] uppercase font-bold block">Despesas</span>
-              <span className="font-bold text-[#B42318]">
-                R$ {totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </span>
-            </div>
-            <div>
-              <span className="text-[10px] text-[#344054] uppercase font-bold block">Lucro Líquido</span>
-              <span className="font-black text-sm text-[#027A48]">
-                R$ {lucroLiquidoFinal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </span>
-            </div>
-            <div>
-              <span className="text-[10px] text-[#344054] uppercase font-bold block">Margem Líquida</span>
-              <span className="font-black text-sm text-[#173E75]">
-                {dashboardMetrics.faturamento > 0 ? ((lucroLiquidoFinal / dashboardMetrics.faturamento) * 100).toFixed(1) : 0}%
-              </span>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* 2. Comercial */}

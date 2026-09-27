@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useERP } from '../context/ERPContext';
+import { useAuth } from '../context/AuthContext';
 import type { ProductModel } from '../types';
 import { Layers, Boxes } from 'lucide-react';
 import { Modal } from '../components/common/Modal';
@@ -8,6 +9,7 @@ import { NovoProdutoModal } from '../components/modals/NovoProdutoModal';
 
 export const ModelosPage: React.FC = () => {
   const { models, variants, sales } = useERP();
+  const { hasPermission } = useAuth();
   const [selectedModel, setSelectedModel] = useState<ProductModel | null>(null);
 
   const getModelMetrics = (modelId: string) => {
@@ -50,13 +52,15 @@ export const ModelosPage: React.FC = () => {
           </p>
         </div>
 
-        <button
-          onClick={() => setIsNovoModeloOpen(true)}
-          className="uze-btn-primary text-xs self-start sm:self-auto shadow-xs"
-        >
-          <Layers size={14} />
-          <span>Novo Modelo</span>
-        </button>
+        {hasPermission('products.create') && (
+          <button
+            onClick={() => setIsNovoModeloOpen(true)}
+            className="uze-btn-primary text-xs self-start sm:self-auto shadow-xs"
+          >
+            <Layers size={14} />
+            <span>Novo Modelo</span>
+          </button>
+        )}
       </div>
 
       {/* Visual Model Cards Grid or Empty State */}

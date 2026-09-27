@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useERP } from '../context/ERPContext';
+import { useAuth } from '../context/AuthContext';
 import type { ProductModel } from '../types';
 import { 
   Plus, 
@@ -16,6 +17,9 @@ import { Modal } from '../components/common/Modal';
 
 export const ProdutosPage: React.FC = () => {
   const { models, variants } = useERP();
+  const { hasPermission } = useAuth();
+
+  const canReadCosts = hasPermission('products.cost.read');
 
   const [isNovoProdutoOpen, setIsNovoProdutoOpen] = useState(false);
   const [selectedModel, setSelectedModel] = useState<ProductModel | null>(null);
@@ -118,12 +122,14 @@ export const ProdutosPage: React.FC = () => {
           </p>
         </div>
 
-        <button
-          onClick={() => setIsNovoProdutoOpen(true)}
-          className="uze-btn-primary text-xs self-start sm:self-auto shadow-xs"
-        >
-          <Plus size={14} /> Novo Produto
-        </button>
+        {hasPermission('products.create') && (
+          <button
+            onClick={() => setIsNovoProdutoOpen(true)}
+            className="uze-btn-primary text-xs self-start sm:self-auto shadow-xs"
+          >
+            <Plus size={14} /> Novo Produto
+          </button>
+        )}
       </div>
 
       {/* 2. Search & Discreet Filters Bar */}
@@ -194,7 +200,7 @@ export const ProdutosPage: React.FC = () => {
                 className="w-full h-8 text-xs bg-[#F9FAFB] border border-[#D0D5DD] rounded-md px-2 text-[#101828] font-medium outline-none cursor-pointer focus:border-[#173E75]"
               >
                 <option value="all">Todas as Categorias</option>
-                {categories.map((cat) => (
+                {categories.map((cat: string) => (
                   <option key={cat} value={cat}>
                     {cat}
                   </option>
@@ -213,7 +219,7 @@ export const ProdutosPage: React.FC = () => {
                 className="w-full h-8 text-xs bg-[#F9FAFB] border border-[#D0D5DD] rounded-md px-2 text-[#101828] font-medium outline-none cursor-pointer focus:border-[#173E75]"
               >
                 <option value="all">Todas as Coleções</option>
-                {collections.map((col) => (
+                {collections.map((col: string) => (
                   <option key={col} value={col}>
                     {col}
                   </option>
@@ -275,7 +281,7 @@ export const ProdutosPage: React.FC = () => {
             </button>
           </div>
         ) : (
-          filteredModels.map((model) => {
+          filteredModels.map((model: ProductModel) => {
             const stats = getModelStats(model.id);
             const margin = model.basePrice > 0 ? ((model.basePrice - model.baseCost) / model.basePrice) * 100 : 0;
 
@@ -316,7 +322,7 @@ export const ProdutosPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Center: Financial Metrics (Preço, Custo, Margem) */}
+                  {/* Center: Metrics (Preço para todos; Custo e Margem apenas para perfis autorizados) */}
                   <div className="flex items-center gap-6 lg:gap-8 px-4 border-x border-[#D0D5DD] shrink-0 text-center">
                     <div>
                       <span className="text-[10px] font-bold text-[#344054] uppercase tracking-wider block">
@@ -327,23 +333,27 @@ export const ProdutosPage: React.FC = () => {
                       </span>
                     </div>
 
-                    <div>
-                      <span className="text-[10px] font-bold text-[#344054] uppercase tracking-wider block">
-                        Custo
-                      </span>
-                      <span className="text-xs font-bold text-[#475467] whitespace-nowrap">
-                        R$ {model.baseCost.toFixed(2)}
-                      </span>
-                    </div>
+                    {canReadCosts && (
+                      <>
+                        <div>
+                          <span className="text-[10px] font-bold text-[#344054] uppercase tracking-wider block">
+                            Custo
+                          </span>
+                          <span className="text-xs font-bold text-[#475467] whitespace-nowrap">
+                            R$ {model.baseCost.toFixed(2)}
+                          </span>
+                        </div>
 
-                    <div>
-                      <span className="text-[10px] font-bold text-[#344054] uppercase tracking-wider block">
-                        Margem
-                      </span>
-                      <span className="text-xs font-black text-[#027A48] whitespace-nowrap">
-                        {margin.toFixed(1)}%
-                      </span>
-                    </div>
+                        <div>
+                          <span className="text-[10px] font-bold text-[#344054] uppercase tracking-wider block">
+                            Margem
+                          </span>
+                          <span className="text-xs font-black text-[#027A48] whitespace-nowrap">
+                            {margin.toFixed(1)}%
+                          </span>
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   {/* Right Side: Variants Count + Stock Units + Ver Detalhes Button */}
@@ -396,7 +406,7 @@ export const ProdutosPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Row 2: Price, Variants & Stock, Margin */}
+                  {/* Row 2: Price, Variants & Stock, Margin (if permitted) */}
                   <div className="bg-[#F9FAFB] p-2.5 rounded-md border border-[#D0D5DD] flex items-center justify-between text-xs">
                     <div>
                       <span className="text-[10px] text-[#344054] uppercase block font-bold">Preço</span>
@@ -410,10 +420,12 @@ export const ProdutosPage: React.FC = () => {
                       </span>
                     </div>
 
-                    <div className="text-right">
-                      <span className="text-[10px] text-[#344054] uppercase block font-bold">Margem</span>
-                      <span className="font-black text-[#027A48]">{margin.toFixed(1)}%</span>
-                    </div>
+                    {canReadCosts && (
+                      <div className="text-right">
+                        <span className="text-[10px] text-[#344054] uppercase block font-bold">Margem</span>
+                        <span className="font-black text-[#027A48]">{margin.toFixed(1)}%</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Row 3: Action Button */}
@@ -463,7 +475,9 @@ export const ProdutosPage: React.FC = () => {
                 <p className="text-[#344054] font-medium leading-relaxed">{selectedModel.description}</p>
                 <div className="flex flex-wrap items-center gap-4 pt-2 border-t border-[#D0D5DD] font-medium text-[#101828]">
                   <span>Preço de Venda: <strong className="text-[#101828] font-bold">R$ {selectedModel.basePrice.toFixed(2)}</strong></span>
-                  <span>Custo Unitário: <strong className="text-[#475467] font-semibold">R$ {selectedModel.baseCost.toFixed(2)}</strong></span>
+                  {canReadCosts && (
+                    <span>Custo Unitário: <strong className="text-[#475467] font-semibold">R$ {selectedModel.baseCost.toFixed(2)}</strong></span>
+                  )}
                   <span>Gênero: <strong className="text-[#101828] font-bold">{selectedModel.gender}</strong></span>
                   <span>SKU Base: <code className="font-mono text-[#173E75] font-bold bg-[#EFF4FF] px-1 py-0.5 rounded border border-[#D0D5DD]">{selectedModel.id}</code></span>
                 </div>
