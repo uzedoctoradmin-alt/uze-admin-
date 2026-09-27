@@ -26,7 +26,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNovaVendaModal }) => {
     currentTab,
     isSidebarCollapsed,
     toggleSidebarCollapse,
-    setIsMobileSidebarOpen
+    setIsMobileSidebarOpen,
+    supabaseStatus
   } = useERP();
 
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
@@ -140,6 +141,47 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNovaVendaModal }) => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
+        </div>
+
+        {/* Supabase Live Status Pill */}
+        <div 
+          className={`hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all ${
+            supabaseStatus === 'connected' 
+              ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
+              : supabaseStatus === 'needs_tables'
+              ? 'bg-amber-50 text-amber-800 border-amber-200'
+              : supabaseStatus === 'connecting'
+              ? 'bg-blue-50 text-blue-800 border-blue-200'
+              : 'bg-rose-50 text-rose-800 border-rose-200'
+          }`}
+          title={
+            supabaseStatus === 'connected'
+              ? 'Supabase Conectado e tabelas sincronizadas'
+              : supabaseStatus === 'needs_tables'
+              ? 'Conectado ao Supabase! Tabelas precisam ser criadas no SQL Editor'
+              : supabaseStatus === 'connecting'
+              ? 'Conectando ao Supabase...'
+              : 'Desconectado do Supabase'
+          }
+        >
+          <span 
+            className={`w-2 h-2 rounded-full animate-pulse ${
+              supabaseStatus === 'connected' 
+                ? 'bg-emerald-500' 
+                : supabaseStatus === 'needs_tables'
+                ? 'bg-amber-500'
+                : supabaseStatus === 'connecting'
+                ? 'bg-blue-500'
+                : 'bg-rose-500'
+            }`} 
+          />
+          <span className="font-mono text-[10px]">
+            {supabaseStatus === 'connected' && 'Supabase Ativo'}
+            {supabaseStatus === 'needs_tables' && 'Supabase: SQL Pendente'}
+            {supabaseStatus === 'connecting' && 'Supabase: Conectando...'}
+            {supabaseStatus === 'error' && 'Supabase: Erro'}
+            {supabaseStatus === 'disconnected' && 'Supabase: Offline'}
+          </span>
         </div>
 
         {/* Period Selector Dropdown */}

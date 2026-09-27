@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useMemo } from 'react';
+import React, { createContext, useContext, useState, useMemo, useEffect, useCallback } from 'react';
 import type { 
   ProductModel, 
   ProductVariant, 
@@ -23,6 +23,9 @@ import {
   INITIAL_EXPENSES 
 } from '../services/mockData';
 
+import { supabaseService } from '../services/supabaseService';
+import { checkSupabaseHealth, type SupabaseHealth } from '../services/supabase';
+
 interface DashboardMetrics {
   faturamento: number;
   faturamentoPrevious: number;
@@ -34,6 +37,8 @@ interface DashboardMetrics {
   produtosVendidos: number;
   custoTotalVendas: number;
 }
+
+export type SupabaseStatus = 'connecting' | 'connected' | 'needs_tables' | 'error' | 'disconnected';
 
 interface ERPContextType {
   // State
@@ -49,6 +54,12 @@ interface ERPContextType {
   searchQuery: string;
   isSidebarCollapsed: boolean;
   isMobileSidebarOpen: boolean;
+
+  // Supabase Integration State
+  supabaseStatus: SupabaseStatus;
+  supabaseHealth: SupabaseHealth | null;
+  isLoadingData: boolean;
+  refreshData: () => Promise<void>;
 
   // Setters & Actions
   setPeriodFilter: (filter: PeriodFilter) => void;
@@ -92,6 +103,11 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('Este mês');
   const [currentTab, setCurrentTab] = useState<ViewTab>('dashboard');
   const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Supabase status & loading
+  const [supabaseStatus, setSupabaseStatus] = useState<SupabaseStatus>('connecting');
+  const [supabaseHealth, setSupabaseHealth] = useState<SupabaseHealth | null>(null);
+  const [isLoadingData, setIsLoadingData] = useState<boolean>(false);
   
   // Persist sidebar collapsed state in localStorage
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
@@ -116,7 +132,54 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
-  // Add Sale Workflow: automatically adjusts stock, creates logs & revenue
+  // Hydrate data from Supabase
+  const refreshData = useCallback(async () => {
+    setIsLoadingData(true);
+    try {
+      const health = await checkSupabaseHealth();
+      setSupabaseHealth(health);
+      setSupabaseStatus(health.status);
+
+      if (health.status === 'connected') {
+        const [
+          remoteModels,
+          remoteVariants,
+          remoteCustomers,
+          remoteSales,
+          remoteMovements,
+          remoteRevenues,
+          remoteExpenses,
+        ] = await Promise.all([
+          supabaseService.fetchModels(),
+          supabaseService.fetchVariants(),
+          supabaseService.fetchCustomers(),
+          supabaseService.fetchSales(),
+          supabaseService.fetchMovements(),
+          supabaseService.fetchRevenues(),
+          supabaseService.fetchExpenses(),
+        ]);
+
+        if (remoteModels !== null) setModels(remoteModels);
+        if (remoteVariants !== null) setVariants(remoteVariants);
+        if (remoteCustomers !== null) setCustomers(remoteCustomers);
+        if (remoteSales !== null) setSales(remoteSales);
+        if (remoteMovements !== null) setMovements(remoteMovements);
+        if (remoteRevenues !== null) setRevenues(remoteRevenues);
+        if (remoteExpenses !== null) setExpenses(remoteExpenses);
+      }
+    } catch (err) {
+      console.warn('[ERPContext] Error syncing with Supabase:', err);
+    } finally {
+      setIsLoadingData(false);
+    }
+  }, []);
+
+  // Initial load
+  useEffect(() => {
+    refreshData();
+  }, [refreshData]);
+
+  // Add Sale Workflow: automatically adjusts stock, creates logs & revenue + syncs with Supabase
   const addSale = (saleData: Omit<Sale, 'id' | 'date'>): Sale => {
     const saleId = `#${String(sales.length + 185).padStart(5, '0')}`;
     const nowStr = new Date().toISOString().replace('T', ' ').slice(0, 16);
@@ -131,10 +194,11 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // Update variant stocks & log movements
     newSale.items.forEach(item => {
+      let updatedStock = 0;
       setVariants(prevVariants => 
         prevVariants.map(v => {
           if (v.id === item.variantId) {
-            const updatedStock = Math.max(0, v.currentStock - item.quantity);
+            updatedStock = Math.max(0, v.currentStock - item.quantity);
             return { ...v, currentStock: updatedStock };
           }
           return v;
@@ -157,6 +221,10 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
 
       setMovements(prev => [newMovement, ...prev]);
+
+      // Sync movement & stock update to Supabase
+      supabaseService.insertMovement(newMovement);
+      supabaseService.updateVariantStock(item.variantId, updatedStock);
     });
 
     // Create automated revenue record if payment is made/pending
@@ -171,22 +239,35 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         paymentMethod: newSale.paymentMethod,
       };
       setRevenues(prev => [newRevenue, ...prev]);
+      supabaseService.insertRevenue(newRevenue);
     }
 
     // Update customer stats
-    setCustomers(prev => 
-      prev.map(c => {
-        if (c.id === newSale.customerId) {
-          return {
-            ...c,
-            lastPurchaseDate: nowStr.split(' ')[0],
-            totalOrders: c.totalOrders + 1,
-            totalSpent: c.totalSpent + newSale.total,
-          };
-        }
-        return c;
-      })
-    );
+    const targetCustomer = customers.find(c => c.id === newSale.customerId);
+    if (targetCustomer) {
+      const updatedTotalOrders = targetCustomer.totalOrders + 1;
+      const updatedTotalSpent = targetCustomer.totalSpent + newSale.total;
+      const todayDate = nowStr.split(' ')[0];
+
+      setCustomers(prev => 
+        prev.map(c => {
+          if (c.id === newSale.customerId) {
+            return {
+              ...c,
+              lastPurchaseDate: todayDate,
+              totalOrders: updatedTotalOrders,
+              totalSpent: updatedTotalSpent,
+            };
+          }
+          return c;
+        })
+      );
+
+      supabaseService.updateCustomerStats(targetCustomer.id, todayDate, updatedTotalOrders, updatedTotalSpent);
+    }
+
+    // Sync Sale to Supabase
+    supabaseService.insertSale(newSale);
 
     return newSale;
   };
@@ -195,6 +276,7 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setSales(prev => 
       prev.map(s => s.id === saleId ? { ...s, status: newStatus } : s)
     );
+    supabaseService.updateSaleStatus(saleId, newStatus);
   };
 
   const addModel = (
@@ -216,6 +298,9 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setModels(prev => [...prev, newModel]);
     setVariants(prev => [...prev, ...newVariants]);
+
+    // Sync Model & Variants to Supabase
+    supabaseService.insertModel(newModel, newVariants);
   };
 
   const updateVariantStock = (variantId: string, newQty: number, type: MovementType, reason: string) => {
@@ -244,6 +329,10 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     setMovements(prev => [newMovement, ...prev]);
+
+    // Sync to Supabase
+    supabaseService.updateVariantStock(variantId, newQty);
+    supabaseService.insertMovement(newMovement);
   };
 
   const addStockMovement = (variantId: string, type: MovementType, qty: number, reason: string) => {
@@ -273,6 +362,10 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     setMovements(prev => [newMovement, ...prev]);
+
+    // Sync to Supabase
+    supabaseService.updateVariantStock(variantId, newStock);
+    supabaseService.insertMovement(newMovement);
   };
 
   const addCustomer = (customerData: Omit<Customer, 'id' | 'firstPurchaseDate' | 'lastPurchaseDate' | 'totalOrders' | 'totalSpent'>): Customer => {
@@ -286,6 +379,7 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       totalSpent: 0,
     };
     setCustomers(prev => [...prev, newCustomer]);
+    supabaseService.insertCustomer(newCustomer);
     return newCustomer;
   };
 
@@ -295,6 +389,7 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: `rev-${Date.now()}`,
     };
     setRevenues(prev => [newRev, ...prev]);
+    supabaseService.insertRevenue(newRev);
     return newRev;
   };
 
@@ -304,6 +399,7 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: `exp-${Date.now()}`,
     };
     setExpenses(prev => [newExp, ...prev]);
+    supabaseService.insertExpense(newExp);
     return newExp;
   };
 
@@ -342,7 +438,6 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       acc + s.items.reduce((sum, item) => sum + item.quantity, 0), 0
     );
 
-    // Mock comparison values for period-over-period visualization
     const faturamentoPrevious = faturamento * 0.88;
     const vendasPreviousCount = Math.round(vendasCount * 0.9);
 
@@ -373,6 +468,10 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       searchQuery,
       isSidebarCollapsed,
       isMobileSidebarOpen,
+      supabaseStatus,
+      supabaseHealth,
+      isLoadingData,
+      refreshData,
       setPeriodFilter,
       setCurrentTab,
       setSearchQuery,
