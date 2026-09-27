@@ -6,8 +6,9 @@ import { Layers, Boxes } from 'lucide-react';
 import { Modal } from '../components/common/Modal';
 import { ProductImage } from '../components/common/ProductImage';
 import { NovoProdutoModal } from '../components/modals/NovoProdutoModal';
-import { ExportPdfButton } from '../components/common/ExportPdfButton';
+import { ExportMenu } from '../components/common/ExportMenu';
 import { exportReportToPdf } from '../services/pdfExportService';
+import { excelService } from '../services/excelService';
 
 export const ModelosPage: React.FC = () => {
   const { models, variants, sales } = useERP();
@@ -91,6 +92,46 @@ export const ModelosPage: React.FC = () => {
     });
   };
 
+  const handleExportExcel = async () => {
+    const columns = [
+      { header: 'Modelo', dataKey: 'Modelo' },
+      { header: 'Categoria', dataKey: 'Categoria' },
+      { header: 'Coleção', dataKey: 'Colecao' },
+      { header: 'Gênero', dataKey: 'Genero' },
+      { header: 'Preço Venda (R$)', dataKey: 'PrecoVenda' },
+      ...(canReadCosts ? [{ header: 'Custo Base (R$)', dataKey: 'CustoBase' }] : []),
+      { header: 'Estoque Físico Total (un)', dataKey: 'EstoqueTotal' },
+      { header: 'Status', dataKey: 'Status' },
+      { header: 'Ficha Técnica / Descrição', dataKey: 'Descricao' },
+    ];
+
+    const data = models.map(m => {
+      const metrics = getModelMetrics(m.id);
+      return {
+        'Modelo': m.name,
+        'Categoria': m.category,
+        'Colecao': m.collection || '-',
+        'Genero': m.gender,
+        'PrecoVenda': m.basePrice,
+        ...(canReadCosts ? { 'CustoBase': m.baseCost } : {}),
+        'EstoqueTotal': metrics.totalStock,
+        'Status': m.status,
+        'Descricao': m.description || '-',
+      };
+    });
+
+    excelService.exportToExcel({
+      filename: `uze-doctor-modelos-${new Date().toISOString().slice(0, 10)}.xlsx`,
+      sheetName: 'Modelos',
+      data,
+      columns,
+      metadata: {
+        title: 'Fichas Técnicas de Modelos UZE DOCTOR',
+        operator: user?.name,
+      }
+    });
+  };
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Page Header */}
@@ -103,7 +144,7 @@ export const ModelosPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <ExportPdfButton onExport={handleExportPdf} />
+          <ExportMenu onExportPdf={handleExportPdf} onExportExcel={handleExportExcel} />
           {hasPermission('products.create') && (
             <button
               onClick={() => setIsNovoModeloOpen(true)}

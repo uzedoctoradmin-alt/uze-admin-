@@ -7,8 +7,9 @@ import type { Customer } from '../types';
 import { UserPlus, Eye, ShoppingBag } from 'lucide-react';
 import { NovoClienteModal } from '../components/modals/NovoClienteModal';
 import { Modal } from '../components/common/Modal';
-import { ExportPdfButton } from '../components/common/ExportPdfButton';
+import { ExportMenu } from '../components/common/ExportMenu';
 import { exportReportToPdf } from '../services/pdfExportService';
+import { excelService } from '../services/excelService';
 
 export const ClientesPage: React.FC = () => {
   const { customers, sales } = useERP();
@@ -131,6 +132,47 @@ export const ClientesPage: React.FC = () => {
     });
   };
 
+  const handleExportExcel = async () => {
+    const columns = [
+      { header: 'Nome', dataKey: 'Nome' },
+      { header: 'E-mail', dataKey: 'E-mail' },
+      { header: 'Telefone', dataKey: 'Telefone' },
+      { header: 'Documento', dataKey: 'Documento' },
+      { header: 'Cidade', dataKey: 'Cidade' },
+      { header: 'Estado', dataKey: 'Estado' },
+      { header: 'Total Pedidos', dataKey: 'Pedidos' },
+      { header: 'Total Acumulado (R$)', dataKey: 'TotalGasto' },
+      { header: 'Primeira Compra', dataKey: 'PrimeiraCompra' },
+      { header: 'Última Compra', dataKey: 'UltimaCompra' },
+      { header: 'Observações', dataKey: 'Observacoes' },
+    ];
+
+    const data = customers.map(c => ({
+      'Nome': c.name,
+      'E-mail': c.email || '-',
+      'Telefone': c.phone || '-',
+      'Documento': c.document || '-',
+      'Cidade': c.city || '-',
+      'Estado': c.state || '-',
+      'Pedidos': c.totalOrders,
+      'TotalGasto': c.totalSpent,
+      'PrimeiraCompra': c.firstPurchaseDate || '-',
+      'UltimaCompra': c.lastPurchaseDate || '-',
+      'Observacoes': c.notes || '-',
+    }));
+
+    excelService.exportToExcel({
+      filename: `uze-doctor-clientes-${new Date().toISOString().slice(0, 10)}.xlsx`,
+      sheetName: 'Clientes',
+      data,
+      columns,
+      metadata: {
+        title: 'Base de Clientes Cadastrados',
+        operator: user?.name,
+      }
+    });
+  };
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Page Header */}
@@ -143,7 +185,7 @@ export const ClientesPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <ExportPdfButton onExport={handleExportPdf} />
+          <ExportMenu onExportPdf={handleExportPdf} onExportExcel={handleExportExcel} />
           {hasPermission('customers.create') && (
             <button
               onClick={() => setIsNovoClienteOpen(true)}

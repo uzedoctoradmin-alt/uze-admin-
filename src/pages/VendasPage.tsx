@@ -9,8 +9,9 @@ import { SaleStatusBadge } from '../components/common/Badge';
 import { Plus, Eye } from 'lucide-react';
 import { NovaVendaModal } from '../components/modals/NovaVendaModal';
 import { Modal } from '../components/common/Modal';
-import { ExportPdfButton } from '../components/common/ExportPdfButton';
+import { ExportMenu } from '../components/common/ExportMenu';
 import { exportReportToPdf } from '../services/pdfExportService';
+import { excelService } from '../services/excelService';
 
 export const VendasPage: React.FC = () => {
   const { filteredSales, dashboardMetrics, updateSaleStatus, periodFilter } = useERP();
@@ -146,6 +147,58 @@ export const VendasPage: React.FC = () => {
     });
   };
 
+  const handleExportExcel = async () => {
+    const isSeller = user?.role === 'VENDEDOR';
+
+    const columns = [
+      { header: 'ID Venda', dataKey: 'Venda' },
+      { header: 'Data', dataKey: 'Data' },
+      { header: 'Cliente', dataKey: 'Cliente' },
+      { header: 'E-mail', dataKey: 'E-mail' },
+      { header: 'Itens (un)', dataKey: 'Itens' },
+      { header: 'Subtotal (R$)', dataKey: 'Subtotal' },
+      { header: 'Desconto (R$)', dataKey: 'Desconto' },
+      { header: 'Frete (R$)', dataKey: 'Frete' },
+      { header: 'Total (R$)', dataKey: 'Total' },
+      ...(!isSeller ? [
+        { header: 'Custo Total (R$)', dataKey: 'Custo' },
+        { header: 'Lucro Estimado (R$)', dataKey: 'Lucro' },
+      ] : []),
+      { header: 'Forma Pagamento', dataKey: 'Pagamento' },
+      { header: 'Status', dataKey: 'Status' },
+    ];
+
+    const data = filteredSales.map(s => ({
+      'Venda': s.id,
+      'Data': s.date,
+      'Cliente': s.customerName,
+      'E-mail': s.customerEmail || '-',
+      'Itens': s.items.reduce((sum, i) => sum + i.quantity, 0),
+      'Subtotal': s.subtotal,
+      'Desconto': s.discount,
+      'Frete': s.shipping,
+      'Total': s.total,
+      ...(!isSeller ? {
+        'Custo': s.totalCost,
+        'Lucro': s.estimatedProfit,
+      } : {}),
+      'Pagamento': s.paymentMethod,
+      'Status': s.status,
+    }));
+
+    excelService.exportToExcel({
+      filename: `uze-doctor-vendas-${new Date().toISOString().slice(0, 10)}.xlsx`,
+      sheetName: 'Vendas',
+      data,
+      columns,
+      metadata: {
+        title: 'Relatório Consolidado de Vendas e Pedidos',
+        operator: user?.name,
+        period: periodFilter,
+      }
+    });
+  };
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Page Header */}
@@ -158,7 +211,7 @@ export const VendasPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <ExportPdfButton onExport={handleExportPdf} />
+          <ExportMenu onExportPdf={handleExportPdf} onExportExcel={handleExportExcel} />
           {hasPermission('sales.create') && (
             <button
               onClick={() => setIsNovaVendaOpen(true)}

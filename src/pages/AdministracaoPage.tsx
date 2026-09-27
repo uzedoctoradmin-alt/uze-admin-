@@ -12,10 +12,12 @@ import {
   AlertCircle,
   CheckCircle2,
   X,
-  Lock
+  Lock,
+  Database
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import type { User, UserRole, UserStatus } from '../types';
+import { DadosBackupSection } from '../components/admin/DadosBackupSection';
 
 export const AdministracaoPage: React.FC = () => {
   const { 
@@ -27,7 +29,7 @@ export const AdministracaoPage: React.FC = () => {
     resetUserPassword 
   } = useAuth();
 
-  const [activeSubTab, setActiveSubTab] = useState<'usuarios' | 'auditoria'>('usuarios');
+  const [activeSubTab, setActiveSubTab] = useState<'usuarios' | 'auditoria' | 'dados-backup'>('usuarios');
   const [searchTerm, setSearchTerm] = useState('');
 
   // Modais
@@ -271,6 +273,18 @@ export const AdministracaoPage: React.FC = () => {
           <History size={15} />
           <span>Registro de Auditoria ({auditLogs.length})</span>
         </button>
+
+        <button
+          onClick={() => setActiveSubTab('dados-backup')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold transition-all border-b-2 -mb-[2px] ${
+            activeSubTab === 'dados-backup'
+              ? 'border-[#173E75] text-[#173E75]'
+              : 'border-transparent text-[#475467] hover:text-[#101828]'
+          }`}
+        >
+          <Database size={15} />
+          <span>Dados & Backup</span>
+        </button>
       </div>
 
       {/* TAB 1: USUÁRIOS */}
@@ -484,6 +498,11 @@ export const AdministracaoPage: React.FC = () => {
             )}
           </div>
         </div>
+      )}
+
+      {/* TAB 3: DADOS & BACKUP */}
+      {activeSubTab === 'dados-backup' && (
+        <DadosBackupSection />
       )}
 
       {/* MODAL 1: CRIAR NOVO USUÁRIO */}

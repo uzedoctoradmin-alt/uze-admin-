@@ -7,8 +7,9 @@ import { MovementTypeBadge } from '../components/common/Badge';
 import { Plus } from 'lucide-react';
 import { AjustarEstoqueModal } from '../components/modals/AjustarEstoqueModal';
 import { useAuth } from '../context/AuthContext';
-import { ExportPdfButton } from '../components/common/ExportPdfButton';
+import { ExportMenu } from '../components/common/ExportMenu';
 import { exportReportToPdf } from '../services/pdfExportService';
+import { excelService } from '../services/excelService';
 
 export const MovimentacoesPage: React.FC = () => {
   const { movements } = useERP();
@@ -119,6 +120,41 @@ export const MovimentacoesPage: React.FC = () => {
     });
   };
 
+  const handleExportExcel = async () => {
+    const columns = [
+      { header: 'Data / Hora', dataKey: 'Data' },
+      { header: 'Produto / Modelo', dataKey: 'Produto' },
+      { header: 'SKU', dataKey: 'SKU' },
+      { header: 'Variante (Cor / Tamanho)', dataKey: 'Variante' },
+      { header: 'Tipo de Movimento', dataKey: 'Tipo' },
+      { header: 'Quantidade (un)', dataKey: 'Quantidade' },
+      { header: 'Motivo / Justificativa', dataKey: 'Motivo' },
+      { header: 'Operador Responsável', dataKey: 'Operador' },
+    ];
+
+    const data = movements.map(m => ({
+      'Data': m.date,
+      'Produto': m.productName,
+      'SKU': m.sku,
+      'Variante': `${m.colorName} - ${m.size}`,
+      'Tipo': m.type,
+      'Quantidade': m.quantity,
+      'Motivo': m.reason || '-',
+      'Operador': m.user || 'Sistema',
+    }));
+
+    excelService.exportToExcel({
+      filename: `uze-doctor-movimentacoes-${new Date().toISOString().slice(0, 10)}.xlsx`,
+      sheetName: 'Movimentacoes',
+      data,
+      columns,
+      metadata: {
+        title: 'Histórico Auditável de Movimentações de Estoque',
+        operator: user?.name,
+      }
+    });
+  };
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Page Header */}
@@ -131,7 +167,7 @@ export const MovimentacoesPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <ExportPdfButton onExport={handleExportPdf} />
+          <ExportMenu onExportPdf={handleExportPdf} onExportExcel={handleExportExcel} />
           <button
             onClick={() => setIsAjustarOpen(true)}
             className="uze-btn-primary text-xs"

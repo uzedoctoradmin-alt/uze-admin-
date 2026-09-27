@@ -57,6 +57,7 @@ export interface Customer {
   lastPurchaseDate: string;
   totalOrders: number;
   totalSpent: number;
+  notes?: string;
 }
 
 export interface SaleItem {

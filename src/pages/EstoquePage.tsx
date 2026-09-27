@@ -9,8 +9,9 @@ import { StockStatusBadge } from '../components/common/Badge';
 import { Edit3, ArrowLeftRight } from 'lucide-react';
 import { AjustarEstoqueModal } from '../components/modals/AjustarEstoqueModal';
 import { ProductImage } from '../components/common/ProductImage';
-import { ExportPdfButton } from '../components/common/ExportPdfButton';
+import { ExportMenu } from '../components/common/ExportMenu';
 import { exportReportToPdf } from '../services/pdfExportService';
+import { excelService } from '../services/excelService';
 
 export const EstoquePage: React.FC = () => {
   const { variants, models, setCurrentTab } = useERP();
@@ -175,6 +176,52 @@ export const EstoquePage: React.FC = () => {
     });
   };
 
+  const handleExportExcel = async () => {
+    const columns = [
+      { header: 'Produto / Modelo', dataKey: 'Modelo' },
+      { header: 'Categoria', dataKey: 'Categoria' },
+      { header: 'SKU', dataKey: 'SKU' },
+      { header: 'Cor', dataKey: 'Cor' },
+      { header: 'Tamanho', dataKey: 'Tamanho' },
+      { header: 'Estoque Atual (un)', dataKey: 'EstoqueAtual' },
+      { header: 'Estoque Mínimo (un)', dataKey: 'EstoqueMinimo' },
+      { header: 'Preço Venda (R$)', dataKey: 'PrecoVenda' },
+      ...(canReadCosts ? [{ header: 'Custo Base (R$)', dataKey: 'CustoBase' }] : []),
+      { header: 'Status Estoque', dataKey: 'Status' },
+    ];
+
+    const data = variants.map(v => {
+      const model = models.find(m => m.id === v.modelId);
+      const isZero = v.currentStock === 0;
+      const isLow = v.currentStock > 0 && v.currentStock <= v.minStock;
+      const statusText = isZero ? 'Sem Estoque' : isLow ? 'Estoque Baixo' : 'Normal';
+
+      return {
+        'Modelo': model?.name || 'Modelo',
+        'Categoria': model?.category || '-',
+        'SKU': v.sku,
+        'Cor': v.colorName,
+        'Tamanho': v.size,
+        'EstoqueAtual': v.currentStock,
+        'EstoqueMinimo': v.minStock,
+        'PrecoVenda': model?.basePrice || 0,
+        ...(canReadCosts ? { 'CustoBase': model?.baseCost || 0 } : {}),
+        'Status': statusText,
+      };
+    });
+
+    excelService.exportToExcel({
+      filename: `uze-doctor-estoque-${new Date().toISOString().slice(0, 10)}.xlsx`,
+      sheetName: 'Estoque_Fisico',
+      data,
+      columns,
+      metadata: {
+        title: 'Inventário Físico e Posição de Estoque',
+        operator: user?.name,
+      }
+    });
+  };
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Page Header */}
@@ -187,7 +234,7 @@ export const EstoquePage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <ExportPdfButton onExport={handleExportPdf} />
+          <ExportMenu onExportPdf={handleExportPdf} onExportExcel={handleExportExcel} />
           <button
             onClick={() => setCurrentTab('movimentacoes')}
             className="uze-btn-secondary text-xs cursor-pointer"

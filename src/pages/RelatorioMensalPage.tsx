@@ -12,8 +12,9 @@ import {
   Award, 
   AlertCircle 
 } from 'lucide-react';
-import { ExportPdfButton } from '../components/common/ExportPdfButton';
+import { ExportMenu } from '../components/common/ExportMenu';
 import { exportReportToPdf } from '../services/pdfExportService';
+import { excelService } from '../services/excelService';
 
 export const RelatorioMensalPage: React.FC = () => {
   const { dashboardMetrics, models, variants, customers, expenses } = useERP();
@@ -88,6 +89,47 @@ export const RelatorioMensalPage: React.FC = () => {
     });
   };
 
+  const handleExportExcel = async () => {
+    const monthName = selectedMonth === '09' ? 'Setembro' : selectedMonth === '08' ? 'Agosto' : 'Julho';
+
+    const excelColumns = [
+      { header: 'Modelo / Produto', key: 'name', width: 26 },
+      { header: 'Categoria', key: 'category', width: 16 },
+      { header: 'Coleção', key: 'collection', width: 18 },
+      { header: 'Preço Venda (R$)', key: 'price', width: 16 },
+      ...(canReadFinance ? [{ header: 'Custo Base (R$)', key: 'cost', width: 16 }] : []),
+      { header: 'Estoque Físico (un)', key: 'stock', width: 18 },
+      { header: 'Status', key: 'status', width: 14 },
+    ];
+
+    const excelData = models.map(m => {
+      const modelVariants = variants.filter(v => v.modelId === m.id);
+      const totalStock = modelVariants.reduce((sum, v) => sum + v.currentStock, 0);
+      return {
+        name: m.name,
+        category: m.category,
+        collection: m.collection || '-',
+        price: m.basePrice,
+        ...(canReadFinance ? { cost: m.baseCost } : {}),
+        stock: totalStock,
+        status: m.status,
+      };
+    });
+
+    await excelService.exportToExcel({
+      filename: `uze-doctor-relatorio-mensal-${selectedYear}-${selectedMonth}.xlsx`,
+      sheetName: 'Catálogo e Estoque',
+      columns: excelColumns,
+      data: excelData,
+      reportInfo: {
+        title: `Relatório Mensal Consolidado - ${monthName}/${selectedYear}`,
+        user: user?.name,
+        filters: `Mês: ${monthName} / ${selectedYear}`,
+        recordCount: models.length,
+      },
+    });
+  };
+
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       {/* Controls Bar */}
@@ -121,7 +163,7 @@ export const RelatorioMensalPage: React.FC = () => {
             </select>
           </div>
 
-          <ExportPdfButton onExport={handleExportPdf} />
+          <ExportMenu onExportPdf={handleExportPdf} onExportExcel={handleExportExcel} />
 
           <button
             onClick={handlePrint}

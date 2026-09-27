@@ -7,8 +7,9 @@ import { StatCard } from '../components/common/StatCard';
 import { ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 import { NovaTransacaoModal } from '../components/modals/NovaTransacaoModal';
 import { useAuth } from '../context/AuthContext';
-import { ExportPdfButton } from '../components/common/ExportPdfButton';
+import { ExportMenu } from '../components/common/ExportMenu';
 import { exportReportToPdf } from '../services/pdfExportService';
+import { excelService } from '../services/excelService';
 
 interface FinanceiroPageProps {
   initialTab?: 'visao' | 'receitas' | 'despesas';
@@ -230,6 +231,105 @@ export const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ initialTab = 'vi
     });
   };
 
+  const handleExportExcel = async () => {
+    if (activeTab === 'despesas') {
+      excelService.exportToExcel({
+        filename: `uze-doctor-despesas-${new Date().toISOString().slice(0, 10)}.xlsx`,
+        sheetName: 'Despesas',
+        data: filteredExpenses.map(e => ({
+          'Data': e.date,
+          'Descrição': e.description,
+          'Categoria': e.category,
+          'Valor (R$)': e.amount,
+          'Forma Pagamento': e.paymentMethod,
+          'Observações': e.notes || '-',
+        })),
+        columns: [
+          { header: 'Data', dataKey: 'Data' },
+          { header: 'Descrição', dataKey: 'Descrição' },
+          { header: 'Categoria', dataKey: 'Categoria' },
+          { header: 'Valor (R$)', dataKey: 'Valor (R$)' },
+          { header: 'Forma Pagamento', dataKey: 'Forma Pagamento' },
+          { header: 'Observações', dataKey: 'Observações' },
+        ],
+        metadata: {
+          title: 'Extrato de Despesas Operacionais',
+          operator: user?.name,
+          period: periodFilter,
+        }
+      });
+      return;
+    }
+
+    if (activeTab === 'receitas') {
+      excelService.exportToExcel({
+        filename: `uze-doctor-receitas-${new Date().toISOString().slice(0, 10)}.xlsx`,
+        sheetName: 'Receitas',
+        data: filteredRevenues.map(r => ({
+          'Data': r.date,
+          'Origem / Descrição': r.source,
+          'Referência': r.referenceId || '-',
+          'Categoria': r.category,
+          'Valor (R$)': r.amount,
+          'Forma Pagamento': r.paymentMethod,
+        })),
+        columns: [
+          { header: 'Data', dataKey: 'Data' },
+          { header: 'Origem / Descrição', dataKey: 'Origem / Descrição' },
+          { header: 'Referência', dataKey: 'Referência' },
+          { header: 'Categoria', dataKey: 'Categoria' },
+          { header: 'Valor (R$)', dataKey: 'Valor (R$)' },
+          { header: 'Forma Pagamento', dataKey: 'Forma Pagamento' },
+        ],
+        metadata: {
+          title: 'Extrato de Receitas e Faturamento',
+          operator: user?.name,
+          period: periodFilter,
+        }
+      });
+      return;
+    }
+
+    // Default: Visão Geral DRE
+    const combinedData = [
+      ...filteredRevenues.map(r => ({
+        'Tipo': 'RECEITA',
+        'Data': r.date,
+        'Descrição': r.source,
+        'Categoria': r.category,
+        'Valor (R$)': r.amount,
+        'Forma Pagamento': r.paymentMethod,
+      })),
+      ...filteredExpenses.map(e => ({
+        'Tipo': 'DESPESA',
+        'Data': e.date,
+        'Descrição': e.description,
+        'Categoria': e.category,
+        'Valor (R$)': -e.amount,
+        'Forma Pagamento': e.paymentMethod,
+      })),
+    ].sort((a, b) => b.Data.localeCompare(a.Data));
+
+    excelService.exportToExcel({
+      filename: `uze-doctor-financeiro-dre-${new Date().toISOString().slice(0, 10)}.xlsx`,
+      sheetName: 'Fluxo_Financeiro',
+      data: combinedData,
+      columns: [
+        { header: 'Tipo', dataKey: 'Tipo' },
+        { header: 'Data', dataKey: 'Data' },
+        { header: 'Descrição', dataKey: 'Descrição' },
+        { header: 'Categoria', dataKey: 'Categoria' },
+        { header: 'Valor (R$)', dataKey: 'Valor (R$)' },
+        { header: 'Forma Pagamento', dataKey: 'Forma Pagamento' },
+      ],
+      metadata: {
+        title: 'Demonstrativo do Resultado do Exercício (DRE) e Fluxo de Caixa',
+        operator: user?.name,
+        period: periodFilter,
+      }
+    });
+  };
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Header with Navigation Tabs */}
@@ -242,7 +342,7 @@ export const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ initialTab = 'vi
         </div>
 
         <div className="flex items-center gap-2">
-          <ExportPdfButton onExport={handleExportPdf} />
+          <ExportMenu onExportPdf={handleExportPdf} onExportExcel={handleExportExcel} />
           <button
             onClick={() => {
               setModalType('despesa');

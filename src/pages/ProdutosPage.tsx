@@ -14,8 +14,9 @@ import {
 import { ProductImage } from '../components/common/ProductImage';
 import { NovoProdutoModal } from '../components/modals/NovoProdutoModal';
 import { Modal } from '../components/common/Modal';
-import { ExportPdfButton } from '../components/common/ExportPdfButton';
+import { ExportMenu } from '../components/common/ExportMenu';
 import { exportReportToPdf } from '../services/pdfExportService';
+import { excelService } from '../services/excelService';
 
 export const ProdutosPage: React.FC = () => {
   const { models, variants } = useERP();
@@ -168,6 +169,48 @@ export const ProdutosPage: React.FC = () => {
     });
   };
 
+  const handleExportExcel = async () => {
+    const columns = [
+      { header: 'Modelo / Produto', dataKey: 'Modelo' },
+      { header: 'Categoria', dataKey: 'Categoria' },
+      { header: 'Coleção', dataKey: 'Colecao' },
+      { header: 'Gênero', dataKey: 'Genero' },
+      { header: 'Preço Venda (R$)', dataKey: 'PrecoVenda' },
+      ...(canReadCosts ? [{ header: 'Custo Base (R$)', dataKey: 'CustoBase' }] : []),
+      { header: 'Total Variantes (SKUs)', dataKey: 'Variantes' },
+      { header: 'Estoque Físico Total (un)', dataKey: 'EstoqueFisico' },
+      { header: 'Status', dataKey: 'Status' },
+      { header: 'Descrição', dataKey: 'Descricao' },
+    ];
+
+    const data = filteredModels.map(m => {
+      const stats = getModelStats(m.id);
+      return {
+        'Modelo': m.name,
+        'Categoria': m.category,
+        'Colecao': m.collection || '-',
+        'Genero': m.gender,
+        'PrecoVenda': m.basePrice,
+        ...(canReadCosts ? { 'CustoBase': m.baseCost } : {}),
+        'Variantes': stats.variantCount,
+        'EstoqueFisico': stats.totalStock,
+        'Status': m.status,
+        'Descricao': m.description || '-',
+      };
+    });
+
+    excelService.exportToExcel({
+      filename: `uze-doctor-produtos-${new Date().toISOString().slice(0, 10)}.xlsx`,
+      sheetName: 'Produtos_Modelos',
+      data,
+      columns,
+      metadata: {
+        title: 'Catálogo Oficial de Modelos e Produtos',
+        operator: user?.name,
+      }
+    });
+  };
+
   return (
     <div className="space-y-5 max-w-7xl mx-auto">
       {/* 1. Page Header */}
@@ -180,7 +223,7 @@ export const ProdutosPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <ExportPdfButton onExport={handleExportPdf} />
+          <ExportMenu onExportPdf={handleExportPdf} onExportExcel={handleExportExcel} />
           {hasPermission('products.create') && (
             <button
               onClick={() => setIsNovoProdutoOpen(true)}

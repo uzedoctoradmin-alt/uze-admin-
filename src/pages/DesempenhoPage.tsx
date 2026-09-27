@@ -11,8 +11,9 @@ import {
 } from 'recharts';
 import { Trophy, ArrowUpDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { ExportPdfButton } from '../components/common/ExportPdfButton';
+import { ExportMenu } from '../components/common/ExportMenu';
 import { exportReportToPdf } from '../services/pdfExportService';
+import { excelService } from '../services/excelService';
 
 export const DesempenhoPage: React.FC = () => {
   const { models, sales, periodFilter } = useERP();
@@ -123,6 +124,47 @@ export const DesempenhoPage: React.FC = () => {
     });
   };
 
+  const handleExportExcel = async () => {
+    const excelColumns = [
+      { header: 'Posição', key: 'position', width: 10 },
+      { header: 'Modelo / Produto', key: 'name', width: 28 },
+      { header: 'Categoria', key: 'category', width: 16 },
+      { header: 'Unidades Vendidas (un)', key: 'unitsSold', width: 22 },
+      { header: 'Faturamento (R$)', key: 'revenue', width: 18 },
+      ...(canReadCosts ? [
+        { header: 'Custo Total (R$)', key: 'cost', width: 18 },
+        { header: 'Lucro Bruto (R$)', key: 'profit', width: 18 },
+        { header: 'Margem (%)', key: 'margin', width: 14 },
+      ] : []),
+    ];
+
+    const excelData = sortedRanking.map((item, idx) => ({
+      position: idx + 1,
+      name: item.model.name,
+      category: item.model.category,
+      unitsSold: item.unitsSold,
+      revenue: item.revenue,
+      ...(canReadCosts ? {
+        cost: item.cost,
+        profit: item.profit,
+        margin: Number(item.margin.toFixed(2)),
+      } : {}),
+    }));
+
+    await excelService.exportToExcel({
+      filename: `uze-doctor-desempenho-${new Date().toISOString().slice(0, 10)}.xlsx`,
+      sheetName: 'Ranking de Modelos',
+      columns: excelColumns,
+      data: excelData,
+      reportInfo: {
+        title: 'Relatório de Desempenho & Curva ABC por Modelo',
+        user: user?.name,
+        filters: `Período: ${periodFilter} | Ordenação: ${sortKey}`,
+        recordCount: sortedRanking.length,
+      },
+    });
+  };
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Page Header */}
@@ -135,7 +177,7 @@ export const DesempenhoPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <ExportPdfButton onExport={handleExportPdf} />
+          <ExportMenu onExportPdf={handleExportPdf} onExportExcel={handleExportExcel} />
         </div>
       </div>
 
