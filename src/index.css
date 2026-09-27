@@ -1,0 +1,237 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@700&display=swap');
+@import "tailwindcss";
+
+:root {
+  /* UZE DOCTOR Brand Palette */
+  --bg-app: #F6F7F9;
+  --navy-dark: #07101F;
+  --blue-action: #173E75;
+  --gold-accent: #C69A43;
+  --gold-subtle: #FBF7EE;
+  
+  --text-primary: #171A21;
+  --text-secondary: #667085;
+  --border-subtle: #E5E7EB;
+  --surface-white: #FFFFFF;
+
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-brand: 'Playfair Display', serif;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Base Card Style */
+.uze-card {
+  background-color: var(--surface-white);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02), 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: all 0.15s ease-in-out;
+}
+
+.uze-card-hover:hover {
+  border-color: #D1D5DB;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+}
+
+/* Buttons */
+.uze-btn-primary {
+  background-color: var(--blue-action);
+  color: #FFFFFF;
+  font-weight: 600;
+  font-size: 0.8125rem;
+  padding: 8px 16px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--blue-action);
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.05s ease;
+}
+.uze-btn-primary:hover {
+  background-color: #102e58;
+}
+
+.uze-btn-gold {
+  background-color: var(--gold-accent);
+  color: #FFFFFF;
+  font-weight: 600;
+  font-size: 0.8125rem;
+  padding: 8px 16px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #b38634;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.uze-btn-gold:hover {
+  background-color: #af8330;
+}
+
+.uze-btn-secondary {
+  background-color: #FFFFFF;
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 0.8125rem;
+  padding: 8px 16px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.uze-btn-secondary:hover {
+  background-color: #F9FAFB;
+  border-color: #D1D5DB;
+}
+
+.uze-btn-ghost {
+  background-color: transparent;
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 0.8125rem;
+  padding: 8px 14px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.uze-btn-ghost:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+  color: var(--text-primary);
+}
+
+/* Modern Form Controls */
+.uze-input {
+  width: 100%;
+  height: 38px;
+  padding: 8px 12px;
+  font-size: 0.8125rem;
+  background-color: #FFFFFF;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.uze-input:focus {
+  border-color: var(--blue-action);
+  box-shadow: 0 0 0 3px rgba(23, 62, 117, 0.1);
+}
+
+.uze-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* Badges */
+.uze-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border-radius: 4px;
+  letter-spacing: 0.02em;
+}
+
+.uze-badge-success {
+  background-color: #ECFDF5;
+  color: #065F46;
+  border: 1px solid #A7F3D0;
+}
+
+.uze-badge-warning {
+  background-color: #FFFBEB;
+  color: #92400E;
+  border: 1px solid #FDE68A;
+}
+
+.uze-badge-danger {
+  background-color: #FEF2F2;
+  color: #991B1B;
+  border: 1px solid #FECACA;
+}
+
+.uze-badge-info {
+  background-color: #EFF6FF;
+  color: #1E40AF;
+  border: 1px solid #BFDBFE;
+}
+
+.uze-badge-navy {
+  background-color: #F0F4F9;
+  color: #173E75;
+  border: 1px solid #D1DFEF;
+}
+
+.uze-badge-gold {
+  background-color: var(--gold-subtle);
+  color: #9A7426;
+  border: 1px solid rgba(198, 154, 67, 0.3);
+}
+
+/* Modern Tables */
+.uze-table-container {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background-color: #FFFFFF;
+}
+
+.uze-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  text-align: left;
+  font-size: 0.8125rem;
+}
+
+.uze-table th {
+  background-color: #F9FAFB;
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  white-space: nowrap;
+}
+
+.uze-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #F3F4F6;
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+
+.uze-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.uze-table tbody tr:hover td {
+  background-color: #FAFAFC;
+}
