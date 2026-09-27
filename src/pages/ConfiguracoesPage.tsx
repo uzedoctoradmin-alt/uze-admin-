@@ -21,30 +21,30 @@ export const ConfiguracoesPage: React.FC = () => {
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       {/* Page Header */}
-      <div className="pb-2 border-b border-[#E5E7EB]">
-        <h2 className="text-base font-bold text-[#171A21]">Configurações da Empresa</h2>
-        <p className="text-xs text-[#667085]">
+      <div className="pb-2 border-b border-[#D0D5DD]">
+        <h2 className="text-base font-bold text-[#101828]">Configurações da Empresa</h2>
+        <p className="text-xs text-[#475467] font-medium">
           Dados cadastrais, políticas de estoque e integração de sistema
         </p>
       </div>
 
       {savedSuccess && (
-        <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 p-3 rounded-lg text-xs font-semibold flex items-center gap-2">
-          <CheckCircle2 size={15} className="text-emerald-600" /> Configurações salvas com sucesso!
+        <div className="bg-emerald-50 border border-emerald-300 text-emerald-950 p-3 rounded-lg text-xs font-bold flex items-center gap-2">
+          <CheckCircle2 size={15} className="text-[#027A48]" /> Configurações salvas com sucesso!
         </div>
       )}
 
       <form onSubmit={handleSave} className="space-y-5">
         {/* Section 1: Company Profile */}
-        <div className="bg-white border border-[#E5E7EB] rounded-lg p-5 space-y-4 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-          <div className="flex items-center gap-2 border-b border-[#F3F4F6] pb-3">
+        <div className="bg-white border border-[#D0D5DD] rounded-lg p-5 space-y-4 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+          <div className="flex items-center gap-2 border-b border-[#D0D5DD] pb-3">
             <Building size={16} className="text-[#173E75]" />
-            <h3 className="text-sm font-bold text-[#171A21]">Dados da Empresa</h3>
+            <h3 className="text-sm font-bold text-[#101828]">Dados da Empresa</h3>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
             <div>
-              <label className="text-[10px] font-semibold text-[#667085] uppercase block mb-1">Razão Social / Nome Fantasia *</label>
+              <label className="text-xs font-bold text-[#344054] block mb-1">Razão Social / Nome Fantasia *</label>
               <input
                 type="text"
                 className="uze-input text-xs"
@@ -53,7 +53,7 @@ export const ConfiguracoesPage: React.FC = () => {
               />
             </div>
             <div>
-              <label className="text-[10px] font-semibold text-[#667085] uppercase block mb-1">CNPJ *</label>
+              <label className="text-xs font-bold text-[#344054] block mb-1">CNPJ *</label>
               <input
                 type="text"
                 className="uze-input text-xs"
@@ -62,7 +62,7 @@ export const ConfiguracoesPage: React.FC = () => {
               />
             </div>
             <div>
-              <label className="text-[10px] font-semibold text-[#667085] uppercase block mb-1">Endereço Comercial</label>
+              <label className="text-xs font-bold text-[#344054] block mb-1">Endereço Comercial</label>
               <input
                 type="text"
                 className="uze-input text-xs"
@@ -71,7 +71,7 @@ export const ConfiguracoesPage: React.FC = () => {
               />
             </div>
             <div>
-              <label className="text-[10px] font-semibold text-[#667085] uppercase block mb-1">E-mail Corporativo</label>
+              <label className="text-xs font-bold text-[#344054] block mb-1">E-mail Corporativo</label>
               <input
                 type="email"
                 className="uze-input text-xs"
@@ -83,30 +83,30 @@ export const ConfiguracoesPage: React.FC = () => {
         </div>
 
         {/* Section 2: Inventory & System Rules */}
-        <div className="bg-white border border-[#E5E7EB] rounded-lg p-5 space-y-4 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-          <div className="flex items-center gap-2 border-b border-[#F3F4F6] pb-3">
+        <div className="bg-white border border-[#D0D5DD] rounded-lg p-5 space-y-4 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+          <div className="flex items-center gap-2 border-b border-[#D0D5DD] pb-3">
             <Sliders size={16} className="text-[#C69A43]" />
-            <h3 className="text-sm font-bold text-[#171A21]">Políticas de Estoque</h3>
+            <h3 className="text-sm font-bold text-[#101828]">Políticas de Estoque</h3>
           </div>
 
           <div className="space-y-2 text-xs">
-            <div className="flex items-center justify-between p-3 bg-[#F9FAFB] rounded border border-[#E5E7EB]">
+            <div className="flex items-center justify-between p-3 bg-[#F9FAFB] rounded border border-[#D0D5DD]">
               <div>
-                <span className="font-semibold text-[#171A21] block">Estoque Mínimo Padrão</span>
-                <span className="text-[#667085]">Quantidade para disparar alerta visual de reposição</span>
+                <span className="font-bold text-[#101828] block">Estoque Mínimo Padrão</span>
+                <span className="text-[#475467] font-medium">Quantidade para disparar alerta visual de reposição</span>
               </div>
               <input
                 type="number"
-                className="w-16 h-8 text-center font-bold bg-white border border-[#E5E7EB] rounded text-xs"
+                className="w-16 h-8 text-center font-bold bg-white border border-[#D0D5DD] rounded text-xs text-[#101828] focus:border-[#173E75] focus:outline-none"
                 value={defaultMinStock}
                 onChange={e => setDefaultMinStock(parseInt(e.target.value) || 5)}
               />
             </div>
 
-            <div className="flex items-center justify-between p-3 bg-[#F9FAFB] rounded border border-[#E5E7EB]">
+            <div className="flex items-center justify-between p-3 bg-[#F9FAFB] rounded border border-[#D0D5DD]">
               <div>
-                <span className="font-semibold text-[#171A21] block">Avisos no Dashboard</span>
-                <span className="text-[#667085]">Exibir alerta quando houver itens esgotados</span>
+                <span className="font-bold text-[#101828] block">Avisos no Dashboard</span>
+                <span className="text-[#475467] font-medium">Exibir alerta quando houver itens esgotados</span>
               </div>
               <input
                 type="checkbox"
@@ -125,11 +125,11 @@ export const ConfiguracoesPage: React.FC = () => {
             <h3 className="text-sm font-bold text-white">Preparação de Integração Backend</h3>
           </div>
 
-          <p className="text-xs text-slate-300 leading-relaxed">
+          <p className="text-xs text-slate-300 leading-relaxed font-medium">
             Camada de serviços e entidades normalizadas (IDs estáveis e tipagem estrita).
           </p>
-          <div className="p-2.5 bg-slate-900 rounded border border-slate-800 text-[11px] font-mono text-slate-400">
-            Endpoint Base: <span className="text-[#C69A43]">https://api.uzedoctor.com.br/v1/erp</span>
+          <div className="p-2.5 bg-slate-900 rounded border border-slate-800 text-[11px] font-mono text-slate-300 font-semibold">
+            Endpoint Base: <span className="text-[#E5B869]">https://api.uzedoctor.com.br/v1/erp</span>
           </div>
         </div>
 

@@ -27,7 +27,7 @@ export const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ initialTab = 'vi
       header: 'Data',
       accessorKey: 'date',
       sortable: true,
-      cell: (r) => <span className="text-xs text-[#667085] font-mono">{r.date}</span>,
+      cell: (r) => <span className="text-xs text-[#475467] font-mono font-medium">{r.date}</span>,
     },
     {
       header: 'Origem / Descrição',
@@ -35,8 +35,8 @@ export const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ initialTab = 'vi
       sortable: true,
       cell: (r) => (
         <div>
-          <p className="font-semibold text-[#171A21]">{r.source}</p>
-          {r.referenceId && <span className="text-[10px] text-[#173E75] font-mono">Ref: {r.referenceId}</span>}
+          <p className="font-semibold text-[#101828]">{r.source}</p>
+          {r.referenceId && <span className="text-[10px] text-[#173E75] font-mono font-bold">Ref: {r.referenceId}</span>}
         </div>
       ),
     },
@@ -52,7 +52,7 @@ export const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ initialTab = 'vi
       sortable: true,
       align: 'right',
       cell: (r) => (
-        <span className="font-bold text-sm text-emerald-600">
+        <span className="font-bold text-sm text-[#027A48]">
           + R$ {r.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
         </span>
       ),
@@ -61,7 +61,7 @@ export const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ initialTab = 'vi
       header: 'Pagamento',
       accessorKey: 'paymentMethod',
       sortable: true,
-      cell: (r) => <span className="text-xs text-[#667085]">{r.paymentMethod}</span>,
+      cell: (r) => <span className="text-xs text-[#475467] font-medium">{r.paymentMethod}</span>,
     },
   ];
 
@@ -70,7 +70,7 @@ export const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ initialTab = 'vi
       header: 'Data',
       accessorKey: 'date',
       sortable: true,
-      cell: (e) => <span className="text-xs text-[#667085] font-mono">{e.date}</span>,
+      cell: (e) => <span className="text-xs text-[#475467] font-mono font-medium">{e.date}</span>,
     },
     {
       header: 'Descrição / Fornecedor',
@@ -78,8 +78,8 @@ export const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ initialTab = 'vi
       sortable: true,
       cell: (e) => (
         <div>
-          <p className="font-semibold text-[#171A21]">{e.description}</p>
-          {e.notes && <span className="text-[10px] text-[#667085]">{e.notes}</span>}
+          <p className="font-semibold text-[#101828]">{e.description}</p>
+          {e.notes && <span className="text-[10px] text-[#475467] font-medium">{e.notes}</span>}
         </div>
       ),
     },
@@ -95,7 +95,7 @@ export const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ initialTab = 'vi
       sortable: true,
       align: 'right',
       cell: (e) => (
-        <span className="font-bold text-sm text-red-600">
+        <span className="font-bold text-sm text-[#B42318]">
           - R$ {e.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
         </span>
       ),
@@ -104,17 +104,17 @@ export const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ initialTab = 'vi
       header: 'Pagamento',
       accessorKey: 'paymentMethod',
       sortable: true,
-      cell: (e) => <span className="text-xs text-[#667085]">{e.paymentMethod}</span>,
+      cell: (e) => <span className="text-xs text-[#475467] font-medium">{e.paymentMethod}</span>,
     },
   ];
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Header with Navigation Tabs */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-[#E5E7EB]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-[#D0D5DD]">
         <div>
-          <h2 className="text-base font-bold text-[#171A21]">Gestão Financeira & DRE</h2>
-          <p className="text-xs text-[#667085]">
+          <h2 className="text-base font-bold text-[#101828]">Gestão Financeira & DRE</h2>
+          <p className="text-xs text-[#475467] font-medium">
             Controle de faturamento, receitas, custos de confecção e despesas operacionais
           </p>
         </div>
@@ -127,7 +127,7 @@ export const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ initialTab = 'vi
             }}
             className="uze-btn-secondary text-xs"
           >
-            <ArrowDownLeft size={13} className="text-red-500" /> Nova Despesa
+            <ArrowDownLeft size={13} className="text-[#B42318]" /> Nova Despesa
           </button>
           <button
             onClick={() => {
@@ -142,33 +142,33 @@ export const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ initialTab = 'vi
       </div>
 
       {/* Sub Tabs Selector */}
-      <div className="flex border-b border-[#E5E7EB] gap-2">
+      <div className="flex border-b border-[#D0D5DD] gap-2">
         <button
           onClick={() => setActiveTab('visao')}
-          className={`px-4 py-2 text-xs font-semibold border-b-2 transition-colors ${
+          className={`px-4 py-2 text-xs font-bold border-b-2 transition-colors ${
             activeTab === 'visao' 
               ? 'border-[#173E75] text-[#173E75]' 
-              : 'border-transparent text-[#667085] hover:text-[#171A21]'
+              : 'border-transparent text-[#475467] hover:text-[#101828]'
           }`}
         >
           Visão Financeira & DRE
         </button>
         <button
           onClick={() => setActiveTab('receitas')}
-          className={`px-4 py-2 text-xs font-semibold border-b-2 transition-colors ${
+          className={`px-4 py-2 text-xs font-bold border-b-2 transition-colors ${
             activeTab === 'receitas' 
               ? 'border-[#173E75] text-[#173E75]' 
-              : 'border-transparent text-[#667085] hover:text-[#171A21]'
+              : 'border-transparent text-[#475467] hover:text-[#101828]'
           }`}
         >
           Receitas ({filteredRevenues.length})
         </button>
         <button
           onClick={() => setActiveTab('despesas')}
-          className={`px-4 py-2 text-xs font-semibold border-b-2 transition-colors ${
+          className={`px-4 py-2 text-xs font-bold border-b-2 transition-colors ${
             activeTab === 'despesas' 
               ? 'border-[#173E75] text-[#173E75]' 
-              : 'border-transparent text-[#667085] hover:text-[#171A21]'
+              : 'border-transparent text-[#475467] hover:text-[#101828]'
           }`}
         >
           Despesas ({filteredExpenses.length})
@@ -216,38 +216,38 @@ export const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ initialTab = 'vi
           </div>
 
           {/* DRE Simplificado */}
-          <div className="bg-white border border-[#E5E7EB] rounded-lg p-5 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-            <h3 className="text-sm font-bold text-[#171A21] mb-1">Demonstrativo de Resultado do Período (DRE)</h3>
-            <p className="text-xs text-[#667085] mb-4">Consolidação contábil da UZE DOCTOR</p>
+          <div className="bg-white border border-[#D0D5DD] rounded-lg p-5 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+            <h3 className="text-sm font-bold text-[#101828] mb-1">Demonstrativo de Resultado do Período (DRE)</h3>
+            <p className="text-xs text-[#475467] font-medium mb-4">Consolidação contábil da UZE DOCTOR</p>
 
             <div className="space-y-2 text-xs">
-              <div className="flex justify-between p-3 bg-[#F9FAFB] rounded font-semibold text-[#171A21] border-l-3 border-[#173E75]">
+              <div className="flex justify-between p-3 bg-[#F9FAFB] rounded font-semibold text-[#101828] border-l-4 border-[#173E75]">
                 <span>(+) RECEITA BRUTA COM VENDAS:</span>
-                <span className="font-bold text-sm">
+                <span className="font-black text-sm">
                   R$ {dashboardMetrics.faturamento.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </span>
               </div>
 
-              <div className="flex justify-between p-2 pl-4 text-red-600 font-medium">
+              <div className="flex justify-between p-2 pl-4 text-[#B42318] font-bold">
                 <span>(-) Custos de Confecção e Tecidos (CMV):</span>
                 <span>- R$ {dashboardMetrics.custoTotalVendas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
               </div>
 
-              <div className="flex justify-between p-3 bg-emerald-50 rounded font-bold text-emerald-900 border-l-3 border-emerald-500">
+              <div className="flex justify-between p-3 bg-[#ECFDF3] rounded font-bold text-[#027A48] border-l-4 border-[#027A48]">
                 <span>(=) LUCRO BRUTO OPERACIONAL:</span>
-                <span className="text-sm">
+                <span className="text-sm font-black">
                   R$ {dashboardMetrics.lucroEstimado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </span>
               </div>
 
-              <div className="flex justify-between p-2 pl-4 text-red-600 font-medium">
+              <div className="flex justify-between p-2 pl-4 text-[#B42318] font-bold">
                 <span>(-) Despesas Operacionais (Marketing, Embalagens, Fretes):</span>
                 <span>- R$ {totalDespesas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
               </div>
 
               <div className="flex justify-between p-3.5 bg-[#07101F] text-white rounded font-bold items-center mt-3">
                 <span className="text-xs uppercase tracking-wide">(=) RESULTADO LÍQUIDO FINAL:</span>
-                <span className="text-base text-[#C69A43] font-mono font-bold">
+                <span className="text-base text-[#E5B869] font-mono font-black">
                   R$ {(dashboardMetrics.lucroEstimado - totalDespesas).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </span>
               </div>

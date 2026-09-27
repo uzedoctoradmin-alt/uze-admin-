@@ -263,7 +263,7 @@ export const NovaVendaModal: React.FC<NovaVendaModalProps> = ({ isOpen, onClose 
                     type="button"
                     disabled={!selectedVariantId}
                     onClick={handleAddProductToCart}
-                    className="uze-btn-primary text-xs flex-1 justify-center disabled:opacity-40"
+                    className="uze-btn-primary text-xs flex-1 justify-center disabled:bg-[#EAECF0] disabled:text-[#98A2B3] disabled:border-[#D0D5DD] disabled:cursor-not-allowed"
                   >
                     <Plus size={14} /> Adicionar
                   </button>
@@ -409,13 +409,13 @@ export const NovaVendaModal: React.FC<NovaVendaModalProps> = ({ isOpen, onClose 
             <button
               onClick={handleFinalizeSale}
               disabled={cartItems.length === 0}
-              className="w-full uze-btn-primary py-2.5 text-xs font-bold justify-center disabled:opacity-30 shadow-md"
+              className="w-full uze-btn-primary py-2.5 text-xs font-bold justify-center disabled:bg-slate-800 disabled:text-slate-400 disabled:border-slate-700 disabled:cursor-not-allowed shadow-md"
             >
               <CheckCircle2 size={15} /> Finalizar Venda
             </button>
             <button
               onClick={onClose}
-              className="w-full text-center text-xs text-slate-400 hover:text-white py-1 transition-colors"
+              className="w-full text-center text-xs font-semibold text-slate-300 hover:text-white py-1.5 transition-colors"
             >
               Cancelar
             </button>

@@ -19,7 +19,7 @@ export const AjustarEstoqueModal: React.FC<AjustarEstoqueModalProps> = ({
   const [selectedVarId, setSelectedVarId] = useState<string>(variantId || variants[0]?.id || '');
   const [newStock, setNewStock] = useState<number>(0);
   const [movementType, setMovementType] = useState<MovementType>('Entrada');
-  const [reason, setReason] = useState<string>('Recebimento de lote da fábrica');
+  const [reason, setReason] = useState<string>('Recebimento de lote de produção');
 
   const currentVariant = variants.find(v => v.id === (variantId || selectedVarId));
   const currentModel = models.find(m => m.id === currentVariant?.modelId);
@@ -32,6 +32,8 @@ export const AjustarEstoqueModal: React.FC<AjustarEstoqueModalProps> = ({
     onClose();
   };
 
+  const delta = currentVariant ? newStock - currentVariant.currentStock : 0;
+
   return (
     <Modal
       isOpen={isOpen}
@@ -40,25 +42,28 @@ export const AjustarEstoqueModal: React.FC<AjustarEstoqueModalProps> = ({
       subtitle="Todo ajuste gera um registro no histórico de movimentações auditável"
       maxWidth="md"
     >
-      <form onSubmit={handleSave} className="space-y-4">
+      <form onSubmit={handleSave} className="space-y-4 text-xs">
         <div>
           <label className="uze-label">Variante / Produto</label>
           {variantId && currentVariant ? (
-            <div className="p-3 bg-gray-50 border rounded-md text-xs font-semibold">
-              <p className="text-[var(--color-navy-dark)] font-bold text-sm">{currentModel?.name}</p>
-              <p className="text-gray-600 mt-0.5">
+            <div className="p-3 bg-[#F9FAFB] border border-[#D0D5DD] rounded-md text-xs font-semibold">
+              <p className="text-[#101828] font-bold text-sm">{currentModel?.name}</p>
+              <p className="text-[#344054] mt-0.5">
                 {currentVariant.colorName} - Tamanho {currentVariant.size} ({currentVariant.sku})
               </p>
-              <p className="text-[var(--color-gold-matte)] font-mono font-bold mt-1">
+              <p className="text-[#173E75] font-mono font-bold mt-1">
                 Estoque atual registrado: {currentVariant.currentStock} unidades
               </p>
             </div>
           ) : (
             <select
-              className="uze-input text-xs"
+              className="uze-input text-xs font-medium cursor-pointer"
               value={selectedVarId}
               onChange={e => setSelectedVarId(e.target.value)}
             >
+              {variants.length === 0 && (
+                <option value="">Nenhuma variante cadastrada no sistema</option>
+              )}
               {variants.map(v => {
                 const m = models.find(mod => mod.id === v.modelId);
                 return (
@@ -72,9 +77,9 @@ export const AjustarEstoqueModal: React.FC<AjustarEstoqueModalProps> = ({
         </div>
 
         <div>
-          <label className="uze-label">Tipo de Movimentação</label>
+          <label className="uze-label">Tipo de Movimentação *</label>
           <select
-            className="uze-input text-xs"
+            className="uze-input text-xs font-medium cursor-pointer"
             value={movementType}
             onChange={e => setMovementType(e.target.value as MovementType)}
           >
@@ -87,19 +92,19 @@ export const AjustarEstoqueModal: React.FC<AjustarEstoqueModalProps> = ({
         </div>
 
         <div>
-          <label className="uze-label">Novo Estoque Físico Total (Unidades)</label>
+          <label className="uze-label">Novo Estoque Físico Total (Unidades) *</label>
           <input
             type="number"
             min="0"
             required
-            className="uze-input text-sm font-extrabold text-[var(--color-navy-dark)]"
+            className="uze-input text-sm font-extrabold text-[#101828]"
             value={newStock}
             onChange={e => setNewStock(parseInt(e.target.value) || 0)}
           />
-          <p className="text-[11px] text-gray-500 mt-1">
+          <p className="text-[11px] text-[#475467] mt-1">
             Diferença em relação ao atual: {' '}
-            <span className="font-bold text-[var(--color-navy-deep)]">
-              {currentVariant ? newStock - currentVariant.currentStock : 0} unidades
+            <span className={`font-bold ${delta > 0 ? 'text-[#027A48]' : delta < 0 ? 'text-[#B42318]' : 'text-[#344054]'}`}>
+              {delta > 0 ? `+${delta}` : delta} unidades
             </span>
           </p>
         </div>
@@ -116,11 +121,19 @@ export const AjustarEstoqueModal: React.FC<AjustarEstoqueModalProps> = ({
           />
         </div>
 
-        <div className="flex justify-end gap-2 pt-3 border-t">
-          <button type="button" onClick={onClose} className="uze-btn uze-btn-secondary">
+        <div className="flex justify-end gap-3 pt-3 border-t border-[#D0D5DD]">
+          <button 
+            type="button" 
+            onClick={onClose} 
+            className="uze-btn-secondary text-xs"
+          >
             Cancelar
           </button>
-          <button type="submit" className="uze-btn uze-btn-primary">
+          <button 
+            type="submit" 
+            disabled={!currentVariant}
+            className="uze-btn-primary text-xs shadow-xs"
+          >
             Confirmar Ajuste
           </button>
         </div>

@@ -74,13 +74,13 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNovaVendaModal }) => {
   const pageInfo = getPageInfo();
 
   return (
-    <header className="h-16 bg-white border-b border-[#E5E7EB] px-3 sm:px-6 flex items-center justify-between sticky top-0 z-30 shrink-0">
+    <header className="h-16 bg-white border-b border-[#D0D5DD] px-3 sm:px-6 flex items-center justify-between sticky top-0 z-30 shrink-0">
       {/* Left: Mobile Toggle / Desktop Collapse Toggle + Title */}
       <div className="flex items-center gap-2 sm:gap-4 min-w-0">
         {/* Mobile Hamburger Menu Button */}
         <button
           onClick={() => setIsMobileSidebarOpen(true)}
-          className="lg:hidden p-2 text-[#171A21] hover:bg-gray-100 rounded-md transition-colors shrink-0"
+          className="lg:hidden p-2 text-[#101828] hover:bg-[#F2F4F7] rounded-md transition-colors shrink-0"
           title="Abrir menu de navegação"
           aria-label="Abrir menu"
         >
@@ -100,7 +100,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNovaVendaModal }) => {
         {/* Desktop Sidebar Toggle Icon */}
         <button
           onClick={toggleSidebarCollapse}
-          className="hidden lg:flex p-1.5 text-slate-500 hover:text-[#173E75] hover:bg-slate-100 rounded-md transition-colors shrink-0"
+          className="hidden lg:flex p-1.5 text-[#344054] hover:text-[#173E75] hover:bg-[#F2F4F7] rounded-md transition-colors shrink-0"
           title={isSidebarCollapsed ? "Expandir menu lateral" : "Recolher menu lateral"}
           aria-label="Alternar menu lateral"
         >
@@ -109,10 +109,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNovaVendaModal }) => {
 
         {/* Page Title & Subtitle */}
         <div className="min-w-0">
-          <h2 className="text-sm sm:text-base font-bold text-[#171A21] leading-tight truncate">
+          <h2 className="text-sm sm:text-base font-bold text-[#101828] leading-tight truncate">
             {pageInfo.title}
           </h2>
-          <p className="text-[10px] sm:text-[11px] text-[#667085] leading-none mt-0.5 truncate hidden sm:block">
+          <p className="text-[10px] sm:text-[11px] text-[#475467] font-medium leading-none mt-0.5 truncate hidden sm:block">
             {pageInfo.subtitle}
           </p>
         </div>
@@ -123,7 +123,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNovaVendaModal }) => {
         {/* Mobile Search Toggle Icon */}
         <button
           onClick={() => setIsMobileSearchOpen(!isMobileSearchOpen)}
-          className="md:hidden p-1.5 text-[#667085] hover:text-[#171A21] hover:bg-gray-100 rounded-md transition-colors"
+          className="md:hidden p-1.5 text-[#475467] hover:text-[#101828] hover:bg-[#F2F4F7] rounded-md transition-colors"
           title="Buscar"
           aria-label="Buscar"
         >
@@ -132,21 +132,21 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNovaVendaModal }) => {
 
         {/* Desktop Global Search */}
         <div className="relative hidden md:block w-40 lg:w-56 xl:w-64">
-          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#667085]" />
+          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#475467]" />
           <input
             type="text"
             placeholder="Buscar SKU, produto, cliente..."
-            className="w-full h-8 pl-8 pr-3 text-xs bg-[#F9FAFB] border border-[#E5E7EB] rounded-md outline-none focus:border-[#173E75] focus:bg-white transition-all text-[#171A21]"
+            className="w-full h-8 pl-8 pr-3 text-xs bg-[#F9FAFB] border border-[#D0D5DD] rounded-md outline-none focus:border-[#173E75] focus:ring-2 focus:ring-[#173E75]/15 focus:bg-white transition-all text-[#101828] placeholder:text-[#667085] font-medium"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
 
         {/* Period Selector Dropdown */}
-        <div className="hidden sm:flex items-center gap-1.5 bg-[#F9FAFB] border border-[#E5E7EB] h-8 px-2 rounded-md text-xs">
+        <div className="hidden sm:flex items-center gap-1.5 bg-[#F9FAFB] border border-[#D0D5DD] h-8 px-2 rounded-md text-xs">
           <Calendar size={13} className="text-[#173E75] shrink-0" />
           <select
-            className="bg-transparent font-medium text-[#171A21] outline-none cursor-pointer text-xs pr-1"
+            className="bg-transparent font-medium text-[#101828] outline-none cursor-pointer text-xs pr-1"
             value={periodFilter}
             onChange={(e) => setPeriodFilter(e.target.value as PeriodFilter)}
           >
@@ -171,7 +171,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNovaVendaModal }) => {
 
         {/* Notifications */}
         <button 
-          className="h-8 w-8 flex items-center justify-center text-[#667085] hover:text-[#171A21] hover:bg-gray-100 rounded-md transition-colors relative shrink-0"
+          className="h-8 w-8 flex items-center justify-center text-[#475467] hover:text-[#101828] hover:bg-[#F2F4F7] rounded-md transition-colors relative shrink-0"
           title="Notificações"
           aria-label="Notificações"
         >
@@ -180,25 +180,25 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNovaVendaModal }) => {
         </button>
 
         {/* Profile Avatar */}
-        <div className="flex items-center gap-2 pl-1 sm:pl-2 border-l border-[#E5E7EB] shrink-0">
+        <div className="flex items-center gap-2 pl-1 sm:pl-2 border-l border-[#D0D5DD] shrink-0">
           <div className="w-7 h-7 rounded-full bg-[#07101F] text-[#C69A43] flex items-center justify-center text-[10px] font-bold border border-[#C69A43]/40">
             UD
           </div>
           <div className="hidden xl:block text-left">
-            <p className="text-xs font-semibold text-[#171A21] leading-none">Diretoria</p>
-            <p className="text-[10px] text-[#667085] leading-none mt-0.5">UZE DOCTOR</p>
+            <p className="text-xs font-bold text-[#101828] leading-none">Diretoria</p>
+            <p className="text-[10px] text-[#475467] font-medium leading-none mt-0.5">UZE DOCTOR</p>
           </div>
         </div>
       </div>
 
       {/* Mobile Expandable Search Bar Overlay */}
       {isMobileSearchOpen && (
-        <div className="absolute inset-x-0 top-0 h-16 bg-white px-4 flex items-center gap-2 z-40 border-b border-[#E5E7EB] animate-fadeIn">
-          <Search size={16} className="text-[#667085] shrink-0" />
+        <div className="absolute inset-x-0 top-0 h-16 bg-white px-4 flex items-center gap-2 z-40 border-b border-[#D0D5DD] animate-fadeIn">
+          <Search size={16} className="text-[#475467] shrink-0" />
           <input
             type="text"
             placeholder="Buscar produto, modelo, SKU ou venda..."
-            className="flex-1 h-9 text-xs outline-none text-[#171A21]"
+            className="flex-1 h-9 text-xs outline-none text-[#101828] placeholder:text-[#667085]"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             autoFocus
@@ -208,7 +208,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNovaVendaModal }) => {
               setSearchQuery('');
               setIsMobileSearchOpen(false);
             }}
-            className="p-1 text-slate-400 hover:text-slate-700"
+            className="p-1 text-[#475467] hover:text-[#101828]"
           >
             <X size={18} />
           </button>

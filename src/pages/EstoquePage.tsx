@@ -50,8 +50,8 @@ export const EstoquePage: React.FC = () => {
               size="sm"
             />
             <div>
-              <p className="font-semibold text-[#171A21]">{model?.name || 'Modelo'}</p>
-              <span className="text-[10px] text-[#667085]">{model?.category}</span>
+              <p className="font-semibold text-[#101828]">{model?.name || 'Modelo'}</p>
+              <span className="text-[10px] text-[#475467] font-medium">{model?.category}</span>
             </div>
           </div>
         );
@@ -61,7 +61,7 @@ export const EstoquePage: React.FC = () => {
       header: 'SKU',
       accessorKey: 'sku',
       sortable: true,
-      cell: (v) => <span className="font-mono text-xs text-[#667085] font-semibold">{v.sku}</span>,
+      cell: (v) => <span className="font-mono text-xs text-[#344054] font-semibold">{v.sku}</span>,
     },
     {
       header: 'Cor',
@@ -69,8 +69,8 @@ export const EstoquePage: React.FC = () => {
       sortable: true,
       cell: (v) => (
         <div className="flex items-center gap-2">
-          <span className="w-3.5 h-3.5 rounded-full border border-[#E5E7EB]" style={{ backgroundColor: v.colorHex }} />
-          <span className="text-xs font-medium text-[#171A21]">{v.colorName}</span>
+          <span className="w-3.5 h-3.5 rounded-full border-2 border-[#D0D5DD] shadow-xs" style={{ backgroundColor: v.colorHex }} />
+          <span className="text-xs font-medium text-[#101828]">{v.colorName}</span>
         </div>
       ),
     },
@@ -79,7 +79,7 @@ export const EstoquePage: React.FC = () => {
       accessorKey: 'size',
       sortable: true,
       align: 'center',
-      cell: (v) => <span className="font-bold text-xs">{v.size}</span>,
+      cell: (v) => <span className="font-bold text-xs text-[#101828]">{v.size}</span>,
     },
     {
       header: 'Estoque Atual',
@@ -87,7 +87,7 @@ export const EstoquePage: React.FC = () => {
       sortable: true,
       align: 'right',
       cell: (v) => (
-        <span className={`font-bold text-sm ${v.currentStock === 0 ? 'text-red-600' : 'text-[#171A21]'}`}>
+        <span className={`font-bold text-sm ${v.currentStock === 0 ? 'text-[#B42318]' : 'text-[#101828]'}`}>
           {v.currentStock} un
         </span>
       ),
@@ -97,7 +97,7 @@ export const EstoquePage: React.FC = () => {
       accessorKey: 'minStock',
       sortable: true,
       align: 'right',
-      cell: (v) => <span className="text-[#667085]">{v.minStock} un</span>,
+      cell: (v) => <span className="text-[#475467] font-medium">{v.minStock} un</span>,
     },
     {
       header: 'Status',
@@ -111,10 +111,10 @@ export const EstoquePage: React.FC = () => {
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-[#E5E7EB]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-[#D0D5DD]">
         <div>
-          <h2 className="text-base font-bold text-[#171A21]">Central de Estoque Físico</h2>
-          <p className="text-xs text-[#667085]">
+          <h2 className="text-base font-bold text-[#101828]">Central de Estoque Físico</h2>
+          <p className="text-xs text-[#475467] font-medium">
             Controle de inventário por SKU, cor, tamanho e regras de nivelamento
           </p>
         </div>
@@ -213,7 +213,7 @@ export const EstoquePage: React.FC = () => {
         actions={(v) => (
           <button
             onClick={() => handleOpenAjusteForVariant(v.id)}
-            className="p-1 text-xs font-semibold text-[#173E75] hover:bg-gray-100 rounded transition-colors"
+            className="p-1 text-xs font-bold text-[#173E75] hover:bg-[#F2F4F7] rounded transition-colors"
           >
             Ajustar
           </button>

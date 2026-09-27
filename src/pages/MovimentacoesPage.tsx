@@ -16,7 +16,7 @@ export const MovimentacoesPage: React.FC = () => {
       header: 'Data / Hora',
       accessorKey: 'date',
       sortable: true,
-      cell: (m) => <span className="text-xs text-[#667085] font-mono">{m.date}</span>,
+      cell: (m) => <span className="text-xs text-[#475467] font-mono font-medium">{m.date}</span>,
     },
     {
       header: 'Produto / Modelo',
@@ -24,8 +24,8 @@ export const MovimentacoesPage: React.FC = () => {
       sortable: true,
       cell: (m) => (
         <div>
-          <p className="font-semibold text-[#171A21]">{m.productName}</p>
-          <span className="text-[10px] font-mono text-[#667085]">{m.sku}</span>
+          <p className="font-semibold text-[#101828]">{m.productName}</p>
+          <span className="text-[10px] font-mono text-[#344054] font-semibold">{m.sku}</span>
         </div>
       ),
     },
@@ -34,7 +34,7 @@ export const MovimentacoesPage: React.FC = () => {
       accessorKey: 'colorName',
       sortable: true,
       cell: (m) => (
-        <span className="text-xs text-[#171A21]">
+        <span className="text-xs font-medium text-[#101828]">
           {m.colorName} - {m.size}
         </span>
       ),
@@ -51,7 +51,7 @@ export const MovimentacoesPage: React.FC = () => {
       sortable: true,
       align: 'right',
       cell: (m) => (
-        <span className={`font-bold text-sm ${m.quantity > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+        <span className={`font-bold text-sm ${m.quantity > 0 ? 'text-[#027A48]' : 'text-[#B42318]'}`}>
           {m.quantity > 0 ? `+${m.quantity}` : m.quantity} un
         </span>
       ),
@@ -60,23 +60,23 @@ export const MovimentacoesPage: React.FC = () => {
       header: 'Motivo / Justificativa',
       accessorKey: 'reason',
       sortable: true,
-      cell: (m) => <span className="text-xs text-[#667085]">{m.reason}</span>,
+      cell: (m) => <span className="text-xs text-[#475467] font-medium">{m.reason}</span>,
     },
     {
       header: 'Usuário',
       accessorKey: 'user',
       sortable: true,
-      cell: (m) => <span className="text-xs text-[#667085]">{m.user}</span>,
+      cell: (m) => <span className="text-xs text-[#475467] font-medium">{m.user}</span>,
     },
   ];
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-[#E5E7EB]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-[#D0D5DD]">
         <div>
-          <h2 className="text-base font-bold text-[#171A21]">Movimentações de Estoque</h2>
-          <p className="text-xs text-[#667085]">
+          <h2 className="text-base font-bold text-[#101828]">Movimentações de Estoque</h2>
+          <p className="text-xs text-[#475467] font-medium">
             Histórico auditável de entradas, vendas, ajustes, perdas e devoluções físicas
           </p>
         </div>

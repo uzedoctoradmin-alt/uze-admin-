@@ -20,8 +20,8 @@ export const ClientesPage: React.FC = () => {
       sortable: true,
       cell: (c) => (
         <div>
-          <p className="font-semibold text-[#171A21]">{c.name}</p>
-          <span className="text-[10px] text-[#667085]">{c.document}</span>
+          <p className="font-semibold text-[#101828]">{c.name}</p>
+          <span className="text-[10px] text-[#475467] font-medium">{c.document}</span>
         </div>
       ),
     },
@@ -31,8 +31,8 @@ export const ClientesPage: React.FC = () => {
       sortable: true,
       cell: (c) => (
         <div>
-          <p className="text-xs text-[#171A21]">{c.email}</p>
-          <span className="text-[10px] font-mono text-[#667085]">{c.phone}</span>
+          <p className="text-xs text-[#101828] font-medium">{c.email}</p>
+          <span className="text-[10px] font-mono text-[#475467]">{c.phone}</span>
         </div>
       ),
     },
@@ -40,19 +40,19 @@ export const ClientesPage: React.FC = () => {
       header: 'Cidade / UF',
       accessorKey: 'city',
       sortable: true,
-      cell: (c) => <span className="text-xs text-[#171A21] font-medium">{c.city}/{c.state}</span>,
+      cell: (c) => <span className="text-xs text-[#101828] font-medium">{c.city}/{c.state}</span>,
     },
     {
       header: 'Primeira Compra',
       accessorKey: 'firstPurchaseDate',
       sortable: true,
-      cell: (c) => <span className="text-xs text-[#667085] font-mono">{c.firstPurchaseDate}</span>,
+      cell: (c) => <span className="text-xs text-[#475467] font-mono font-medium">{c.firstPurchaseDate}</span>,
     },
     {
       header: 'Última Compra',
       accessorKey: 'lastPurchaseDate',
       sortable: true,
-      cell: (c) => <span className="text-xs text-[#667085] font-mono">{c.lastPurchaseDate}</span>,
+      cell: (c) => <span className="text-xs text-[#475467] font-mono font-medium">{c.lastPurchaseDate}</span>,
     },
     {
       header: 'Pedidos',
@@ -71,7 +71,7 @@ export const ClientesPage: React.FC = () => {
       sortable: true,
       align: 'right',
       cell: (c) => (
-        <span className="font-bold text-sm text-[#171A21]">
+        <span className="font-bold text-sm text-[#101828]">
           R$ {c.totalSpent.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
         </span>
       ),
@@ -85,10 +85,10 @@ export const ClientesPage: React.FC = () => {
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-[#E5E7EB]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-[#D0D5DD]">
         <div>
-          <h2 className="text-base font-bold text-[#171A21]">Base de Clientes</h2>
-          <p className="text-xs text-[#667085]">
+          <h2 className="text-base font-bold text-[#101828]">Base de Clientes</h2>
+          <p className="text-xs text-[#475467] font-medium">
             Médicos, clínicas e profissionais cadastrados na UZE DOCTOR
           </p>
         </div>
@@ -103,12 +103,12 @@ export const ClientesPage: React.FC = () => {
 
       {/* Customers Table or Empty State */}
       {customers.length === 0 ? (
-        <div className="bg-white border border-[#E5E7EB] rounded-lg p-12 text-center flex flex-col items-center justify-center space-y-3">
-          <div className="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center text-[#173E75]">
-            <UserPlus size={28} className="opacity-60" />
+        <div className="bg-white border border-[#D0D5DD] rounded-lg p-12 text-center flex flex-col items-center justify-center space-y-3">
+          <div className="w-14 h-14 rounded-full bg-[#EFF4FF] border border-[#D0D5DD] flex items-center justify-center text-[#173E75]">
+            <UserPlus size={28} />
           </div>
-          <h3 className="text-base font-bold text-[#171A21]">Nenhum cliente cadastrado</h3>
-          <p className="text-xs text-[#667085] max-w-md leading-relaxed">
+          <h3 className="text-base font-bold text-[#101828]">Nenhum cliente cadastrado</h3>
+          <p className="text-xs text-[#475467] font-medium max-w-md leading-relaxed">
             Cadastre os médicos, clínicas e profissionais de saúde para associar vendas, histórico de medidas e personalizações da UZE DOCTOR.
           </p>
           <button
@@ -128,7 +128,7 @@ export const ClientesPage: React.FC = () => {
           actions={(c) => (
             <button
               onClick={() => setSelectedCustomer(c)}
-              className="p-1 text-xs font-semibold text-[#173E75] hover:bg-gray-100 rounded transition-colors inline-flex items-center gap-1"
+              className="p-1 text-xs font-bold text-[#173E75] hover:bg-[#F2F4F7] rounded transition-colors inline-flex items-center gap-1"
             >
               <Eye size={13} /> Histórico
             </button>
@@ -152,31 +152,31 @@ export const ClientesPage: React.FC = () => {
           maxWidth="4xl"
         >
           <div className="space-y-5 text-xs">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 bg-[#F9FAFB] rounded-lg border border-[#E5E7EB]">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 bg-[#F9FAFB] rounded-lg border border-[#D0D5DD]">
               <div>
-                <span className="text-[10px] text-[#667085] font-semibold uppercase block">Contato</span>
-                <p className="font-bold text-sm text-[#171A21]">{selectedCustomer.name}</p>
-                <p className="text-[#667085]">{selectedCustomer.email}</p>
-                <p className="text-[#667085] font-mono">{selectedCustomer.phone}</p>
+                <span className="text-[10px] text-[#344054] font-bold uppercase block">Contato</span>
+                <p className="font-bold text-sm text-[#101828]">{selectedCustomer.name}</p>
+                <p className="text-[#475467] font-medium">{selectedCustomer.email}</p>
+                <p className="text-[#475467] font-mono font-medium">{selectedCustomer.phone}</p>
               </div>
 
               <div>
-                <span className="text-[10px] text-[#667085] font-semibold uppercase block">Localização</span>
-                <p className="font-bold text-sm text-[#171A21]">{selectedCustomer.city} / {selectedCustomer.state}</p>
-                <p className="text-[#667085] mt-1 font-mono">Doc: {selectedCustomer.document}</p>
+                <span className="text-[10px] text-[#344054] font-bold uppercase block">Localização</span>
+                <p className="font-bold text-sm text-[#101828]">{selectedCustomer.city} / {selectedCustomer.state}</p>
+                <p className="text-[#475467] mt-1 font-mono font-medium">Doc: {selectedCustomer.document}</p>
               </div>
 
               <div>
-                <span className="text-[10px] text-[#667085] font-semibold uppercase block">Total Gasto</span>
-                <p className="text-base font-bold text-[#173E75]">
+                <span className="text-[10px] text-[#344054] font-bold uppercase block">Total Gasto</span>
+                <p className="text-base font-black text-[#173E75]">
                   R$ {selectedCustomer.totalSpent.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </p>
-                <p className="text-[#667085] font-medium">{selectedCustomer.totalOrders} pedidos realizados</p>
+                <p className="text-[#475467] font-medium">{selectedCustomer.totalOrders} pedidos realizados</p>
               </div>
             </div>
 
             <div>
-              <h4 className="font-semibold text-[#171A21] uppercase text-[11px] mb-2 flex items-center gap-1">
+              <h4 className="font-bold text-[#101828] uppercase text-[11px] mb-2 flex items-center gap-1">
                 <ShoppingBag size={13} className="text-[#173E75]" /> Histórico de Compras ({customerSalesHistory.length})
               </h4>
 
@@ -195,22 +195,22 @@ export const ClientesPage: React.FC = () => {
                   <tbody>
                     {customerSalesHistory.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="text-center py-5 text-[#667085]">
+                        <td colSpan={6} className="text-center py-5 text-[#475467] font-medium">
                           Nenhum pedido anterior localizado.
                         </td>
                       </tr>
                     ) : (
                       customerSalesHistory.map(sale => (
                         <tr key={sale.id}>
-                          <td className="font-mono font-semibold text-[#173E75]">{sale.id}</td>
-                          <td className="text-[#667085]">{sale.date}</td>
-                          <td className="text-[#171A21]">
+                          <td className="font-mono font-bold text-[#173E75]">{sale.id}</td>
+                          <td className="text-[#475467] font-medium">{sale.date}</td>
+                          <td className="text-[#101828] font-medium">
                             {sale.items.map(i => `${i.productName} (${i.size})`).join(', ')}
                           </td>
-                          <td className="text-right font-bold text-[#171A21]">
+                          <td className="text-right font-bold text-[#101828]">
                             R$ {sale.total.toFixed(2)}
                           </td>
-                          <td className="text-[#667085]">{sale.paymentMethod}</td>
+                          <td className="text-[#475467] font-medium">{sale.paymentMethod}</td>
                           <td>
                             <span className="uze-badge uze-badge-success">{sale.status}</span>
                           </td>

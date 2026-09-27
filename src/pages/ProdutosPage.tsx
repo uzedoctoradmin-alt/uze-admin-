@@ -110,10 +110,10 @@ export const ProdutosPage: React.FC = () => {
   return (
     <div className="space-y-5 max-w-7xl mx-auto">
       {/* 1. Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#E5E7EB]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#D0D5DD]">
         <div>
-          <h2 className="text-base sm:text-lg font-bold text-[#171A21] tracking-tight">Produtos</h2>
-          <p className="text-xs text-[#667085]">
+          <h2 className="text-base sm:text-lg font-bold text-[#101828] tracking-tight">Produtos</h2>
+          <p className="text-xs text-[#475467] font-medium">
             Gerencie modelos, preços, variantes e estoque.
           </p>
         </div>
@@ -131,18 +131,18 @@ export const ProdutosPage: React.FC = () => {
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
           {/* Search Box */}
           <div className="relative flex-1">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#667085]" />
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#475467]" />
             <input
               type="text"
               placeholder="Buscar por modelo, SKU ou categoria..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full h-9 pl-9 pr-3 text-xs bg-white border border-[#E5E7EB] rounded-lg outline-none focus:border-[#173E75] focus:ring-1 focus:ring-[#173E75]/10 text-[#171A21] transition-all"
+              className="w-full h-9 pl-9 pr-3 text-xs bg-white border border-[#D0D5DD] rounded-lg outline-none focus:border-[#173E75] focus:ring-2 focus:ring-[#173E75]/15 text-[#101828] placeholder:text-[#667085] font-medium transition-all"
             />
             {search && (
               <button
                 onClick={() => setSearch('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#475467] hover:text-[#101828] p-0.5"
               >
                 <X size={14} />
               </button>
@@ -153,10 +153,10 @@ export const ProdutosPage: React.FC = () => {
           <div className="relative flex items-center gap-2">
             <button
               onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-              className={`h-9 px-3 text-xs font-medium rounded-lg border flex items-center gap-1.5 transition-colors ${
+              className={`h-9 px-3 text-xs font-semibold rounded-lg border flex items-center gap-1.5 transition-colors ${
                 activeFiltersCount > 0 || showFilterDropdown
-                  ? 'border-[#173E75] bg-[#173E75]/5 text-[#173E75]'
-                  : 'border-[#E5E7EB] bg-white text-[#171A21] hover:bg-slate-50'
+                  ? 'border-[#173E75] bg-[#173E75]/10 text-[#173E75]'
+                  : 'border-[#D0D5DD] bg-white text-[#101828] hover:bg-[#F2F4F7]'
               }`}
             >
               <SlidersHorizontal size={14} />
@@ -172,7 +172,7 @@ export const ProdutosPage: React.FC = () => {
             {activeFiltersCount > 0 && (
               <button
                 onClick={resetFilters}
-                className="h-9 px-2 text-xs text-[#667085] hover:text-[#171A21] hover:underline"
+                className="h-9 px-2 text-xs text-[#475467] font-semibold hover:text-[#101828] hover:underline"
               >
                 Limpar
               </button>
@@ -182,16 +182,16 @@ export const ProdutosPage: React.FC = () => {
 
         {/* Discreet Filter Popover Panel */}
         {showFilterDropdown && (
-          <div className="bg-white border border-[#E5E7EB] rounded-lg p-3.5 shadow-md grid grid-cols-1 sm:grid-cols-3 gap-3 animate-fadeIn">
+          <div className="bg-white border border-[#D0D5DD] rounded-lg p-3.5 shadow-md grid grid-cols-1 sm:grid-cols-3 gap-3 animate-fadeIn">
             {/* Category Select */}
             <div>
-              <label className="text-[10px] font-bold text-[#667085] uppercase tracking-wider block mb-1">
+              <label className="text-[10px] font-bold text-[#344054] uppercase tracking-wider block mb-1">
                 Categoria
               </label>
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="w-full h-8 text-xs bg-[#F9FAFB] border border-[#E5E7EB] rounded-md px-2 text-[#171A21] outline-none cursor-pointer focus:border-[#173E75]"
+                className="w-full h-8 text-xs bg-[#F9FAFB] border border-[#D0D5DD] rounded-md px-2 text-[#101828] font-medium outline-none cursor-pointer focus:border-[#173E75]"
               >
                 <option value="all">Todas as Categorias</option>
                 {categories.map((cat) => (
@@ -204,13 +204,13 @@ export const ProdutosPage: React.FC = () => {
 
             {/* Collection Select */}
             <div>
-              <label className="text-[10px] font-bold text-[#667085] uppercase tracking-wider block mb-1">
+              <label className="text-[10px] font-bold text-[#344054] uppercase tracking-wider block mb-1">
                 Coleção
               </label>
               <select
                 value={selectedCollection}
                 onChange={(e) => setSelectedCollection(e.target.value)}
-                className="w-full h-8 text-xs bg-[#F9FAFB] border border-[#E5E7EB] rounded-md px-2 text-[#171A21] outline-none cursor-pointer focus:border-[#173E75]"
+                className="w-full h-8 text-xs bg-[#F9FAFB] border border-[#D0D5DD] rounded-md px-2 text-[#101828] font-medium outline-none cursor-pointer focus:border-[#173E75]"
               >
                 <option value="all">Todas as Coleções</option>
                 {collections.map((col) => (
@@ -223,13 +223,13 @@ export const ProdutosPage: React.FC = () => {
 
             {/* Stock Availability */}
             <div>
-              <label className="text-[10px] font-bold text-[#667085] uppercase tracking-wider block mb-1">
+              <label className="text-[10px] font-bold text-[#344054] uppercase tracking-wider block mb-1">
                 Disponibilidade
               </label>
               <select
                 value={selectedStockStatus}
                 onChange={(e) => setSelectedStockStatus(e.target.value)}
-                className="w-full h-8 text-xs bg-[#F9FAFB] border border-[#E5E7EB] rounded-md px-2 text-[#171A21] outline-none cursor-pointer focus:border-[#173E75]"
+                className="w-full h-8 text-xs bg-[#F9FAFB] border border-[#D0D5DD] rounded-md px-2 text-[#101828] font-medium outline-none cursor-pointer focus:border-[#173E75]"
               >
                 <option value="all">Todos os Estados</option>
                 <option value="available">Em Estoque</option>
@@ -244,12 +244,12 @@ export const ProdutosPage: React.FC = () => {
       {/* 3. Products List */}
       <div className="space-y-3">
         {models.length === 0 ? (
-          <div className="bg-white border border-[#E5E7EB] rounded-lg p-12 text-center flex flex-col items-center justify-center space-y-3">
-            <div className="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center text-[#173E75]">
-              <Boxes size={28} className="opacity-60" />
+          <div className="bg-white border border-[#D0D5DD] rounded-lg p-12 text-center flex flex-col items-center justify-center space-y-3">
+            <div className="w-14 h-14 rounded-full bg-[#EFF4FF] border border-[#D0D5DD] flex items-center justify-center text-[#173E75]">
+              <Boxes size={28} />
             </div>
-            <h3 className="text-base font-bold text-[#171A21]">Nenhum produto cadastrado</h3>
-            <p className="text-xs text-[#667085] max-w-md leading-relaxed">
+            <h3 className="text-base font-bold text-[#101828]">Nenhum produto cadastrado</h3>
+            <p className="text-xs text-[#475467] font-medium max-w-md leading-relaxed">
               Cadastre o primeiro produto da UZE DOCTOR para começar a controlar catálogo, variantes e estoque.
             </p>
             <button
@@ -261,10 +261,10 @@ export const ProdutosPage: React.FC = () => {
             </button>
           </div>
         ) : filteredModels.length === 0 ? (
-          <div className="bg-white border border-[#E5E7EB] rounded-lg p-10 text-center">
-            <Boxes size={32} className="mx-auto text-slate-400 mb-2" />
-            <h3 className="text-sm font-bold text-[#171A21]">Nenhum produto encontrado</h3>
-            <p className="text-xs text-[#667085] mt-1">
+          <div className="bg-white border border-[#D0D5DD] rounded-lg p-10 text-center">
+            <Boxes size={32} className="mx-auto text-[#98A2B3] mb-2" />
+            <h3 className="text-sm font-bold text-[#101828]">Nenhum produto encontrado</h3>
+            <p className="text-xs text-[#475467] font-medium mt-1">
               Tente ajustar os filtros ou o termo de busca.
             </p>
             <button
@@ -282,7 +282,7 @@ export const ProdutosPage: React.FC = () => {
             return (
               <div
                 key={model.id}
-                className="bg-white border border-[#E5E7EB] rounded-lg p-3.5 sm:p-4.5 shadow-[0_1px_2px_rgba(0,0,0,0.02)] hover:border-slate-300 hover:shadow-xs transition-all"
+                className="bg-white border border-[#D0D5DD] rounded-lg p-3.5 sm:p-4.5 shadow-[0_1px_2px_rgba(0,0,0,0.02)] hover:border-[#173E75] hover:shadow-xs transition-all"
               >
                 {/* Desktop & Tablet Layout (>= 768px): Horizontal Elegant Block */}
                 <div className="hidden md:flex items-center justify-between gap-4">
@@ -296,7 +296,7 @@ export const ProdutosPage: React.FC = () => {
 
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-bold text-[#171A21] truncate" title={model.name}>
+                        <h3 className="text-sm font-bold text-[#101828] truncate" title={model.name}>
                           {model.name}
                         </h3>
                         <span className="uze-badge uze-badge-navy text-[10px] shrink-0">
@@ -304,12 +304,12 @@ export const ProdutosPage: React.FC = () => {
                         </span>
                       </div>
 
-                      <p className="text-xs text-[#667085] truncate mt-0.5" title={`${model.category} • ${model.collection}`}>
+                      <p className="text-xs text-[#475467] font-medium truncate mt-0.5" title={`${model.category} • ${model.collection}`}>
                         {model.category} • {model.collection}
                       </p>
 
                       <div className="mt-1">
-                        <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/60">
+                        <span className="text-[10px] font-mono text-[#344054] bg-[#F2F4F7] px-1.5 py-0.5 rounded border border-[#D0D5DD] font-semibold">
                           SKU: {model.id}
                         </span>
                       </div>
@@ -317,30 +317,30 @@ export const ProdutosPage: React.FC = () => {
                   </div>
 
                   {/* Center: Financial Metrics (Preço, Custo, Margem) */}
-                  <div className="flex items-center gap-6 lg:gap-8 px-4 border-x border-[#F3F4F6] shrink-0 text-center">
+                  <div className="flex items-center gap-6 lg:gap-8 px-4 border-x border-[#D0D5DD] shrink-0 text-center">
                     <div>
-                      <span className="text-[10px] font-bold text-[#667085] uppercase tracking-wider block">
+                      <span className="text-[10px] font-bold text-[#344054] uppercase tracking-wider block">
                         Preço
                       </span>
-                      <span className="text-sm font-bold text-[#171A21] whitespace-nowrap">
+                      <span className="text-sm font-black text-[#101828] whitespace-nowrap">
                         R$ {model.basePrice.toFixed(2)}
                       </span>
                     </div>
 
                     <div>
-                      <span className="text-[10px] font-bold text-[#667085] uppercase tracking-wider block">
+                      <span className="text-[10px] font-bold text-[#344054] uppercase tracking-wider block">
                         Custo
                       </span>
-                      <span className="text-xs font-semibold text-[#667085] whitespace-nowrap">
+                      <span className="text-xs font-bold text-[#475467] whitespace-nowrap">
                         R$ {model.baseCost.toFixed(2)}
                       </span>
                     </div>
 
                     <div>
-                      <span className="text-[10px] font-bold text-[#667085] uppercase tracking-wider block">
+                      <span className="text-[10px] font-bold text-[#344054] uppercase tracking-wider block">
                         Margem
                       </span>
-                      <span className="text-xs font-bold text-emerald-600 whitespace-nowrap">
+                      <span className="text-xs font-black text-[#027A48] whitespace-nowrap">
                         {margin.toFixed(1)}%
                       </span>
                     </div>
@@ -349,14 +349,14 @@ export const ProdutosPage: React.FC = () => {
                   {/* Right Side: Variants Count + Stock Units + Ver Detalhes Button */}
                   <div className="flex items-center gap-4 shrink-0 text-right">
                     <div>
-                      <span className="text-xs font-medium text-[#171A21] block">
+                      <span className="text-xs font-bold text-[#101828] block">
                         {stats.variantCount} variantes
                       </span>
-                      <span className={`text-xs font-semibold block ${
+                      <span className={`text-xs font-bold block ${
                         stats.totalStock === 0 
-                          ? 'text-red-500' 
+                          ? 'text-[#B42318]' 
                           : stats.totalStock <= 15 
-                          ? 'text-amber-600' 
+                          ? 'text-[#B54708]' 
                           : 'text-[#173E75]'
                       }`}>
                         {stats.totalStock} em estoque
@@ -384,35 +384,35 @@ export const ProdutosPage: React.FC = () => {
                     />
 
                     <div className="min-w-0 flex-1">
-                      <h3 className="text-sm font-bold text-[#171A21] truncate">
+                      <h3 className="text-sm font-bold text-[#101828] truncate">
                         {model.name}
                       </h3>
-                      <p className="text-xs text-[#667085] truncate">
+                      <p className="text-xs text-[#475467] font-medium truncate">
                         {model.gender} • {model.collection}
                       </p>
-                      <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded inline-block mt-0.5">
+                      <span className="text-[10px] font-mono text-[#344054] bg-[#F2F4F7] px-1.5 py-0.5 rounded border border-[#D0D5DD] font-semibold inline-block mt-0.5">
                         SKU: {model.id}
                       </span>
                     </div>
                   </div>
 
                   {/* Row 2: Price, Variants & Stock, Margin */}
-                  <div className="bg-[#F9FAFB] p-2.5 rounded-md border border-[#E5E7EB] flex items-center justify-between text-xs">
+                  <div className="bg-[#F9FAFB] p-2.5 rounded-md border border-[#D0D5DD] flex items-center justify-between text-xs">
                     <div>
-                      <span className="text-[10px] text-[#667085] uppercase block font-medium">Preço</span>
-                      <span className="font-bold text-[#171A21]">R$ {model.basePrice.toFixed(2)}</span>
+                      <span className="text-[10px] text-[#344054] uppercase block font-bold">Preço</span>
+                      <span className="font-bold text-[#101828]">R$ {model.basePrice.toFixed(2)}</span>
                     </div>
 
                     <div className="text-center">
-                      <span className="text-[10px] text-[#667085] uppercase block font-medium">Estoque</span>
-                      <span className="font-semibold text-[#173E75]">
+                      <span className="text-[10px] text-[#344054] uppercase block font-bold">Estoque</span>
+                      <span className="font-bold text-[#173E75]">
                         {stats.variantCount} var • {stats.totalStock} un
                       </span>
                     </div>
 
                     <div className="text-right">
-                      <span className="text-[10px] text-[#667085] uppercase block font-medium">Margem</span>
-                      <span className="font-bold text-emerald-600">{margin.toFixed(1)}%</span>
+                      <span className="text-[10px] text-[#344054] uppercase block font-bold">Margem</span>
+                      <span className="font-black text-[#027A48]">{margin.toFixed(1)}%</span>
                     </div>
                   </div>
 
@@ -448,7 +448,7 @@ export const ProdutosPage: React.FC = () => {
         >
           <div className="space-y-4 text-xs">
             {/* Header info */}
-            <div className="flex flex-col sm:flex-row gap-4 p-4 bg-[#F9FAFB] rounded-lg border border-[#E5E7EB]">
+            <div className="flex flex-col sm:flex-row gap-4 p-4 bg-[#F9FAFB] rounded-lg border border-[#D0D5DD]">
               <ProductImage
                 src={selectedModel.imageUrl}
                 alt={selectedModel.name}
@@ -457,22 +457,22 @@ export const ProdutosPage: React.FC = () => {
 
               <div className="space-y-1.5 flex-1 min-w-0">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-[#171A21]">{selectedModel.name}</h3>
+                  <h3 className="text-sm font-bold text-[#101828]">{selectedModel.name}</h3>
                   <span className="uze-badge uze-badge-gold">{selectedModel.status}</span>
                 </div>
-                <p className="text-[#667085] leading-relaxed">{selectedModel.description}</p>
-                <div className="flex flex-wrap items-center gap-4 pt-2 border-t border-[#E5E7EB] font-medium text-[#171A21]">
-                  <span>Preço de Venda: <strong>R$ {selectedModel.basePrice.toFixed(2)}</strong></span>
-                  <span>Custo Unitário: <strong className="text-[#667085]">R$ {selectedModel.baseCost.toFixed(2)}</strong></span>
-                  <span>Gênero: <strong>{selectedModel.gender}</strong></span>
-                  <span>SKU Base: <code className="font-mono text-slate-600">{selectedModel.id}</code></span>
+                <p className="text-[#344054] font-medium leading-relaxed">{selectedModel.description}</p>
+                <div className="flex flex-wrap items-center gap-4 pt-2 border-t border-[#D0D5DD] font-medium text-[#101828]">
+                  <span>Preço de Venda: <strong className="text-[#101828] font-bold">R$ {selectedModel.basePrice.toFixed(2)}</strong></span>
+                  <span>Custo Unitário: <strong className="text-[#475467] font-semibold">R$ {selectedModel.baseCost.toFixed(2)}</strong></span>
+                  <span>Gênero: <strong className="text-[#101828] font-bold">{selectedModel.gender}</strong></span>
+                  <span>SKU Base: <code className="font-mono text-[#173E75] font-bold bg-[#EFF4FF] px-1 py-0.5 rounded border border-[#D0D5DD]">{selectedModel.id}</code></span>
                 </div>
               </div>
             </div>
 
             {/* Variants table */}
             <div>
-              <h4 className="font-bold text-[#171A21] uppercase text-[11px] mb-2 flex items-center gap-1.5">
+              <h4 className="font-bold text-[#101828] uppercase text-[11px] mb-2 flex items-center gap-1.5">
                 <Layers size={13} className="text-[#173E75]" /> 
                 Variantes Físicas Associadas ({getModelStats(selectedModel.id).variantCount})
               </h4>
@@ -491,17 +491,17 @@ export const ProdutosPage: React.FC = () => {
                   <tbody>
                     {getModelStats(selectedModel.id).variantsList.map(v => (
                       <tr key={v.id}>
-                        <td className="font-mono text-[#667085] font-semibold">{v.sku}</td>
+                        <td className="font-mono text-[#344054] font-semibold">{v.sku}</td>
                         <td className="flex items-center gap-2">
                           <span
-                            className="w-3 h-3 rounded-full border border-[#E5E7EB]"
+                            className="w-3.5 h-3.5 rounded-full border-2 border-[#D0D5DD] shadow-xs"
                             style={{ backgroundColor: v.colorHex }}
                           />
-                          <span>{v.colorName}</span>
+                          <span className="font-medium text-[#101828]">{v.colorName}</span>
                         </td>
-                        <td className="font-bold">{v.size}</td>
-                        <td className="text-right font-bold text-[#171A21]">{v.currentStock} un</td>
-                        <td className="text-right text-[#667085]">{v.minStock} un</td>
+                        <td className="font-bold text-[#101828]">{v.size}</td>
+                        <td className="text-right font-bold text-[#101828]">{v.currentStock} un</td>
+                        <td className="text-right text-[#475467] font-medium">{v.minStock} un</td>
                         <td>
                           {v.currentStock === 0 ? (
                             <span className="uze-badge uze-badge-danger">Sem Estoque</span>

@@ -109,41 +109,41 @@ export const DashboardPage: React.FC = () => {
       {/* Grid: Gráfico (8 colunas) + Situação do Estoque (4 colunas). No mobile: Gráfico primeiro, Estoque abaixo */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 items-start">
         {/* Gráfico Principal (col-span-8) */}
-        <div className="lg:col-span-8 bg-white border border-[#E5E7EB] rounded-lg p-4 sm:p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03)] overflow-hidden">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-[#F3F4F6]">
+        <div className="lg:col-span-8 bg-white border border-[#D0D5DD] rounded-lg p-4 sm:p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03)] overflow-hidden">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-[#D0D5DD]">
             <div>
-              <h3 className="text-sm font-bold text-[#171A21]">Evolução das Vendas</h3>
-              <p className="text-xs text-[#667085]">Acompanhamento da receita ao longo do período selecionado</p>
+              <h3 className="text-sm font-bold text-[#101828]">Evolução das Vendas</h3>
+              <p className="text-xs text-[#475467] font-medium">Acompanhamento da receita ao longo do período selecionado</p>
             </div>
 
             {/* Alternador de Métrica (Faturamento | Pedidos | Lucro) */}
-            <div className="flex items-center gap-1 bg-[#F9FAFB] p-1 rounded-md border border-[#E5E7EB] self-start sm:self-auto">
+            <div className="flex items-center gap-1 bg-[#F9FAFB] p-1 rounded-md border border-[#D0D5DD] self-start sm:self-auto">
               <button
                 onClick={() => setChartMetric('faturamento')}
-                className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${
+                className={`px-2.5 py-1 text-xs font-semibold rounded transition-colors ${
                   chartMetric === 'faturamento' 
                     ? 'bg-[#173E75] text-white shadow-xs' 
-                    : 'text-[#667085] hover:text-[#171A21]'
+                    : 'text-[#344054] hover:text-[#101828] hover:bg-[#F2F4F7]'
                 }`}
               >
                 Faturamento
               </button>
               <button
                 onClick={() => setChartMetric('vendas')}
-                className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${
+                className={`px-2.5 py-1 text-xs font-semibold rounded transition-colors ${
                   chartMetric === 'vendas' 
                     ? 'bg-[#173E75] text-white shadow-xs' 
-                    : 'text-[#667085] hover:text-[#171A21]'
+                    : 'text-[#344054] hover:text-[#101828] hover:bg-[#F2F4F7]'
                 }`}
               >
                 Pedidos
               </button>
               <button
                 onClick={() => setChartMetric('lucro')}
-                className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${
+                className={`px-2.5 py-1 text-xs font-semibold rounded transition-colors ${
                   chartMetric === 'lucro' 
                     ? 'bg-[#173E75] text-white shadow-xs' 
-                    : 'text-[#667085] hover:text-[#171A21]'
+                    : 'text-[#344054] hover:text-[#101828] hover:bg-[#F2F4F7]'
                 }`}
               >
                 Lucro
@@ -155,13 +155,13 @@ export const DashboardPage: React.FC = () => {
             {chartData.length === 0 ? (
               /* Estado Vazio Elegante do Gráfico */
               <div className="flex flex-col items-center justify-center text-center p-6 space-y-2.5 max-w-sm">
-                <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-[#173E75]">
-                  <TrendingUp size={22} className="opacity-60" />
+                <div className="w-12 h-12 rounded-full bg-[#EFF4FF] border border-[#D0D5DD] flex items-center justify-center text-[#173E75]">
+                  <TrendingUp size={22} />
                 </div>
-                <h4 className="text-sm font-bold text-[#171A21]">
+                <h4 className="text-sm font-bold text-[#101828]">
                   Ainda não há dados de vendas para este período
                 </h4>
-                <p className="text-xs text-[#667085] leading-relaxed">
+                <p className="text-xs text-[#475467] font-medium leading-relaxed">
                   Conforme novas vendas forem registradas no sistema, o gráfico de evolução será alimentado automaticamente.
                 </p>
                 <button
@@ -181,17 +181,17 @@ export const DashboardPage: React.FC = () => {
                       <stop offset="95%" stopColor="#173E75" stopOpacity={0.0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F0F2F5" />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E4E7EC" />
                   <XAxis 
                     dataKey="label" 
-                    stroke="#9CA3AF" 
+                    stroke="#475467" 
                     fontSize={11} 
                     tickLine={false} 
                     axisLine={false}
                     minTickGap={10}
                   />
                   <YAxis 
-                    stroke="#9CA3AF" 
+                    stroke="#475467" 
                     fontSize={10} 
                     tickLine={false} 
                     axisLine={false}
@@ -226,53 +226,53 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         {/* Painel Secundário: Situação do Estoque (col-span-4) */}
-        <div className="lg:col-span-4 bg-white border border-[#E5E7EB] rounded-lg p-4 sm:p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03)] flex flex-col justify-between">
+        <div className="lg:col-span-4 bg-white border border-[#D0D5DD] rounded-lg p-4 sm:p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03)] flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between pb-3 border-b border-[#F3F4F6] mb-4">
+            <div className="flex items-center justify-between pb-3 border-b border-[#D0D5DD] mb-4">
               <div>
-                <h3 className="text-sm font-bold text-[#171A21]">Situação do Estoque</h3>
-                <p className="text-xs text-[#667085]">Visão geral de peças e disponibilidade</p>
+                <h3 className="text-sm font-bold text-[#101828]">Situação do Estoque</h3>
+                <p className="text-xs text-[#475467] font-medium">Visão geral de peças e disponibilidade</p>
               </div>
               <Boxes size={18} className="text-[#173E75]" />
             </div>
 
             <div className="space-y-3">
-              <div className="p-3 bg-[#F9FAFB] rounded-md border border-[#E5E7EB] flex items-center justify-between">
+              <div className="p-3 bg-[#F9FAFB] rounded-md border border-[#D0D5DD] flex items-center justify-between">
                 <div>
-                  <span className="text-[11px] text-[#667085] block font-medium">Total em Almoxarifado</span>
-                  <span className="text-base font-bold text-[#171A21]">{totalStockUnits} peças</span>
+                  <span className="text-[11px] text-[#475467] block font-semibold">Total em Almoxarifado</span>
+                  <span className="text-base font-black text-[#101828]">{totalStockUnits} peças</span>
                 </div>
                 <span className="uze-badge uze-badge-navy">
                   {variants.length > 0 ? 'Monitorado' : 'Vazio'}
                 </span>
               </div>
 
-              <div className="p-3 bg-amber-50/70 rounded-md border border-amber-200/80 flex items-center justify-between">
+              <div className="p-3 bg-amber-50/70 rounded-md border border-amber-300 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <AlertTriangle size={15} className="text-amber-600 shrink-0" />
+                  <AlertTriangle size={15} className="text-[#B54708] shrink-0" />
                   <div>
-                    <span className="text-[11px] text-amber-900 block font-medium">Estoque Baixo</span>
-                    <span className="text-xs font-bold text-amber-950">{lowStockCount} variantes</span>
+                    <span className="text-[11px] text-[#7A271A] block font-semibold">Estoque Baixo</span>
+                    <span className="text-xs font-bold text-[#4E1D09]">{lowStockCount} variantes</span>
                   </div>
                 </div>
                 {lowStockCount > 0 ? (
                   <button 
                     onClick={() => setCurrentTab('estoque')}
-                    className="text-xs text-[#173E75] font-semibold hover:underline"
+                    className="text-xs text-[#173E75] font-bold hover:underline"
                   >
                     Repor
                   </button>
                 ) : (
-                  <span className="text-[11px] text-amber-800 font-medium">Normal</span>
+                  <span className="text-[11px] text-[#7A271A] font-semibold">Normal</span>
                 )}
               </div>
 
-              <div className="p-3 bg-slate-50 rounded-md border border-slate-200 flex items-center justify-between">
+              <div className="p-3 bg-[#F9FAFB] rounded-md border border-[#D0D5DD] flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${outOfStockCount > 0 ? 'bg-red-500' : 'bg-slate-300'}`} />
+                  <div className={`w-2.5 h-2.5 rounded-full ${outOfStockCount > 0 ? 'bg-[#B42318]' : 'bg-[#98A2B3]'}`} />
                   <div>
-                    <span className="text-[11px] text-slate-700 block font-medium">Sem Estoque (Zerados)</span>
-                    <span className="text-xs font-bold text-slate-900">{outOfStockCount} variantes</span>
+                    <span className="text-[11px] text-[#344054] block font-semibold">Sem Estoque (Zerados)</span>
+                    <span className="text-xs font-bold text-[#101828]">{outOfStockCount} variantes</span>
                   </div>
                 </div>
                 <span className={`uze-badge ${outOfStockCount > 0 ? 'uze-badge-danger' : 'uze-badge-secondary'}`}>
@@ -282,7 +282,7 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="pt-4 border-t border-[#F3F4F6] mt-4">
+          <div className="pt-4 border-t border-[#D0D5DD] mt-4">
             <button
               onClick={() => setCurrentTab('estoque')}
               className="w-full uze-btn-secondary text-xs justify-center py-2"
@@ -295,17 +295,17 @@ export const DashboardPage: React.FC = () => {
       </div>
 
       {/* Vendas Recentes */}
-      <div className="bg-white border border-[#E5E7EB] rounded-lg p-4 sm:p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
-        <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#F3F4F6]">
+      <div className="bg-white border border-[#D0D5DD] rounded-lg p-4 sm:p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+        <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#D0D5DD]">
           <div>
-            <h3 className="text-sm font-bold text-[#171A21]">Vendas Recentes</h3>
-            <p className="text-xs text-[#667085]">Últimos pedidos concluídos e em produção</p>
+            <h3 className="text-sm font-bold text-[#101828]">Vendas Recentes</h3>
+            <p className="text-xs text-[#475467] font-medium">Últimos pedidos concluídos e em produção</p>
           </div>
 
           {filteredSales.length > 0 && (
             <button
               onClick={() => setCurrentTab('vendas')}
-              className="text-xs text-[#173E75] font-semibold hover:underline flex items-center gap-1"
+              className="text-xs text-[#173E75] font-bold hover:underline flex items-center gap-1"
             >
               Ver todas as vendas ({filteredSales.length}) <ArrowRight size={13} />
             </button>
@@ -315,11 +315,11 @@ export const DashboardPage: React.FC = () => {
         {filteredSales.length === 0 ? (
           /* Estado Vazio de Vendas Recentes */
           <div className="py-10 text-center flex flex-col items-center justify-center space-y-2">
-            <div className="w-11 h-11 rounded-full bg-slate-100 flex items-center justify-center text-[#173E75]">
-              <ShoppingBag size={20} className="opacity-50" />
+            <div className="w-11 h-11 rounded-full bg-[#EFF4FF] border border-[#D0D5DD] flex items-center justify-center text-[#173E75]">
+              <ShoppingBag size={20} />
             </div>
-            <h4 className="text-sm font-bold text-[#171A21]">Nenhuma venda registrada</h4>
-            <p className="text-xs text-[#667085] max-w-sm">
+            <h4 className="text-sm font-bold text-[#101828]">Nenhuma venda registrada</h4>
+            <p className="text-xs text-[#475467] font-medium max-w-sm">
               Assim que os primeiros pedidos forem registrados, o histórico recente aparecerá nesta área.
             </p>
             <button
@@ -349,20 +349,20 @@ export const DashboardPage: React.FC = () => {
                 <tbody>
                   {filteredSales.slice(0, 5).map((sale) => (
                     <tr key={sale.id}>
-                      <td className="font-semibold text-[#173E75] font-mono text-xs">{sale.id}</td>
-                      <td className="font-medium text-[#171A21]">{sale.customerName}</td>
-                      <td className="text-xs text-[#667085]">{sale.date}</td>
-                      <td className="text-right font-semibold text-[#171A21]">
+                      <td className="font-bold text-[#173E75] font-mono text-xs">{sale.id}</td>
+                      <td className="font-semibold text-[#101828]">{sale.customerName}</td>
+                      <td className="text-xs text-[#475467] font-medium">{sale.date}</td>
+                      <td className="text-right font-black text-[#101828]">
                         R$ {sale.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </td>
-                      <td className="text-xs text-[#667085]">{sale.paymentMethod}</td>
+                      <td className="text-xs text-[#475467] font-medium">{sale.paymentMethod}</td>
                       <td>
                         <SaleStatusBadge status={sale.status} />
                       </td>
                       <td className="text-right">
                         <button
                           onClick={() => setSelectedSaleDetail(sale)}
-                          className="p-1 text-[#667085] hover:text-[#173E75] hover:bg-gray-100 rounded transition-colors"
+                          className="p-1 text-[#475467] hover:text-[#173E75] hover:bg-[#F2F4F7] rounded transition-colors"
                           title="Ver detalhes"
                         >
                           <Eye size={15} />
@@ -379,7 +379,7 @@ export const DashboardPage: React.FC = () => {
               {filteredSales.slice(0, 5).map((sale) => (
                 <div 
                   key={sale.id} 
-                  className="p-3 bg-[#F9FAFB] border border-[#E5E7EB] rounded-lg space-y-2 text-xs"
+                  className="p-3 bg-[#F9FAFB] border border-[#D0D5DD] rounded-lg space-y-2 text-xs"
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-mono text-xs font-bold text-[#173E75]">{sale.id}</span>
@@ -387,19 +387,19 @@ export const DashboardPage: React.FC = () => {
                   </div>
 
                   <div>
-                    <p className="font-bold text-[#171A21] text-xs">{sale.customerName}</p>
-                    <p className="text-[11px] text-[#667085] mt-0.5">
+                    <p className="font-bold text-[#101828] text-xs">{sale.customerName}</p>
+                    <p className="text-[11px] text-[#475467] font-medium mt-0.5">
                       {sale.date} • {sale.paymentMethod}
                     </p>
                   </div>
 
-                  <div className="flex items-center justify-between pt-2 border-t border-[#E5E7EB]">
-                    <span className="text-sm font-bold text-[#171A21]">
+                  <div className="flex items-center justify-between pt-2 border-t border-[#D0D5DD]">
+                    <span className="text-sm font-black text-[#101828]">
                       R$ {sale.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </span>
                     <button
                       onClick={() => setSelectedSaleDetail(sale)}
-                      className="text-xs font-semibold text-[#173E75] hover:underline flex items-center gap-1 p-1"
+                      className="text-xs font-bold text-[#173E75] hover:underline flex items-center gap-1 p-1"
                     >
                       <span>Ver venda</span>
                       <ArrowRight size={12} />
@@ -422,23 +422,23 @@ export const DashboardPage: React.FC = () => {
           maxWidth="lg"
         >
           <div className="space-y-4 text-xs">
-            <div className="p-3 bg-[#F9FAFB] rounded-md border border-[#E5E7EB] flex items-center justify-between">
+            <div className="p-3 bg-[#F9FAFB] rounded-md border border-[#D0D5DD] flex items-center justify-between">
               <div>
-                <p className="text-[10px] uppercase font-bold text-[#667085]">Contato</p>
-                <p className="font-bold text-sm text-[#171A21]">{selectedSaleDetail.customerName}</p>
-                <p className="text-[#667085]">{selectedSaleDetail.customerEmail}</p>
+                <p className="text-[10px] uppercase font-bold text-[#344054]">Contato</p>
+                <p className="font-bold text-sm text-[#101828]">{selectedSaleDetail.customerName}</p>
+                <p className="text-[#475467] font-medium">{selectedSaleDetail.customerEmail}</p>
               </div>
               <div className="text-right">
                 <SaleStatusBadge status={selectedSaleDetail.status} />
-                <p className="text-[#667085] mt-1 text-[11px]">Pagamento: {selectedSaleDetail.paymentMethod}</p>
+                <p className="text-[#475467] font-medium mt-1 text-[11px]">Pagamento: {selectedSaleDetail.paymentMethod}</p>
               </div>
             </div>
 
             <div>
-              <h4 className="font-bold text-[#171A21] uppercase text-[11px] mb-2">Itens Solicitados</h4>
-              <div className="border border-[#E5E7EB] rounded-md overflow-hidden">
+              <h4 className="font-bold text-[#101828] uppercase text-[11px] mb-2">Itens Solicitados</h4>
+              <div className="border border-[#D0D5DD] rounded-md overflow-hidden">
                 <table className="w-full text-xs text-left">
-                  <thead className="bg-[#F9FAFB] text-[#667085] text-[10px] uppercase font-bold border-b border-[#E5E7EB]">
+                  <thead className="bg-[#F9FAFB] text-[#344054] text-[10px] uppercase font-bold border-b border-[#D0D5DD]">
                     <tr>
                       <th className="p-2.5">Item</th>
                       <th className="p-2.5">SKU</th>
@@ -446,13 +446,13 @@ export const DashboardPage: React.FC = () => {
                       <th className="p-2.5 text-right">Subtotal</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#E5E7EB]">
+                  <tbody className="divide-y divide-[#D0D5DD]">
                     {selectedSaleDetail.items.map((item, idx) => (
                       <tr key={idx}>
-                        <td className="p-2.5 font-medium">{item.productName}</td>
-                        <td className="p-2.5 font-mono text-[11px] text-[#667085]">{item.sku}</td>
-                        <td className="p-2.5 text-center font-bold">{item.quantity}</td>
-                        <td className="p-2.5 text-right font-medium">
+                        <td className="p-2.5 font-medium text-[#101828]">{item.productName}</td>
+                        <td className="p-2.5 font-mono text-[11px] text-[#344054] font-semibold">{item.sku}</td>
+                        <td className="p-2.5 text-center font-bold text-[#101828]">{item.quantity}</td>
+                        <td className="p-2.5 text-right font-bold text-[#101828]">
                           R$ {item.subtotal.toFixed(2)}
                         </td>
                       </tr>
@@ -462,9 +462,9 @@ export const DashboardPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex justify-between items-center pt-2 border-t border-[#E5E7EB] font-bold text-sm">
+            <div className="flex justify-between items-center pt-2 border-t border-[#D0D5DD] font-bold text-sm text-[#101828]">
               <span>Total do Pedido:</span>
-              <span className="text-[#173E75]">
+              <span className="text-[#173E75] font-black">
                 R$ {selectedSaleDetail.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </span>
             </div>

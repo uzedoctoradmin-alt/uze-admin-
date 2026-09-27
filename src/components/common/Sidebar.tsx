@@ -131,7 +131,7 @@ export const Sidebar: React.FC = () => {
                 <h1 className="text-sm font-extrabold tracking-wider text-white uppercase font-sans leading-none">
                   UZE <span className="text-[#C69A43]">DOCTOR</span>
                 </h1>
-                <span className="text-[9px] tracking-widest text-slate-400 font-medium block uppercase mt-1">
+                <span className="text-[9px] tracking-widest text-slate-300 font-semibold block uppercase mt-1">
                   Gestão Empresarial
                 </span>
               </div>
@@ -142,7 +142,7 @@ export const Sidebar: React.FC = () => {
           {!isSidebarCollapsed && (
             <button
               onClick={toggleSidebarCollapse}
-              className="hidden lg:flex items-center justify-center w-7 h-7 rounded text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors"
+              className="hidden lg:flex items-center justify-center w-7 h-7 rounded text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
               title="Recolher menu lateral"
               aria-label="Recolher menu lateral"
             >
@@ -153,7 +153,7 @@ export const Sidebar: React.FC = () => {
           {/* Mobile Close Button */}
           <button 
             onClick={() => setIsMobileSidebarOpen(false)}
-            className="lg:hidden text-slate-400 hover:text-white p-1 rounded-md hover:bg-slate-800"
+            className="lg:hidden text-slate-300 hover:text-white p-1 rounded-md hover:bg-slate-800"
             aria-label="Fechar menu"
           >
             <X size={18} />
@@ -165,7 +165,7 @@ export const Sidebar: React.FC = () => {
           <div className="hidden lg:flex justify-center py-2 border-b border-slate-800/40">
             <button
               onClick={toggleSidebarCollapse}
-              className="w-8 h-7 rounded text-slate-400 hover:text-[#C69A43] hover:bg-slate-800/80 flex items-center justify-center transition-colors"
+              className="w-8 h-7 rounded text-slate-300 hover:text-[#C69A43] hover:bg-slate-800 flex items-center justify-center transition-colors"
               title="Expandir menu lateral"
               aria-label="Expandir menu lateral"
             >
@@ -181,7 +181,7 @@ export const Sidebar: React.FC = () => {
               {group.groupLabel && (
                 <>
                   {(!isSidebarCollapsed || isMobileSidebarOpen) ? (
-                    <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400/90 whitespace-nowrap">
+                    <div className="px-3 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-300 whitespace-nowrap">
                       {group.groupLabel}
                     </div>
                   ) : (
@@ -204,14 +204,14 @@ export const Sidebar: React.FC = () => {
                       w-full flex items-center rounded-md text-xs transition-all duration-150 relative group
                       ${isItemCollapsed ? 'justify-center h-10 px-0' : 'gap-2.5 px-3 py-2 text-left'}
                       ${isActive 
-                        ? 'bg-[#173E75] text-white font-semibold shadow-xs' 
-                        : 'text-slate-300 hover:bg-slate-800/60 hover:text-white font-normal'
+                        ? 'bg-[#173E75] text-white font-bold shadow-xs' 
+                        : 'text-slate-200 hover:bg-slate-800 hover:text-white font-medium'
                       }
                     `}
                   >
                     <Icon 
                       size={18} 
-                      className={`shrink-0 transition-colors ${isActive ? 'text-[#C69A43]' : 'text-slate-400 group-hover:text-slate-200'}`} 
+                      className={`shrink-0 transition-colors ${isActive ? 'text-[#C69A43]' : 'text-slate-300 group-hover:text-white'}`} 
                     />
 
                     {(!isSidebarCollapsed || isMobileSidebarOpen) && (
@@ -230,23 +230,23 @@ export const Sidebar: React.FC = () => {
         </nav>
 
         {/* Footer Brand Info */}
-        <div className={`py-3 border-t border-slate-800/60 bg-[#050C17] text-slate-400 text-xs ${
+        <div className={`py-3 border-t border-slate-800/60 bg-[#050C17] text-slate-300 text-xs ${
           isSidebarCollapsed && !isMobileSidebarOpen 
             ? 'px-2 flex flex-col items-center justify-center gap-1.5' 
             : 'px-4 flex items-center justify-between'
         }`}>
           {(!isSidebarCollapsed || isMobileSidebarOpen) ? (
             <>
-              <span className="text-[11px] font-medium text-slate-400">UZE DOCTOR v1.0</span>
+              <span className="text-[11px] font-semibold text-slate-300">UZE DOCTOR v1.0</span>
               <div className="flex items-center gap-1.5" title="Sistema Online">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
-                <span className="text-[10px] text-emerald-400 font-medium">Online</span>
+                <span className="w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-emerald-400/20" />
+                <span className="text-[10px] text-emerald-300 font-bold">Online</span>
               </div>
             </>
           ) : (
             <div className="flex flex-col items-center gap-1" title="UZE DOCTOR v1.0 - Online">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
-              <span className="text-[9px] font-mono text-slate-500">v1.0</span>
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-emerald-400/20" />
+              <span className="text-[9px] font-mono text-slate-400">v1.0</span>
             </div>
           )}
         </div>

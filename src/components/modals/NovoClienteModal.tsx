@@ -117,7 +117,7 @@ export const NovoClienteModal: React.FC<NovoClienteModalProps> = ({ isOpen, onCl
           </div>
         </div>
 
-        <div className="flex justify-end gap-2 pt-3 border-t">
+        <div className="flex justify-end gap-2 pt-3 border-t border-[#D0D5DD]">
           <button type="button" onClick={onClose} className="uze-btn uze-btn-secondary">
             Cancelar
           </button>

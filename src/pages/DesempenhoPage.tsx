@@ -70,20 +70,20 @@ export const DesempenhoPage: React.FC = () => {
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Page Header */}
-      <div className="pb-2 border-b border-[#E5E7EB]">
-        <h2 className="text-base font-bold text-[#171A21]">Desempenho por Modelo</h2>
-        <p className="text-xs text-[#667085]">
+      <div className="pb-2 border-b border-[#D0D5DD]">
+        <h2 className="text-base font-bold text-[#101828]">Desempenho por Modelo</h2>
+        <p className="text-xs text-[#475467] font-medium">
           Ranking de faturamento, margem e lucratividade de cada modelo comercializado
         </p>
       </div>
 
       {models.length === 0 ? (
-        <div className="bg-white border border-[#E5E7EB] rounded-lg p-12 text-center flex flex-col items-center justify-center space-y-3">
-          <div className="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center text-[#173E75]">
-            <Trophy size={28} className="opacity-60" />
+        <div className="bg-white border border-[#D0D5DD] rounded-lg p-12 text-center flex flex-col items-center justify-center space-y-3">
+          <div className="w-14 h-14 rounded-full bg-[#EFF4FF] border border-[#D0D5DD] flex items-center justify-center text-[#173E75]">
+            <Trophy size={28} />
           </div>
-          <h3 className="text-base font-bold text-[#171A21]">Nenhum dado de desempenho disponível</h3>
-          <p className="text-xs text-[#667085] max-w-md leading-relaxed">
+          <h3 className="text-base font-bold text-[#101828]">Nenhum dado de desempenho disponível</h3>
+          <p className="text-xs text-[#475467] font-medium max-w-md leading-relaxed">
             Cadastre modelos de produtos e registre pedidos para acompanhar o ranking comercial, margens brutas e lucratividade por linha.
           </p>
         </div>
@@ -91,16 +91,16 @@ export const DesempenhoPage: React.FC = () => {
         <>
           {/* 2 Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <div className="bg-white border border-[#E5E7EB] rounded-lg p-5 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-          <h3 className="text-sm font-bold text-[#171A21] mb-0.5">Faturamento por Linha</h3>
-          <p className="text-xs text-[#667085] mb-4">Volume total gerado por modelo</p>
+        <div className="bg-white border border-[#D0D5DD] rounded-lg p-5 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+          <h3 className="text-sm font-bold text-[#101828] mb-0.5">Faturamento por Linha</h3>
+          <p className="text-xs text-[#475467] font-medium mb-4">Volume total gerado por modelo</p>
 
           <div className="h-56 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={modelChartData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F0F2F5" />
-                <XAxis dataKey="name" stroke="#9CA3AF" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="#9CA3AF" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `R$${v}`} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E4E7EC" />
+                <XAxis dataKey="name" stroke="#475467" fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis stroke="#475467" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `R$${v}`} />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: '#07101F',
@@ -117,16 +117,16 @@ export const DesempenhoPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white border border-[#E5E7EB] rounded-lg p-5 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-          <h3 className="text-sm font-bold text-[#171A21] mb-0.5">Lucro Estimado</h3>
-          <p className="text-xs text-[#667085] mb-4">Retorno financeiro líquido por modelo</p>
+        <div className="bg-white border border-[#D0D5DD] rounded-lg p-5 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+          <h3 className="text-sm font-bold text-[#101828] mb-0.5">Lucro Estimado</h3>
+          <p className="text-xs text-[#475467] font-medium mb-4">Retorno financeiro líquido por modelo</p>
 
           <div className="h-56 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={modelChartData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F0F2F5" />
-                <XAxis dataKey="name" stroke="#9CA3AF" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="#9CA3AF" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `R$${v}`} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E4E7EC" />
+                <XAxis dataKey="name" stroke="#475467" fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis stroke="#475467" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `R$${v}`} />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: '#07101F',
@@ -145,12 +145,12 @@ export const DesempenhoPage: React.FC = () => {
       </div>
 
       {/* Ranking Table */}
-      <div className="bg-white border border-[#E5E7EB] rounded-lg p-5 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-        <div className="flex items-center gap-2 mb-4 pb-3 border-b border-[#F3F4F6]">
+      <div className="bg-white border border-[#D0D5DD] rounded-lg p-5 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+        <div className="flex items-center gap-2 mb-4 pb-3 border-b border-[#D0D5DD]">
           <Trophy size={16} className="text-[#C69A43]" />
           <div>
-            <h3 className="text-sm font-bold text-[#171A21]">Ranking Comercial</h3>
-            <p className="text-xs text-[#667085]">Clique nas colunas para reordenar por métrica</p>
+            <h3 className="text-sm font-bold text-[#101828]">Ranking Comercial</h3>
+            <p className="text-xs text-[#475467] font-medium">Clique nas colunas para reordenar por métrica</p>
           </div>
         </div>
 
@@ -199,26 +199,26 @@ export const DesempenhoPage: React.FC = () => {
                 <tr key={item.model.id}>
                   <td className="font-medium flex items-center gap-2.5 py-3">
                     <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                      idx === 0 ? 'bg-[#C69A43] text-white' : 'bg-gray-100 text-[#667085]'
+                      idx === 0 ? 'bg-[#C69A43] text-white' : 'bg-[#F2F4F7] text-[#344054] border border-[#D0D5DD]'
                     }`}>
                       #{idx + 1}
                     </span>
                     <div>
-                      <p className="text-[#171A21] font-semibold">{item.model.name}</p>
-                      <span className="text-[10px] text-[#667085]">{item.model.category}</span>
+                      <p className="text-[#101828] font-semibold">{item.model.name}</p>
+                      <span className="text-[10px] text-[#475467] font-medium">{item.model.category}</span>
                     </div>
                   </td>
-                  <td className="text-right font-medium text-xs text-[#171A21]">{item.unitsSold} peças</td>
-                  <td className="text-right font-bold text-xs text-[#173E75]">
+                  <td className="text-right font-bold text-xs text-[#101828]">{item.unitsSold} peças</td>
+                  <td className="text-right font-black text-xs text-[#173E75]">
                     R$ {item.revenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </td>
-                  <td className="text-right text-[#667085]">
+                  <td className="text-right text-[#475467] font-medium">
                     R$ {item.cost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </td>
-                  <td className="text-right font-bold text-xs text-emerald-600">
+                  <td className="text-right font-bold text-xs text-[#027A48]">
                     R$ {item.profit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </td>
-                  <td className="text-center font-semibold text-emerald-700">
+                  <td className="text-center font-bold text-[#027A48]">
                     {item.margin.toFixed(1)}%
                   </td>
                 </tr>

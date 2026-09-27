@@ -116,12 +116,12 @@ export function DataTable<T extends { id: string }>({
   return (
     <div className="flex flex-col gap-3">
       {/* Controls Bar: Search & Filters */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 rounded-lg border border-[#E5E7EB] shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 rounded-lg border border-[#D0D5DD] shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
         <div className="relative flex-1 max-w-sm">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#667085]" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#475467]" />
           <input
             type="text"
-            className="w-full h-8 pl-8 pr-3 text-xs bg-[#F9FAFB] border border-[#E5E7EB] rounded-md outline-none focus:border-[#173E75] focus:bg-white transition-all text-[#171A21]"
+            className="w-full h-8 pl-8 pr-3 text-xs bg-[#F9FAFB] border border-[#D0D5DD] rounded-md outline-none focus:border-[#173E75] focus:ring-2 focus:ring-[#173E75]/15 focus:bg-white transition-all text-[#101828] placeholder:text-[#667085] font-medium"
             placeholder={searchPlaceholder}
             value={searchTerm}
             onChange={e => {
@@ -136,7 +136,7 @@ export function DataTable<T extends { id: string }>({
             {filterOptions.map(filter => (
               <select
                 key={filter.key}
-                className="h-8 px-2.5 text-xs bg-[#F9FAFB] border border-[#E5E7EB] rounded-md outline-none text-[#171A21] cursor-pointer"
+                className="h-8 px-2.5 text-xs bg-[#F9FAFB] border border-[#D0D5DD] rounded-md outline-none text-[#101828] font-medium cursor-pointer hover:border-[#173E75] focus:border-[#173E75] focus:ring-2 focus:ring-[#173E75]/15 transition-all"
                 value={selectedFilters[filter.key] || 'ALL'}
                 onChange={e => {
                   setSelectedFilters(prev => ({ ...prev, [filter.key]: e.target.value }));
@@ -170,7 +170,7 @@ export function DataTable<T extends { id: string }>({
                   <div className={`flex items-center gap-1.5 ${col.align === 'right' ? 'justify-end' : col.align === 'center' ? 'justify-center' : ''}`}>
                     <span>{col.header}</span>
                     {col.sortable && (
-                      <ArrowUpDown size={11} className={`text-gray-400 ${sortColumnIndex === idx ? 'text-[#173E75]' : ''}`} />
+                      <ArrowUpDown size={11} className={`text-[#667085] ${sortColumnIndex === idx ? 'text-[#173E75]' : ''}`} />
                     )}
                   </div>
                 </th>
@@ -183,16 +183,16 @@ export function DataTable<T extends { id: string }>({
               <tr>
                 <td colSpan={columns.length + (actions ? 1 : 0)} className="text-center py-12">
                   <div className="inline-block animate-spin rounded-full h-6 w-6 border-2 border-[#173E75] border-t-transparent"></div>
-                  <p className="text-xs text-[#667085] mt-2">Carregando registros...</p>
+                  <p className="text-xs text-[#475467] font-medium mt-2">Carregando registros...</p>
                 </td>
               </tr>
             ) : paginatedData.length === 0 ? (
               <tr>
                 <td colSpan={columns.length + (actions ? 1 : 0)} className="text-center py-12">
-                  <div className="flex flex-col items-center justify-center text-[#667085]">
-                    <Inbox size={32} className="mb-1.5 opacity-40" />
-                    <p className="text-xs font-semibold text-[#171A21]">{emptyText}</p>
-                    <p className="text-[11px] mt-0.5 text-[#667085]">Tente ajustar a busca ou os filtros aplicados.</p>
+                  <div className="flex flex-col items-center justify-center text-[#475467]">
+                    <Inbox size={32} className="mb-1.5 text-[#98A2B3]" />
+                    <p className="text-xs font-bold text-[#101828]">{emptyText}</p>
+                    <p className="text-[11px] mt-0.5 text-[#475467]">Tente ajustar a busca ou os filtros aplicados.</p>
                   </div>
                 </td>
               </tr>
@@ -221,11 +221,11 @@ export function DataTable<T extends { id: string }>({
       </div>
 
       {/* Pagination Footer */}
-      <div className="flex items-center justify-between px-1 text-xs text-[#667085]">
+      <div className="flex items-center justify-between px-1 text-xs text-[#475467] font-medium">
         <div>
-          Mostrando <span className="font-semibold text-[#171A21]">{sortedData.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}</span> a{' '}
-          <span className="font-semibold text-[#171A21]">{Math.min(currentPage * pageSize, sortedData.length)}</span> de{' '}
-          <span className="font-semibold text-[#171A21]">{sortedData.length}</span> resultados
+          Mostrando <span className="font-bold text-[#101828]">{sortedData.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}</span> a{' '}
+          <span className="font-bold text-[#101828]">{Math.min(currentPage * pageSize, sortedData.length)}</span> de{' '}
+          <span className="font-bold text-[#101828]">{sortedData.length}</span> resultados
         </div>
 
         {totalPages > 1 && (
@@ -233,17 +233,19 @@ export function DataTable<T extends { id: string }>({
             <button
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="p-1 border border-[#E5E7EB] rounded bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+              className="p-1 border border-[#D0D5DD] rounded bg-white text-[#344054] hover:bg-[#F2F4F7] hover:text-[#173E75] disabled:bg-[#F2F4F7] disabled:text-[#98A2B3] disabled:border-[#D0D5DD] disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-[#173E75]/20"
+              aria-label="Página anterior"
             >
               <ChevronLeft size={14} />
             </button>
-            <span className="px-2 font-medium text-[#171A21]">
+            <span className="px-2 font-bold text-[#101828]">
               {currentPage} de {totalPages}
             </span>
             <button
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              className="p-1 border border-[#E5E7EB] rounded bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+              className="p-1 border border-[#D0D5DD] rounded bg-white text-[#344054] hover:bg-[#F2F4F7] hover:text-[#173E75] disabled:bg-[#F2F4F7] disabled:text-[#98A2B3] disabled:border-[#D0D5DD] disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-[#173E75]/20"
+              aria-label="Próxima página"
             >
               <ChevronRight size={14} />
             </button>
