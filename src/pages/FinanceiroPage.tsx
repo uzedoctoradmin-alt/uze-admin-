@@ -6,13 +6,17 @@ import type { Revenue, Expense } from '../types';
 import { StatCard } from '../components/common/StatCard';
 import { ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 import { NovaTransacaoModal } from '../components/modals/NovaTransacaoModal';
+import { useAuth } from '../context/AuthContext';
+import { ExportPdfButton } from '../components/common/ExportPdfButton';
+import { exportReportToPdf } from '../services/pdfExportService';
 
 interface FinanceiroPageProps {
   initialTab?: 'visao' | 'receitas' | 'despesas';
 }
 
 export const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ initialTab = 'visao' }) => {
-  const { filteredRevenues, filteredExpenses, dashboardMetrics } = useERP();
+  const { filteredRevenues, filteredExpenses, dashboardMetrics, periodFilter } = useERP();
+  const { user } = useAuth();
 
   const [activeTab, setActiveTab] = useState<'visao' | 'receitas' | 'despesas'>(initialTab);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -108,6 +112,124 @@ export const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ initialTab = 'vi
     },
   ];
 
+  const handleExportPdf = async () => {
+    const kpis = [
+      { label: 'Total de Receitas', value: `R$ ${totalReceitas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
+      { label: 'Total de Despesas', value: `R$ ${totalDespesas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
+      { label: 'Resultado Líquido', value: `R$ ${resultadoLiquido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
+      { label: 'Margem Líquida', value: `${totalReceitas > 0 ? ((resultadoLiquido / totalReceitas) * 100).toFixed(1) : 0}%` },
+    ];
+
+    if (activeTab === 'despesas') {
+      const pdfColumns = [
+        { header: 'Data', dataKey: 'date', width: 28 },
+        { header: 'Descrição / Fornecedor', dataKey: 'description' },
+        { header: 'Categoria', dataKey: 'category', width: 35 },
+        { header: 'Valor (R$)', dataKey: 'amountStr', align: 'right' as const, width: 30 },
+        { header: 'Forma Pagamento', dataKey: 'paymentMethod', width: 35 },
+      ];
+      const rows = filteredExpenses.map(e => ({
+        date: e.date,
+        description: e.description,
+        category: e.category,
+        amountStr: e.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
+        paymentMethod: e.paymentMethod,
+      }));
+
+      await exportReportToPdf({
+        title: 'Relatório Oficial de Despesas Financeiras',
+        subtitle: 'Extrato analítico de contas pagas e custos operacionais',
+        period: periodFilter,
+        operatorName: user?.name,
+        orientation: 'landscape',
+        filename: `uze-doctor-despesas-${new Date().toISOString().slice(0, 10)}.pdf`,
+        kpis: [
+          { label: 'Total Despesas', value: `R$ ${totalDespesas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
+          { label: 'Lançamentos', value: `${filteredExpenses.length} itens` },
+        ],
+        columns: pdfColumns,
+        rows,
+      });
+      return;
+    }
+
+    if (activeTab === 'receitas') {
+      const pdfColumns = [
+        { header: 'Data', dataKey: 'date', width: 28 },
+        { header: 'Origem / Descrição', dataKey: 'source' },
+        { header: 'Referência', dataKey: 'referenceId', width: 28 },
+        { header: 'Categoria', dataKey: 'category', width: 35 },
+        { header: 'Valor (R$)', dataKey: 'amountStr', align: 'right' as const, width: 30 },
+        { header: 'Forma Pagamento', dataKey: 'paymentMethod', width: 35 },
+      ];
+      const rows = filteredRevenues.map(r => ({
+        date: r.date,
+        source: r.source,
+        referenceId: r.referenceId || '-',
+        category: r.category,
+        amountStr: r.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
+        paymentMethod: r.paymentMethod,
+      }));
+
+      await exportReportToPdf({
+        title: 'Relatório Oficial de Receitas Financeiras',
+        subtitle: 'Extrato analítico de faturamento e entradas operacionais',
+        period: periodFilter,
+        operatorName: user?.name,
+        orientation: 'landscape',
+        filename: `uze-doctor-receitas-${new Date().toISOString().slice(0, 10)}.pdf`,
+        kpis: [
+          { label: 'Total Receitas', value: `R$ ${totalReceitas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
+          { label: 'Lançamentos', value: `${filteredRevenues.length} itens` },
+        ],
+        columns: pdfColumns,
+        rows,
+      });
+      return;
+    }
+
+    // Default: Visão Geral / DRE
+    const pdfColumns = [
+      { header: 'Tipo', dataKey: 'type', width: 25 },
+      { header: 'Data', dataKey: 'date', width: 28 },
+      { header: 'Descrição / Origem', dataKey: 'description' },
+      { header: 'Categoria', dataKey: 'category', width: 35 },
+      { header: 'Valor (R$)', dataKey: 'amountStr', align: 'right' as const, width: 30 },
+      { header: 'Forma Pagamento', dataKey: 'paymentMethod', width: 35 },
+    ];
+
+    const combinedRows = [
+      ...filteredRevenues.map(r => ({
+        type: 'RECEITA',
+        date: r.date,
+        description: r.source,
+        category: r.category,
+        amountStr: `+${r.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+        paymentMethod: r.paymentMethod,
+      })),
+      ...filteredExpenses.map(e => ({
+        type: 'DESPESA',
+        date: e.date,
+        description: e.description,
+        category: e.category,
+        amountStr: `-${e.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+        paymentMethod: e.paymentMethod,
+      })),
+    ].sort((a, b) => b.date.localeCompare(a.date));
+
+    await exportReportToPdf({
+      title: 'Demonstrativo Financeiro & Fluxo de Caixa (DRE)',
+      subtitle: 'Visão consolidada de entradas, saídas e resultado operacional',
+      period: periodFilter,
+      operatorName: user?.name,
+      orientation: 'landscape',
+      filename: `uze-doctor-financeiro-${new Date().toISOString().slice(0, 10)}.pdf`,
+      kpis,
+      columns: pdfColumns,
+      rows: combinedRows,
+    });
+  };
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Header with Navigation Tabs */}
@@ -120,6 +242,7 @@ export const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ initialTab = 'vi
         </div>
 
         <div className="flex items-center gap-2">
+          <ExportPdfButton onExport={handleExportPdf} />
           <button
             onClick={() => {
               setModalType('despesa');

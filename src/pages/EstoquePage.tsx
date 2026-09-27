@@ -9,10 +9,12 @@ import { StockStatusBadge } from '../components/common/Badge';
 import { Edit3, ArrowLeftRight } from 'lucide-react';
 import { AjustarEstoqueModal } from '../components/modals/AjustarEstoqueModal';
 import { ProductImage } from '../components/common/ProductImage';
+import { ExportPdfButton } from '../components/common/ExportPdfButton';
+import { exportReportToPdf } from '../services/pdfExportService';
 
 export const EstoquePage: React.FC = () => {
   const { variants, models, setCurrentTab } = useERP();
-  const { hasPermission } = useAuth();
+  const { user, hasPermission } = useAuth();
 
   const canReadCosts = hasPermission('products.cost.read');
   const canAdjustInventory = hasPermission('inventory.adjust');
@@ -113,6 +115,66 @@ export const EstoquePage: React.FC = () => {
     },
   ];
 
+  const handleExportPdf = async () => {
+    const kpis = [
+      { label: 'Total de Peças', value: `${totalUnits} un` },
+      { label: 'Potencial de Venda', value: `R$ ${saleValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
+      { label: 'Estoque Baixo', value: `${lowStockCount} SKUs` },
+      { label: 'Sem Estoque', value: `${outOfStockCount} SKUs` },
+    ];
+
+    if (canReadCosts) {
+      kpis.splice(1, 0, {
+        label: 'Valor de Custo',
+        value: `R$ ${costValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+      });
+    }
+
+    const pdfColumns = [
+      { header: 'Produto / Modelo', dataKey: 'modelName' },
+      { header: 'Categoria', dataKey: 'category', width: 28 },
+      { header: 'SKU', dataKey: 'sku', width: 26 },
+      { header: 'Cor', dataKey: 'colorName', width: 22 },
+      { header: 'Tam.', dataKey: 'size', align: 'center' as const, width: 15 },
+      { header: 'Estoque Atual', dataKey: 'currentStockStr', align: 'right' as const, width: 25 },
+      { header: 'Estoque Mín.', dataKey: 'minStockStr', align: 'right' as const, width: 24 },
+      { header: 'Preço Venda (R$)', dataKey: 'salePriceStr', align: 'right' as const, width: 28 },
+      ...(canReadCosts ? [{ header: 'Custo Unit. (R$)', dataKey: 'costPriceStr', align: 'right' as const, width: 28 }] : []),
+      { header: 'Status', dataKey: 'statusStr', align: 'center' as const, width: 24 },
+    ];
+
+    const rows = variants.map(v => {
+      const model = models.find(m => m.id === v.modelId);
+      const isZero = v.currentStock === 0;
+      const isLow = v.currentStock > 0 && v.currentStock <= v.minStock;
+      const statusText = isZero ? 'Sem Estoque' : isLow ? 'Estoque Baixo' : 'Normal';
+
+      return {
+        modelName: model?.name || 'Modelo',
+        category: model?.category || '-',
+        sku: v.sku,
+        colorName: v.colorName,
+        size: v.size,
+        currentStockStr: `${v.currentStock} un`,
+        minStockStr: `${v.minStock} un`,
+        salePriceStr: (model?.basePrice || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
+        ...(canReadCosts ? { costPriceStr: (model?.baseCost || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) } : {}),
+        statusStr: statusText,
+      };
+    });
+
+    await exportReportToPdf({
+      title: 'Relatório Oficial de Estoque Físico & Inventário',
+      subtitle: 'Posição atual de saldos por SKU, cor, tamanho e limites operacionais',
+      operatorName: user?.name,
+      orientation: 'landscape',
+      filename: `uze-doctor-estoque-${new Date().toISOString().slice(0, 10)}.pdf`,
+      kpis,
+      columns: pdfColumns,
+      rows,
+    });
+  };
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Page Header */}
@@ -125,6 +187,7 @@ export const EstoquePage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          <ExportPdfButton onExport={handleExportPdf} />
           <button
             onClick={() => setCurrentTab('movimentacoes')}
             className="uze-btn-secondary text-xs cursor-pointer"

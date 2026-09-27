@@ -7,10 +7,12 @@ import type { Customer } from '../types';
 import { UserPlus, Eye, ShoppingBag } from 'lucide-react';
 import { NovoClienteModal } from '../components/modals/NovoClienteModal';
 import { Modal } from '../components/common/Modal';
+import { ExportPdfButton } from '../components/common/ExportPdfButton';
+import { exportReportToPdf } from '../services/pdfExportService';
 
 export const ClientesPage: React.FC = () => {
   const { customers, sales } = useERP();
-  const { hasPermission } = useAuth();
+  const { user, hasPermission } = useAuth();
 
   const [isNovoClienteOpen, setIsNovoClienteOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -84,6 +86,51 @@ export const ClientesPage: React.FC = () => {
     ? sales.filter(s => s.customerId === selectedCustomer.id)
     : [];
 
+  const handleExportPdf = async () => {
+    const totalSpentAll = customers.reduce((sum, c) => sum + c.totalSpent, 0);
+    const totalOrdersAll = customers.reduce((sum, c) => sum + c.totalOrders, 0);
+
+    const kpis = [
+      { label: 'Total de Clientes', value: `${customers.length} cadastrados` },
+      { label: 'Total Faturado', value: `R$ ${totalSpentAll.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
+      { label: 'Total de Pedidos', value: `${totalOrdersAll} compras` },
+      { label: 'Ticket Médio/Cliente', value: `R$ ${(customers.length > 0 ? totalSpentAll / customers.length : 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
+    ];
+
+    const pdfColumns = [
+      { header: 'Nome do Cliente', dataKey: 'name' },
+      { header: 'Documento', dataKey: 'document', width: 28 },
+      { header: 'E-mail', dataKey: 'email' },
+      { header: 'Telefone', dataKey: 'phone', width: 26 },
+      { header: 'Cidade / UF', dataKey: 'location', width: 26 },
+      { header: 'Pedidos', dataKey: 'totalOrdersStr', align: 'center' as const, width: 20 },
+      { header: 'Total Comprado (R$)', dataKey: 'totalSpentStr', align: 'right' as const, width: 30 },
+      { header: 'Última Compra', dataKey: 'lastPurchaseDate', align: 'center' as const, width: 26 },
+    ];
+
+    const rows = customers.map(c => ({
+      name: c.name,
+      document: c.document || '-',
+      email: c.email || '-',
+      phone: c.phone || '-',
+      location: `${c.city || ''}/${c.state || ''}`,
+      totalOrdersStr: `${c.totalOrders} ped`,
+      totalSpentStr: c.totalSpent.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
+      lastPurchaseDate: c.lastPurchaseDate || '-',
+    }));
+
+    await exportReportToPdf({
+      title: 'Relatório Oficial de Clientes',
+      subtitle: 'Base cadastral e indicadores comerciais de relacionamento',
+      operatorName: user?.name,
+      orientation: 'landscape',
+      filename: `uze-doctor-clientes-${new Date().toISOString().slice(0, 10)}.pdf`,
+      kpis,
+      columns: pdfColumns,
+      rows,
+    });
+  };
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Page Header */}
@@ -95,14 +142,17 @@ export const ClientesPage: React.FC = () => {
           </p>
         </div>
 
-        {hasPermission('customers.create') && (
-          <button
-            onClick={() => setIsNovoClienteOpen(true)}
-            className="uze-btn-primary text-xs cursor-pointer"
-          >
-            <UserPlus size={14} /> Novo Cliente
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          <ExportPdfButton onExport={handleExportPdf} />
+          {hasPermission('customers.create') && (
+            <button
+              onClick={() => setIsNovoClienteOpen(true)}
+              className="uze-btn-primary text-xs cursor-pointer"
+            >
+              <UserPlus size={14} /> Novo Cliente
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Customers Table or Empty State */}

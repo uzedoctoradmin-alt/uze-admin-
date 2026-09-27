@@ -14,10 +14,12 @@ import {
 import { ProductImage } from '../components/common/ProductImage';
 import { NovoProdutoModal } from '../components/modals/NovoProdutoModal';
 import { Modal } from '../components/common/Modal';
+import { ExportPdfButton } from '../components/common/ExportPdfButton';
+import { exportReportToPdf } from '../services/pdfExportService';
 
 export const ProdutosPage: React.FC = () => {
   const { models, variants } = useERP();
-  const { hasPermission } = useAuth();
+  const { user, hasPermission } = useAuth();
 
   const canReadCosts = hasPermission('products.cost.read');
 
@@ -111,6 +113,61 @@ export const ProdutosPage: React.FC = () => {
     setSearch('');
   };
 
+  const handleExportPdf = async () => {
+    const totalModels = filteredModels.length;
+    const totalVariantsCount = filteredModels.reduce((sum, m) => sum + getModelStats(m.id).variantCount, 0);
+    const totalStockQty = filteredModels.reduce((sum, m) => sum + getModelStats(m.id).totalStock, 0);
+
+    const kpis = [
+      { label: 'Modelos Filtrados', value: `${totalModels} linhas` },
+      { label: 'Total de SKUs', value: `${totalVariantsCount} variantes` },
+      { label: 'Estoque Físico', value: `${totalStockQty} peças` },
+    ];
+
+    const pdfColumns = [
+      { header: 'Modelo / Produto', dataKey: 'name' },
+      { header: 'Categoria', dataKey: 'category', width: 28 },
+      { header: 'Coleção', dataKey: 'collection', width: 28 },
+      { header: 'Gênero', dataKey: 'gender', align: 'center' as const, width: 20 },
+      { header: 'Preço Venda (R$)', dataKey: 'priceStr', align: 'right' as const, width: 26 },
+      ...(canReadCosts ? [{ header: 'Custo Base (R$)', dataKey: 'costStr', align: 'right' as const, width: 26 }] : []),
+      { header: 'Variantes', dataKey: 'variantsStr', align: 'center' as const, width: 20 },
+      { header: 'Estoque Físico', dataKey: 'stockStr', align: 'right' as const, width: 24 },
+      { header: 'Status', dataKey: 'status', align: 'center' as const, width: 20 },
+    ];
+
+    const rows = filteredModels.map(m => {
+      const stats = getModelStats(m.id);
+      return {
+        name: m.name,
+        category: m.category,
+        collection: m.collection || '-',
+        gender: m.gender,
+        priceStr: m.basePrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
+        ...(canReadCosts ? { costStr: m.baseCost.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) } : {}),
+        variantsStr: `${stats.variantCount} SKUs`,
+        stockStr: `${stats.totalStock} un`,
+        status: m.status,
+      };
+    });
+
+    const activeFilterLabels = [];
+    if (selectedCategory !== 'all') activeFilterLabels.push(`Categoria: ${selectedCategory}`);
+    if (selectedCollection !== 'all') activeFilterLabels.push(`Coleção: ${selectedCollection}`);
+    if (selectedStockStatus !== 'all') activeFilterLabels.push(`Estoque: ${selectedStockStatus}`);
+
+    await exportReportToPdf({
+      title: 'Relatório Oficial de Catálogo de Produtos & Modelos',
+      subtitle: activeFilterLabels.length > 0 ? activeFilterLabels.join(' | ') : 'Todos os produtos ativos e fichas comerciais',
+      operatorName: user?.name,
+      orientation: 'landscape',
+      filename: `uze-doctor-produtos-${new Date().toISOString().slice(0, 10)}.pdf`,
+      kpis,
+      columns: pdfColumns,
+      rows,
+    });
+  };
+
   return (
     <div className="space-y-5 max-w-7xl mx-auto">
       {/* 1. Page Header */}
@@ -122,14 +179,17 @@ export const ProdutosPage: React.FC = () => {
           </p>
         </div>
 
-        {hasPermission('products.create') && (
-          <button
-            onClick={() => setIsNovoProdutoOpen(true)}
-            className="uze-btn-primary text-xs self-start sm:self-auto shadow-xs"
-          >
-            <Plus size={14} /> Novo Produto
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          <ExportPdfButton onExport={handleExportPdf} />
+          {hasPermission('products.create') && (
+            <button
+              onClick={() => setIsNovoProdutoOpen(true)}
+              className="uze-btn-primary text-xs self-start sm:self-auto shadow-xs"
+            >
+              <Plus size={14} /> Novo Produto
+            </button>
+          )}
+        </div>
       </div>
 
       {/* 2. Search & Discreet Filters Bar */}

@@ -6,9 +6,13 @@ import type { StockMovement } from '../types';
 import { MovementTypeBadge } from '../components/common/Badge';
 import { Plus } from 'lucide-react';
 import { AjustarEstoqueModal } from '../components/modals/AjustarEstoqueModal';
+import { useAuth } from '../context/AuthContext';
+import { ExportPdfButton } from '../components/common/ExportPdfButton';
+import { exportReportToPdf } from '../services/pdfExportService';
 
 export const MovimentacoesPage: React.FC = () => {
   const { movements } = useERP();
+  const { user } = useAuth();
   const [isAjustarOpen, setIsAjustarOpen] = useState(false);
 
   const columns: Column<StockMovement>[] = [
@@ -70,6 +74,51 @@ export const MovimentacoesPage: React.FC = () => {
     },
   ];
 
+  const handleExportPdf = async () => {
+    const totalEntries = movements.filter(m => m.quantity > 0).reduce((sum, m) => sum + m.quantity, 0);
+    const totalExits = movements.filter(m => m.quantity < 0).reduce((sum, m) => sum + Math.abs(m.quantity), 0);
+
+    const kpis = [
+      { label: 'Total de Movimentos', value: `${movements.length} logs` },
+      { label: 'Entradas Físicas', value: `+${totalEntries} un` },
+      { label: 'Saídas / Vendas', value: `-${totalExits} un` },
+      { label: 'Saldo de Fluxo', value: `${totalEntries - totalExits} un` },
+    ];
+
+    const pdfColumns = [
+      { header: 'Data / Hora', dataKey: 'date', width: 28 },
+      { header: 'Produto / Modelo', dataKey: 'productName' },
+      { header: 'SKU', dataKey: 'sku', width: 26 },
+      { header: 'Variante', dataKey: 'variant', width: 24 },
+      { header: 'Tipo', dataKey: 'type', align: 'center' as const, width: 22 },
+      { header: 'Qtd.', dataKey: 'quantityStr', align: 'right' as const, width: 18 },
+      { header: 'Motivo / Justificativa', dataKey: 'reason' },
+      { header: 'Operador', dataKey: 'user', width: 26 },
+    ];
+
+    const rows = movements.map(m => ({
+      date: m.date,
+      productName: m.productName,
+      sku: m.sku,
+      variant: `${m.colorName} - ${m.size}`,
+      type: m.type,
+      quantityStr: `${m.quantity > 0 ? '+' : ''}${m.quantity} un`,
+      reason: m.reason || '-',
+      user: m.user || 'Sistema',
+    }));
+
+    await exportReportToPdf({
+      title: 'Relatório Oficial de Movimentações de Estoque',
+      subtitle: 'Histórico auditável e cronológico de entradas, baixas, perdas e estornos',
+      operatorName: user?.name,
+      orientation: 'landscape',
+      filename: `uze-doctor-movimentacoes-${new Date().toISOString().slice(0, 10)}.pdf`,
+      kpis,
+      columns: pdfColumns,
+      rows,
+    });
+  };
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Page Header */}
@@ -81,12 +130,15 @@ export const MovimentacoesPage: React.FC = () => {
           </p>
         </div>
 
-        <button
-          onClick={() => setIsAjustarOpen(true)}
-          className="uze-btn-primary text-xs"
-        >
-          <Plus size={14} /> Nova Movimentação
-        </button>
+        <div className="flex items-center gap-2">
+          <ExportPdfButton onExport={handleExportPdf} />
+          <button
+            onClick={() => setIsAjustarOpen(true)}
+            className="uze-btn-primary text-xs"
+          >
+            <Plus size={14} /> Nova Movimentação
+          </button>
+        </div>
       </div>
 
       {/* Movements Table */}

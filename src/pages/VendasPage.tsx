@@ -9,10 +9,12 @@ import { SaleStatusBadge } from '../components/common/Badge';
 import { Plus, Eye } from 'lucide-react';
 import { NovaVendaModal } from '../components/modals/NovaVendaModal';
 import { Modal } from '../components/common/Modal';
+import { ExportPdfButton } from '../components/common/ExportPdfButton';
+import { exportReportToPdf } from '../services/pdfExportService';
 
 export const VendasPage: React.FC = () => {
-  const { filteredSales, dashboardMetrics, updateSaleStatus } = useERP();
-  const { hasPermission } = useAuth();
+  const { filteredSales, dashboardMetrics, updateSaleStatus, periodFilter } = useERP();
+  const { user, hasPermission } = useAuth();
 
   const [isNovaVendaOpen, setIsNovaVendaOpen] = useState(false);
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
@@ -99,6 +101,51 @@ export const VendasPage: React.FC = () => {
     },
   ];
 
+  const handleExportPdf = async () => {
+    const kpis = [
+      { label: 'Total de Vendas', value: `${dashboardMetrics.vendasCount} pedidos` },
+      { label: 'Faturamento Bruto', value: `R$ ${dashboardMetrics.faturamento.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
+      { label: 'Ticket Médio', value: `R$ ${dashboardMetrics.ticketMedio.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
+      { label: 'Peças Vendidas', value: `${dashboardMetrics.produtosVendidos} un` },
+    ];
+
+    const pdfColumns = [
+      { header: 'Venda', dataKey: 'id', width: 22 },
+      { header: 'Data', dataKey: 'date', width: 28 },
+      { header: 'Cliente', dataKey: 'customerName' },
+      { header: 'Itens', dataKey: 'itemsSummary', align: 'center' as const, width: 20 },
+      { header: 'Subtotal (R$)', dataKey: 'subtotalStr', align: 'right' as const, width: 26 },
+      { header: 'Desconto (R$)', dataKey: 'discountStr', align: 'right' as const, width: 24 },
+      { header: 'Total (R$)', dataKey: 'totalStr', align: 'right' as const, width: 28 },
+      { header: 'Pagamento', dataKey: 'paymentMethod', width: 28 },
+      { header: 'Status', dataKey: 'status', align: 'center' as const, width: 24 },
+    ];
+
+    const rows = filteredSales.map(s => ({
+      id: s.id,
+      date: s.date,
+      customerName: s.customerName,
+      itemsSummary: `${s.items.reduce((sum, i) => sum + i.quantity, 0)} un`,
+      subtotalStr: s.subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
+      discountStr: s.discount > 0 ? `-${s.discount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '0,00',
+      totalStr: s.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
+      paymentMethod: s.paymentMethod,
+      status: s.status,
+    }));
+
+    await exportReportToPdf({
+      title: 'Relatório Oficial de Vendas & Pedidos',
+      subtitle: 'Listagem de pedidos e faturamento comercial',
+      period: periodFilter,
+      operatorName: user?.name,
+      orientation: 'landscape',
+      filename: `uze-doctor-vendas-${new Date().toISOString().slice(0, 10)}.pdf`,
+      kpis,
+      columns: pdfColumns,
+      rows,
+    });
+  };
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Page Header */}
@@ -110,14 +157,17 @@ export const VendasPage: React.FC = () => {
           </p>
         </div>
 
-        {hasPermission('sales.create') && (
-          <button
-            onClick={() => setIsNovaVendaOpen(true)}
-            className="uze-btn-primary text-xs cursor-pointer"
-          >
-            <Plus size={14} /> Nova Venda
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          <ExportPdfButton onExport={handleExportPdf} />
+          {hasPermission('sales.create') && (
+            <button
+              onClick={() => setIsNovaVendaOpen(true)}
+              className="uze-btn-primary text-xs cursor-pointer"
+            >
+              <Plus size={14} /> Nova Venda
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Top 4 KPI Cards */}

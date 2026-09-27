@@ -6,10 +6,13 @@ import { Layers, Boxes } from 'lucide-react';
 import { Modal } from '../components/common/Modal';
 import { ProductImage } from '../components/common/ProductImage';
 import { NovoProdutoModal } from '../components/modals/NovoProdutoModal';
+import { ExportPdfButton } from '../components/common/ExportPdfButton';
+import { exportReportToPdf } from '../services/pdfExportService';
 
 export const ModelosPage: React.FC = () => {
   const { models, variants, sales } = useERP();
-  const { hasPermission } = useAuth();
+  const { user, hasPermission } = useAuth();
+  const canReadCosts = hasPermission('products.cost.read');
   const [selectedModel, setSelectedModel] = useState<ProductModel | null>(null);
 
   const getModelMetrics = (modelId: string) => {
@@ -41,6 +44,53 @@ export const ModelosPage: React.FC = () => {
 
   const [isNovoModeloOpen, setIsNovoModeloOpen] = useState(false);
 
+  const handleExportPdf = async () => {
+    const totalModels = models.length;
+    const totalStock = variants.reduce((sum, v) => sum + v.currentStock, 0);
+
+    const kpis = [
+      { label: 'Total de Modelos', value: `${totalModels} linhas` },
+      { label: 'Total de Peças', value: `${totalStock} em estoque` },
+      { label: 'Total de Variantes', value: `${variants.length} SKUs` },
+    ];
+
+    const pdfColumns = [
+      { header: 'Modelo', dataKey: 'name' },
+      { header: 'Categoria', dataKey: 'category', width: 28 },
+      { header: 'Coleção', dataKey: 'collection', width: 28 },
+      { header: 'Gênero', dataKey: 'gender', align: 'center' as const, width: 22 },
+      { header: 'Preço Venda (R$)', dataKey: 'priceStr', align: 'right' as const, width: 28 },
+      ...(canReadCosts ? [{ header: 'Custo Base (R$)', dataKey: 'costStr', align: 'right' as const, width: 28 }] : []),
+      { header: 'Estoque Físico', dataKey: 'stockStr', align: 'right' as const, width: 24 },
+      { header: 'Status', dataKey: 'status', align: 'center' as const, width: 20 },
+    ];
+
+    const rows = models.map(m => {
+      const metrics = getModelMetrics(m.id);
+      return {
+        name: m.name,
+        category: m.category,
+        collection: m.collection || '-',
+        gender: m.gender,
+        priceStr: m.basePrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
+        ...(canReadCosts ? { costStr: m.baseCost.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) } : {}),
+        stockStr: `${metrics.totalStock} un`,
+        status: m.status,
+      };
+    });
+
+    await exportReportToPdf({
+      title: 'Relatório Oficial de Modelos & Fichas de Jalecos',
+      subtitle: 'Apresentação técnica e estatísticas das coleções UZE DOCTOR',
+      operatorName: user?.name,
+      orientation: 'landscape',
+      filename: `uze-doctor-modelos-${new Date().toISOString().slice(0, 10)}.pdf`,
+      kpis,
+      columns: pdfColumns,
+      rows,
+    });
+  };
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Page Header */}
@@ -52,15 +102,18 @@ export const ModelosPage: React.FC = () => {
           </p>
         </div>
 
-        {hasPermission('products.create') && (
-          <button
-            onClick={() => setIsNovoModeloOpen(true)}
-            className="uze-btn-primary text-xs self-start sm:self-auto shadow-xs"
-          >
-            <Layers size={14} />
-            <span>Novo Modelo</span>
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          <ExportPdfButton onExport={handleExportPdf} />
+          {hasPermission('products.create') && (
+            <button
+              onClick={() => setIsNovoModeloOpen(true)}
+              className="uze-btn-primary text-xs self-start sm:self-auto shadow-xs"
+            >
+              <Layers size={14} />
+              <span>Novo Modelo</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Visual Model Cards Grid or Empty State */}

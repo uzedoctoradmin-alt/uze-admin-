@@ -8,14 +8,16 @@ import {
   ShoppingBag, 
   Package, 
   Boxes, 
-  Users,
-  Award,
-  AlertCircle
+  Users, 
+  Award, 
+  AlertCircle 
 } from 'lucide-react';
+import { ExportPdfButton } from '../components/common/ExportPdfButton';
+import { exportReportToPdf } from '../services/pdfExportService';
 
 export const RelatorioMensalPage: React.FC = () => {
   const { dashboardMetrics, models, variants, customers, expenses } = useERP();
-  const { hasPermission } = useAuth();
+  const { user, hasPermission } = useAuth();
 
   const [selectedMonth, setSelectedMonth] = useState('09');
   const [selectedYear, setSelectedYear] = useState('2026');
@@ -34,6 +36,56 @@ export const RelatorioMensalPage: React.FC = () => {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleExportPdf = async () => {
+    const monthName = selectedMonth === '09' ? 'Setembro' : selectedMonth === '08' ? 'Agosto' : 'Julho';
+
+    const kpis = [
+      { label: 'Faturamento', value: `R$ ${dashboardMetrics.faturamento.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
+      ...(canReadFinance ? [
+        { label: 'Despesas Totais', value: `R$ ${totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
+        { label: 'Lucro Líquido', value: `R$ ${lucroLiquidoFinal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
+      ] : []),
+      { label: 'Vendas Totais', value: `${dashboardMetrics.vendasCount} pedidos` },
+      { label: 'Peças Vendidas', value: `${dashboardMetrics.produtosVendidos} un` },
+    ];
+
+    const pdfColumns = [
+      { header: 'Modelo / Produto', dataKey: 'name' },
+      { header: 'Categoria', dataKey: 'category', width: 28 },
+      { header: 'Coleção', dataKey: 'collection', width: 28 },
+      { header: 'Preço Venda (R$)', dataKey: 'priceStr', align: 'right' as const, width: 26 },
+      ...(canReadFinance ? [{ header: 'Custo Base (R$)', dataKey: 'costStr', align: 'right' as const, width: 26 }] : []),
+      { header: 'Estoque Físico', dataKey: 'stockStr', align: 'right' as const, width: 24 },
+      { header: 'Status', dataKey: 'status', align: 'center' as const, width: 20 },
+    ];
+
+    const rows = models.map(m => {
+      const modelVariants = variants.filter(v => v.modelId === m.id);
+      const totalStock = modelVariants.reduce((sum, v) => sum + v.currentStock, 0);
+      return {
+        name: m.name,
+        category: m.category,
+        collection: m.collection || '-',
+        priceStr: m.basePrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
+        ...(canReadFinance ? { costStr: m.baseCost.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) } : {}),
+        stockStr: `${totalStock} un`,
+        status: m.status,
+      };
+    });
+
+    await exportReportToPdf({
+      title: `Relatório Mensal de Desempenho Empresarial - ${monthName}/${selectedYear}`,
+      subtitle: 'Fechamento gerencial de faturamento, estoque, despesas e catálogo',
+      period: `${monthName}/${selectedYear}`,
+      operatorName: user?.name,
+      orientation: 'landscape',
+      filename: `uze-doctor-relatorio-mensal-${selectedYear}-${selectedMonth}.pdf`,
+      kpis,
+      columns: pdfColumns,
+      rows,
+    });
   };
 
   return (
@@ -69,11 +121,13 @@ export const RelatorioMensalPage: React.FC = () => {
             </select>
           </div>
 
+          <ExportPdfButton onExport={handleExportPdf} />
+
           <button
             onClick={handlePrint}
             className="uze-btn-secondary text-xs h-8"
           >
-            <Printer size={13} /> Imprimir / PDF
+            <Printer size={13} /> Imprimir
           </button>
         </div>
       </div>

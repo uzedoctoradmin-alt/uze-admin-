@@ -10,9 +10,14 @@ import {
   ResponsiveContainer 
 } from 'recharts';
 import { Trophy, ArrowUpDown } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { ExportPdfButton } from '../components/common/ExportPdfButton';
+import { exportReportToPdf } from '../services/pdfExportService';
 
 export const DesempenhoPage: React.FC = () => {
-  const { models, sales } = useERP();
+  const { models, sales, periodFilter } = useERP();
+  const { user, hasPermission } = useAuth();
+  const canReadCosts = hasPermission('products.cost.read');
 
   const [sortKey, setSortKey] = useState<'unitsSold' | 'revenue' | 'profit' | 'margin'>('revenue');
   const [sortAsc, setSortAsc] = useState(false);
@@ -67,14 +72,71 @@ export const DesempenhoPage: React.FC = () => {
     Lucro: item.profit,
   }));
 
+  const handleExportPdf = async () => {
+    const totalUnitsSold = sortedRanking.reduce((sum, item) => sum + item.unitsSold, 0);
+    const totalRevenue = sortedRanking.reduce((sum, item) => sum + item.revenue, 0);
+    const totalProfit = sortedRanking.reduce((sum, item) => sum + item.profit, 0);
+
+    const kpis = [
+      { label: 'Modelos Avaliados', value: `${sortedRanking.length} produtos` },
+      { label: 'Unidades Comercializadas', value: `${totalUnitsSold} un` },
+      { label: 'Faturamento Total', value: `R$ ${totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
+      ...(canReadCosts ? [{ label: 'Lucro Bruto', value: `R$ ${totalProfit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` }] : []),
+    ];
+
+    const pdfColumns = [
+      { header: 'Posição', dataKey: 'position', align: 'center' as const, width: 18 },
+      { header: 'Modelo / Produto', dataKey: 'name' },
+      { header: 'Categoria', dataKey: 'category', width: 30 },
+      { header: 'Unidades Vendidas', dataKey: 'unitsSoldStr', align: 'right' as const, width: 28 },
+      { header: 'Faturamento (R$)', dataKey: 'revenueStr', align: 'right' as const, width: 32 },
+      ...(canReadCosts ? [
+        { header: 'Custo Total (R$)', dataKey: 'costStr', align: 'right' as const, width: 30 },
+        { header: 'Lucro Bruto (R$)', dataKey: 'profitStr', align: 'right' as const, width: 30 },
+        { header: 'Margem (%)', dataKey: 'marginStr', align: 'right' as const, width: 24 },
+      ] : []),
+    ];
+
+    const rows = sortedRanking.map((item, idx) => ({
+      position: `${idx + 1}º`,
+      name: item.model.name,
+      category: item.model.category,
+      unitsSoldStr: `${item.unitsSold} un`,
+      revenueStr: item.revenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
+      ...(canReadCosts ? {
+        costStr: item.cost.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
+        profitStr: item.profit.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
+        marginStr: `${item.margin.toFixed(1)}%`,
+      } : {}),
+    }));
+
+    await exportReportToPdf({
+      title: 'Relatório Oficial de Desempenho & Ranking por Modelo',
+      subtitle: canReadCosts ? 'Curva ABC comercial e lucratividade por produto' : 'Ranking comercial de vendas por produto',
+      period: periodFilter,
+      operatorName: user?.name,
+      orientation: 'landscape',
+      filename: `uze-doctor-desempenho-${new Date().toISOString().slice(0, 10)}.pdf`,
+      kpis,
+      columns: pdfColumns,
+      rows,
+    });
+  };
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Page Header */}
-      <div className="pb-2 border-b border-[#D0D5DD]">
-        <h2 className="text-base font-bold text-[#101828]">Desempenho por Modelo</h2>
-        <p className="text-xs text-[#475467] font-medium">
-          Ranking de faturamento, margem e lucratividade de cada modelo comercializado
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-[#D0D5DD]">
+        <div>
+          <h2 className="text-base font-bold text-[#101828]">Desempenho por Modelo</h2>
+          <p className="text-xs text-[#475467] font-medium">
+            Ranking de faturamento, margem e lucratividade de cada modelo comercializado
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <ExportPdfButton onExport={handleExportPdf} />
+        </div>
       </div>
 
       {models.length === 0 ? (
