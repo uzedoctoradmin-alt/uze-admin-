@@ -41,8 +41,8 @@ export const LoginPage: React.FC = () => {
       {/* Login Card */}
       <div className="w-full max-w-md bg-[#0B1528] border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative z-10">
         {/* Brand Emblem */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-24 h-24 rounded-2xl bg-white p-2.5 border border-[#C69A43]/50 shadow-2xl mb-4 overflow-hidden">
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center justify-center w-24 h-24 mb-3">
             <img src="/logo.png" alt="UZE DOCTOR" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-xl font-bold tracking-widest text-white uppercase">
