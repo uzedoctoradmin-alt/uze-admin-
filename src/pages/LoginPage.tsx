@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Cross, Lock, Mail, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Lock, Mail, ArrowRight, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export const LoginPage: React.FC = () => {
@@ -42,8 +42,8 @@ export const LoginPage: React.FC = () => {
       <div className="w-full max-w-md bg-[#0B1528] border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative z-10">
         {/* Brand Emblem */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#07101F] border border-[#C69A43]/40 shadow-inner mb-4">
-            <Cross size={28} className="text-[#C69A43] stroke-[2.5]" />
+          <div className="inline-flex items-center justify-center w-24 h-24 rounded-2xl bg-white p-2.5 border border-[#C69A43]/50 shadow-2xl mb-4 overflow-hidden">
+            <img src="/logo.png" alt="UZE DOCTOR" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-xl font-bold tracking-widest text-white uppercase">
             UZE <span className="text-[#C69A43]">DOCTOR</span>

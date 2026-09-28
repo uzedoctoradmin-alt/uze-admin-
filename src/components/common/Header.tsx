@@ -8,7 +8,6 @@ import {
   Calendar, 
   Bell, 
   Menu, 
-  Cross, 
   PanelLeftClose, 
   PanelLeftOpen,
   X,
@@ -95,8 +94,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNovaVendaModal }) => {
 
         {/* Mobile Brand Emblem */}
         <div className="lg:hidden flex items-center gap-1.5 shrink-0">
-          <div className="w-6 h-6 rounded bg-[#07101F] text-[#C69A43] flex items-center justify-center border border-[#C69A43]/40">
-            <Cross size={13} className="stroke-[2.5]" />
+          <div className="w-7 h-7 rounded-md bg-white text-[#C69A43] flex items-center justify-center border border-[#C69A43]/40 p-0.5 shadow-xs overflow-hidden">
+            <img src="/logo.png" alt="UZE DOCTOR" className="w-full h-full object-contain" />
           </div>
           <span className="text-xs font-black tracking-wider text-[#07101F] uppercase hidden xs:inline">
             UZE <span className="text-[#C69A43]">DOCTOR</span>

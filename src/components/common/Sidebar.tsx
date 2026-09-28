@@ -18,7 +18,6 @@ import {
   BarChart3, 
   Settings,
   X,
-  Cross,
   ChevronLeft,
   ChevronRight,
   ShieldCheck,
@@ -153,8 +152,8 @@ export const Sidebar: React.FC = () => {
             className="flex items-center gap-2.5 cursor-pointer overflow-hidden"
             title="UZE DOCTOR Gestão Empresarial"
           >
-            <div className="w-8 h-8 rounded bg-[#173E75] border border-[#C69A43] flex items-center justify-center text-[#C69A43] shrink-0 shadow-sm">
-              <Cross size={16} className="stroke-[2.5]" />
+            <div className="w-8 h-8 rounded-lg bg-white border border-[#C69A43]/60 flex items-center justify-center p-0.5 shrink-0 shadow-sm overflow-hidden">
+              <img src="/logo.png" alt="UZE DOCTOR" className="w-full h-full object-contain" />
             </div>
 
             {(!isSidebarCollapsed || isMobileSidebarOpen) && (
