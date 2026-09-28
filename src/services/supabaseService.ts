@@ -779,4 +779,80 @@ export const supabaseService = {
       return false;
     }
   },
+
+  // ==========================================
+  // COMPANY SETTINGS (CONFIGURAÇÕES DA EMPRESA)
+  // ==========================================
+  async fetchCompanySettings(): Promise<any | null> {
+    try {
+      const { data, error } = await supabase
+        .from('company_settings')
+        .select('*')
+        .eq('id', 'default')
+        .maybeSingle();
+
+      if (error) {
+        console.warn('[Supabase] fetchCompanySettings warning:', error.message);
+        return null;
+      }
+
+      if (!data) return null;
+
+      return {
+        id: data.id,
+        tradeName: data.trade_name || '',
+        legalName: data.legal_name || '',
+        taxId: data.tax_id || '',
+        commercialAddress: data.commercial_address || '',
+        corporateEmail: data.corporate_email || '',
+        defaultMinStock: data.default_min_stock ?? 5,
+        enableLowStockAlert: data.enable_low_stock_alert ?? true,
+        updatedAt: data.updated_at,
+        updatedBy: data.updated_by,
+      };
+    } catch (err) {
+      console.warn('[Supabase] fetchCompanySettings exception:', err);
+      return null;
+    }
+  },
+
+  async saveCompanySettings(settings: {
+    tradeName?: string;
+    legalName?: string;
+    taxId?: string;
+    commercialAddress?: string;
+    corporateEmail?: string;
+    defaultMinStock?: number;
+    enableLowStockAlert?: boolean;
+    updatedBy?: string;
+  }): Promise<boolean> {
+    try {
+      const payload = {
+        id: 'default',
+        trade_name: settings.tradeName?.trim() || null,
+        legal_name: settings.legalName?.trim() || null,
+        tax_id: settings.taxId?.trim() || null,
+        commercial_address: settings.commercialAddress?.trim() || null,
+        corporate_email: settings.corporateEmail?.trim() || null,
+        default_min_stock: settings.defaultMinStock ?? 5,
+        enable_low_stock_alert: settings.enableLowStockAlert ?? true,
+        updated_at: new Date().toISOString(),
+        updated_by: settings.updatedBy || null,
+      };
+
+      const { error } = await supabase
+        .from('company_settings')
+        .upsert(payload);
+
+      if (error) {
+        console.error('[Supabase] saveCompanySettings error:', error);
+        return false;
+      }
+
+      return true;
+    } catch (err) {
+      console.error('[Supabase] saveCompanySettings exception:', err);
+      return false;
+    }
+  },
 };

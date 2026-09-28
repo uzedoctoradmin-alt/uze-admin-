@@ -266,3 +266,17 @@ export interface AuditLog {
   details?: Record<string, any>;
   createdAt: string;
 }
+
+export interface CompanySettings {
+  id?: string;
+  tradeName?: string;
+  legalName?: string;
+  taxId?: string;
+  commercialAddress?: string;
+  corporateEmail?: string;
+  defaultMinStock?: number;
+  enableLowStockAlert?: boolean;
+  updatedAt?: string;
+  updatedBy?: string;
+}
+

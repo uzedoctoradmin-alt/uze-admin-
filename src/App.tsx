@@ -20,6 +20,7 @@ import { AdministracaoPage } from './pages/AdministracaoPage';
 
 import { LoginPage } from './pages/LoginPage';
 import { ChangePasswordModal } from './components/auth/ChangePasswordModal';
+import { ResetPasswordModal } from './components/auth/ResetPasswordModal';
 import { AccessDenied } from './components/common/AccessDenied';
 import { NovaVendaModal } from './components/modals/NovaVendaModal';
 import { Cross } from 'lucide-react';
@@ -141,6 +142,7 @@ export function App() {
   return (
     <AuthProvider>
       <AuthGuard />
+      <ResetPasswordModal />
     </AuthProvider>
   );
 }

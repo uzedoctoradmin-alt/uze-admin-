@@ -1,68 +1,74 @@
 import { supabase } from './supabase';
-import { hashPassword, verifyPassword, generateSalt, validatePasswordRequirements } from './authCrypto';
-import type { User, DatabaseUser, UserRole, UserStatus, AuditLog } from '../types';
+import type { User, UserRole, UserStatus, AuditLog } from '../types';
 
-const STORAGE_USERS_KEY = 'uze_auth_users_store_v1';
-const STORAGE_LOGS_KEY = 'uze_auth_audit_logs_v1';
-const STORAGE_SESSION_KEY = 'uze_auth_active_session_v1';
-
-// Bootstrap inicial seguro a partir de variáveis de ambiente
-const INITIAL_ADMIN_EMAIL = (import.meta.env.VITE_INITIAL_ADMIN_EMAIL || 'JOTAJOAO29@GMAIL.COM').trim().toLowerCase();
-const INITIAL_ADMIN_PASSWORD = import.meta.env.VITE_INITIAL_ADMIN_PASSWORD || 'UzeDoctorAdmin2026!';
+const STORAGE_SESSION_KEY = 'uze_auth_active_session_v2';
 
 class AuthService {
-  private localUsers: DatabaseUser[] = [];
-  private localLogs: AuditLog[] = [];
-  private initialized: boolean = false;
+  private activeUser: User | null = null;
 
   constructor() {
-    this.loadFromLocalStorage();
+    this.loadSessionFromStorage();
   }
 
-  private loadFromLocalStorage() {
+  private loadSessionFromStorage(): void {
     try {
-      const storedUsers = localStorage.getItem(STORAGE_USERS_KEY);
-      if (storedUsers) {
-        this.localUsers = JSON.parse(storedUsers);
-      }
-      const storedLogs = localStorage.getItem(STORAGE_LOGS_KEY);
-      if (storedLogs) {
-        this.localLogs = JSON.parse(storedLogs);
+      const stored = localStorage.getItem(STORAGE_SESSION_KEY);
+      if (stored) {
+        this.activeUser = JSON.parse(stored);
       }
     } catch (e) {
-      console.warn('[AuthService] Falha ao carregar storage local:', e);
+      console.warn('[AuthService] Falha ao ler sessão local:', e);
     }
   }
 
-  private saveToLocalStorage() {
+  private saveSessionToStorage(user: User | null): void {
+    this.activeUser = user;
     try {
-      localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(this.localUsers));
-      localStorage.setItem(STORAGE_LOGS_KEY, JSON.stringify(this.localLogs));
+      if (user) {
+        localStorage.setItem(STORAGE_SESSION_KEY, JSON.stringify(user));
+      } else {
+        localStorage.removeItem(STORAGE_SESSION_KEY);
+      }
     } catch (e) {
-      console.warn('[AuthService] Falha ao salvar storage local:', e);
+      console.warn('[AuthService] Falha ao persistir sessão:', e);
     }
+  }
+
+  getActiveSession(): User | null {
+    return this.activeUser;
+  }
+
+  clearSession(): void {
+    this.saveSessionToStorage(null);
+    supabase.auth.signOut().catch(() => {});
   }
 
   /**
-   * Sanitiza usuário removendo hash e salt antes de expor para o frontend
+   * Helper seguro para chamadas à API Administrativa
    */
-  private sanitizeUser(dbUser: DatabaseUser): User {
-    return {
-      id: dbUser.id,
-      name: dbUser.name,
-      email: dbUser.email,
-      role: dbUser.role,
-      status: dbUser.status,
-      mustChangePassword: dbUser.mustChangePassword,
-      lastLoginAt: dbUser.lastLoginAt,
-      createdAt: dbUser.createdAt,
-      updatedAt: dbUser.updatedAt,
-      createdBy: dbUser.createdBy,
-    };
+  private async callAdminApi(actor: User, action: string, data?: any): Promise<{ success: boolean; data?: any; error?: string; message?: string }> {
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action,
+          actorId: actor.id,
+          data,
+        }),
+      });
+
+      const resJson = await response.json();
+      return resJson;
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Falha de comunicação com o servidor administrativo.' };
+    }
   }
 
   /**
-   * Registra log de auditoria
+   * Registra evento no log de auditoria
    */
   async logAudit(
     actor: { id: string; name: string; email: string },
@@ -82,13 +88,6 @@ class AuthService {
       createdAt: new Date().toISOString(),
     };
 
-    this.localLogs.unshift(log);
-    if (this.localLogs.length > 200) {
-      this.localLogs = this.localLogs.slice(0, 200);
-    }
-    this.saveToLocalStorage();
-
-    // Sincroniza log com o Supabase se tabela existir
     try {
       await supabase.from('audit_logs').insert({
         id: log.id,
@@ -101,373 +100,383 @@ class AuthService {
         details: log.details,
         created_at: log.createdAt,
       });
-    } catch {
-      // Ignora erro remoto de log
+    } catch (e) {
+      console.warn('[AuthService] Erro ao gravar log de auditoria:', e);
     }
   }
 
   /**
-   * Inicialização e Bootstrap Idempotente do Administrador
+   * Autenticação Oficial com Supabase Auth
    */
-  async initBootstrap(): Promise<void> {
-    if (this.initialized) return;
-    this.initialized = true;
-
-    // 1. Tentar ler do Supabase
-    try {
-      const { data, error } = await supabase.from('users').select('*');
-      if (!error && data && data.length > 0) {
-        this.localUsers = data.map((row: any) => ({
-          id: row.id,
-          name: row.name,
-          email: row.email.toLowerCase(),
-          passwordHash: row.password_hash,
-          salt: row.salt,
-          role: row.role as UserRole,
-          status: row.status as UserStatus,
-          mustChangePassword: row.must_change_password,
-          lastLoginAt: row.last_login_at,
-          createdAt: row.created_at,
-          updatedAt: row.updated_at,
-          createdBy: row.created_by,
-        }));
-        this.saveToLocalStorage();
-      }
-    } catch (err) {
-      console.warn('[AuthService] Supabase users query failed, using local store:', err);
-    }
-
-    // 2. Verificar se o Administrador inicial já existe (case-insensitive)
-    const adminExists = this.localUsers.some(
-      u => u.email.toLowerCase() === INITIAL_ADMIN_EMAIL && u.role === 'ADMINISTRADOR'
-    );
-
-    if (!adminExists) {
-      const salt = generateSalt();
-      const passwordHash = await hashPassword(INITIAL_ADMIN_PASSWORD, salt);
-      const now = new Date().toISOString();
-
-      const initialAdmin: DatabaseUser = {
-        id: 'usr-admin-bootstrap',
-        name: 'Administrador UZE DOCTOR',
-        email: INITIAL_ADMIN_EMAIL,
-        passwordHash,
-        salt,
-        role: 'ADMINISTRADOR',
-        status: 'Ativo',
-        mustChangePassword: true,
-        createdAt: now,
-        updatedAt: now,
-        createdBy: 'Sistema Bootstrap',
-      };
-
-      this.localUsers.unshift(initialAdmin);
-      this.saveToLocalStorage();
-
-      // Salva no Supabase se possível
-      try {
-        await supabase.from('users').insert({
-          id: initialAdmin.id,
-          name: initialAdmin.name,
-          email: initialAdmin.email,
-          password_hash: initialAdmin.passwordHash,
-          salt: initialAdmin.salt,
-          role: initialAdmin.role,
-          status: initialAdmin.status,
-          must_change_password: initialAdmin.mustChangePassword,
-          created_at: initialAdmin.createdAt,
-          updated_at: initialAdmin.updatedAt,
-          created_by: initialAdmin.createdBy,
-        });
-      } catch {
-        // Tabela ainda pode não ter sido executada no Supabase
-      }
-
-      await this.logAudit(
-        { id: 'system', name: 'Bootstrap', email: 'system@uzedoctor.internal' },
-        'user.bootstrap.admin',
-        { id: initialAdmin.id, name: initialAdmin.name }
-      );
-    }
-  }
-
-  /**
-   * Autenticação de Usuário (Login)
-   */
-  async login(emailRaw: string, passwordAttempt: string): Promise<{ success: boolean; error?: string; user?: User }> {
-    await this.initBootstrap();
-
+  async login(emailRaw: string, passwordAttempt: string): Promise<{ success: boolean; user?: User; error?: string }> {
     const email = emailRaw.trim().toLowerCase();
 
-    // 1. Tentar login oficial via Supabase Auth se configurado
     try {
-      const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password: passwordAttempt,
       });
 
-      if (!authErr && authData?.user) {
-        const u = authData.user;
-        const role = (u.user_metadata?.role || u.app_metadata?.role || 'ADMINISTRADOR') as UserRole;
-        const name = u.user_metadata?.name || 'Administrador UZE DOCTOR';
-        const mustChange = Boolean(u.user_metadata?.must_change_password);
-
-        const safeUser: User = {
-          id: u.id,
-          name,
-          email: u.email?.toLowerCase() || email,
-          role,
-          status: 'Ativo',
-          mustChangePassword: mustChange,
-          lastLoginAt: new Date().toISOString(),
-          createdAt: u.created_at,
-          updatedAt: u.updated_at,
-        };
-
-        this.saveSession(safeUser);
+      if (authError || !authData.user) {
         await this.logAudit(
-          { id: safeUser.id, name: safeUser.name, email: safeUser.email },
-          'auth.login.success'
+          { id: 'anonymous', name: 'Desconhecido', email },
+          'auth.login.failed',
+          undefined,
+          { error: authError?.message || 'invalid_credentials' }
         );
 
-        return { success: true, user: safeUser };
-      }
-    } catch {
-      // Falha na rede do Supabase Auth -> segue para verificação do store
-    }
-
-    // 2. Buscar no banco local/remoto users
-    let dbUser = this.localUsers.find(u => u.email.toLowerCase() === email);
-
-    // Tentar buscar no Supabase se não achar localmente
-    if (!dbUser) {
-      try {
-        const { data } = await supabase.from('users').select('*').ilike('email', email).maybeSingle();
-        if (data) {
-          dbUser = {
-            id: data.id,
-            name: data.name,
-            email: data.email.toLowerCase(),
-            passwordHash: data.password_hash,
-            salt: data.salt,
-            role: data.role,
-            status: data.status,
-            mustChangePassword: data.must_change_password,
-            lastLoginAt: data.last_login_at,
-            createdAt: data.created_at,
-            updatedAt: data.updated_at,
-            createdBy: data.created_by,
-          };
-          this.localUsers.push(dbUser);
-          this.saveToLocalStorage();
+        let errorMsg = 'Usuário ou senha incorretos.';
+        if (authError?.message?.includes('Email not confirmed')) {
+          errorMsg = 'E-mail não confirmado no Supabase Auth.';
+        } else if (authError?.message?.includes('Invalid login credentials')) {
+          errorMsg = 'Credenciais inválidas: e-mail ou senha incorretos no Supabase Auth.';
+        } else if (authError?.message?.includes('User not found')) {
+          errorMsg = 'Usuário não cadastrado no Supabase Auth.';
+        } else if (authError?.message) {
+          errorMsg = `Falha de autenticação: ${authError.message}`;
         }
-      } catch {
-        // ignore
+
+        return { success: false, error: errorMsg };
       }
-    }
 
-    // Mensagem genérica para evitar enumeração de contas existentes
-    if (!dbUser) {
-      await this.logAudit(
-        { id: 'anon', name: 'Anônimo', email },
-        'auth.login.failed',
-        undefined,
-        { reason: 'user_not_found' }
-      );
-      return { success: false, error: 'Usuário ou senha inválidos.' };
-    }
+      const authUser = authData.user;
 
-    // Validação de status da conta
-    if (dbUser.status !== 'Ativo') {
-      await this.logAudit(
-        { id: dbUser.id, name: dbUser.name, email: dbUser.email },
-        'auth.login.blocked',
-        undefined,
-        { status: dbUser.status }
-      );
-      return {
-        success: false,
-        error: 'Sua conta está indisponível. Procure o administrador do sistema.',
+      // Busca perfil no banco de dados
+      let { data: profile, error: profErr } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authUser.id)
+        .maybeSingle();
+
+      // Se profile não existir por algum motivo, recupera com base no auth user metadata
+      if (!profile || profErr) {
+        const meta = authUser.user_metadata || {};
+        const fallbackRole = (meta.role || 'VENDEDOR') as UserRole;
+        const fallbackStatus = (meta.status || 'Ativo') as UserStatus;
+        const fallbackName = meta.name || email.split('@')[0];
+
+        const { data: createdProfile } = await supabase
+          .from('profiles')
+          .upsert({
+            id: authUser.id,
+            name: fallbackName,
+            email,
+            role: fallbackRole,
+            status: fallbackStatus,
+            must_change_password: meta.must_change_password || false,
+            created_at: authUser.created_at || new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .select()
+          .single();
+
+        profile = createdProfile;
+      }
+
+      if (!profile) {
+        return { success: false, error: 'Perfil de usuário não localizado no sistema.' };
+      }
+
+      // Validação de Conta Ativa
+      if (profile.status === 'Inativo') {
+        await supabase.auth.signOut();
+        await this.logAudit(
+          { id: profile.id, name: profile.name, email: profile.email },
+          'auth.login.blocked_inactive'
+        );
+        return {
+          success: false,
+          error: 'Esta conta está desativada. Entre em contato com o administrador da plataforma.',
+        };
+      }
+
+      const appUser: User = {
+        id: profile.id,
+        name: profile.name,
+        email: profile.email,
+        role: profile.role as UserRole,
+        status: profile.status as UserStatus,
+        mustChangePassword: profile.must_change_password || false,
+        lastLoginAt: new Date().toISOString(),
+        createdAt: profile.created_at,
+        updatedAt: profile.updated_at,
+        createdBy: profile.created_by,
       };
-    }
 
-    // Verificação de senha com hash e salt
-    const isPasswordValid = await verifyPassword(passwordAttempt, dbUser.salt, dbUser.passwordHash);
+      // Atualiza last_login_at
+      await supabase
+        .from('profiles')
+        .update({ last_login_at: appUser.lastLoginAt })
+        .eq('id', profile.id);
 
-    if (!isPasswordValid) {
+      this.saveSessionToStorage(appUser);
+
       await this.logAudit(
-        { id: dbUser.id, name: dbUser.name, email: dbUser.email },
-        'auth.login.failed',
-        undefined,
-        { reason: 'invalid_password' }
+        { id: appUser.id, name: appUser.name, email: appUser.email },
+        'auth.login.success'
       );
-      return { success: false, error: 'Usuário ou senha inválidos.' };
+
+      return { success: true, user: appUser };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Erro inesperado ao realizar login.' };
     }
-
-    // Sucesso: atualizar último acesso
-    const now = new Date().toISOString();
-    dbUser.lastLoginAt = now;
-    this.saveToLocalStorage();
-
-    try {
-      await supabase.from('users').update({ last_login_at: now }).eq('id', dbUser.id);
-    } catch {
-      // ignore
-    }
-
-    await this.logAudit(
-      { id: dbUser.id, name: dbUser.name, email: dbUser.email },
-      'auth.login.success'
-    );
-
-    const safeUser = this.sanitizeUser(dbUser);
-    this.saveSession(safeUser);
-
-    return { success: true, user: safeUser };
   }
 
   /**
-   * Sessão ativa do usuário
+   * Altera a própria senha do usuário com validação OBRIGATÓRIA da senha atual contra o Supabase Auth
    */
-  saveSession(user: User): void {
-    try {
-      sessionStorage.setItem(STORAGE_SESSION_KEY, JSON.stringify(user));
-    } catch {
-      // ignore
+  async changePasswordWithVerification(
+    currentPassword: string,
+    newPassword: string
+  ): Promise<{ success: boolean; error?: string }> {
+    if (!this.activeUser) {
+      return { success: false, error: 'Sessão de usuário não identificada.' };
     }
-  }
 
-  getActiveSession(): User | null {
+    if (!currentPassword) {
+      return { success: false, error: 'Informe a senha atual.' };
+    }
+
+    if (!newPassword || newPassword.length < 6) {
+      return { success: false, error: 'A nova senha deve conter pelo menos 6 caracteres.' };
+    }
+
+    if (newPassword === currentPassword) {
+      return { success: false, error: 'A nova senha não pode ser igual à senha atual.' };
+    }
+
     try {
-      const data = sessionStorage.getItem(STORAGE_SESSION_KEY);
-      if (!data) return null;
-      const parsed = JSON.parse(data);
-      // Validar se o usuário ainda existe e está ativo no store
-      const dbUser = this.localUsers.find(u => u.id === parsed.id);
-      if (dbUser) {
-        if (dbUser.status !== 'Ativo') {
-          this.clearSession();
-          return null;
-        }
-        return this.sanitizeUser(dbUser);
+      // 1. Validação REAL e segura da senha atual contra o Supabase Auth
+      const { data: verifyData, error: verifyError } = await supabase.auth.signInWithPassword({
+        email: this.activeUser.email,
+        password: currentPassword,
+      });
+
+      if (verifyError || !verifyData.user) {
+        return { success: false, error: 'Senha atual incorreta.' };
       }
-      return parsed;
-    } catch {
-      return null;
-    }
-  }
 
-  clearSession(): void {
-    try {
-      sessionStorage.removeItem(STORAGE_SESSION_KEY);
-      localStorage.removeItem('uze_auth_token');
-    } catch {
-      // ignore
-    }
-  }
-
-  /**
-   * Alteração de Senha (pelo próprio usuário no primeiro login ou voluntariamente)
-   */
-  async changePassword(userId: string, newPasswordRaw: string): Promise<{ success: boolean; error?: string }> {
-    const val = validatePasswordRequirements(newPasswordRaw);
-    if (!val.isValid) {
-      return { success: false, error: val.message };
-    }
-
-    const session = this.getActiveSession();
-    let userIndex = this.localUsers.findIndex(u => u.id === userId);
-    if (userIndex === -1 && session) {
-      userIndex = this.localUsers.findIndex(u => u.email.toLowerCase() === session.email.toLowerCase());
-    }
-
-    // 1. Atualizar no Supabase Auth
-    try {
-      await supabase.auth.updateUser({
-        password: newPasswordRaw,
+      // 2. Atualização oficial da senha no Supabase Auth
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword,
         data: { must_change_password: false },
       });
-    } catch {
-      // ignore
+
+      if (updateError) {
+        return { success: false, error: `Falha ao atualizar senha: ${updateError.message}` };
+      }
+
+      // 3. Atualiza estado em profiles caso possuísse pendência de troca
+      await supabase
+        .from('profiles')
+        .update({ must_change_password: false, updated_at: new Date().toISOString() })
+        .eq('id', this.activeUser.id);
+
+      this.activeUser.mustChangePassword = false;
+      this.saveSessionToStorage(this.activeUser);
+
+      // 4. Registro de Auditoria PASSWORD_CHANGED (sem armazenar senha)
+      await this.logAudit(
+        { id: this.activeUser.id, name: this.activeUser.name, email: this.activeUser.email },
+        'PASSWORD_CHANGED',
+        undefined,
+        { method: 'self_service_settings' }
+      );
+
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Erro inesperado ao alterar senha.' };
+    }
+  }
+
+  /**
+   * Conclui a recuperação de senha vinda de link por e-mail
+   */
+  async completePasswordRecovery(newPassword: string): Promise<{ success: boolean; error?: string }> {
+    if (!newPassword || newPassword.length < 6) {
+      return { success: false, error: 'A nova senha deve conter pelo menos 6 caracteres.' };
     }
 
-    const newSalt = generateSalt();
-    const newHash = await hashPassword(newPasswordRaw, newSalt);
-    const now = new Date().toISOString();
-
-    let safeUser: User;
-    if (userIndex !== -1) {
-      const targetUser = this.localUsers[userIndex];
-      targetUser.passwordHash = newHash;
-      targetUser.salt = newSalt;
-      targetUser.mustChangePassword = false;
-      targetUser.updatedAt = now;
-      this.saveToLocalStorage();
-      safeUser = this.sanitizeUser(targetUser);
-    } else if (session) {
-      safeUser = {
-        ...session,
-        id: userId,
-        mustChangePassword: false,
-        updatedAt: now,
-      };
-      this.localUsers.push({
-        ...safeUser,
-        passwordHash: newHash,
-        salt: newSalt,
+    try {
+      const { data: updatedData, error: updateError } = await supabase.auth.updateUser({
+        password: newPassword,
+        data: { must_change_password: false },
       });
-      this.saveToLocalStorage();
-    } else {
-      return { success: false, error: 'Sessão expirada. Faça login novamente.' };
+
+      if (updateError) {
+        return { success: false, error: updateError.message || 'Falha ao redefinir a nova senha.' };
+      }
+
+      const currentUserId = updatedData.user?.id || this.activeUser?.id;
+      if (currentUserId) {
+        await supabase
+          .from('profiles')
+          .update({ must_change_password: false, updated_at: new Date().toISOString() })
+          .eq('id', currentUserId);
+      }
+
+      if (this.activeUser) {
+        this.activeUser.mustChangePassword = false;
+        this.saveSessionToStorage(this.activeUser);
+
+        await this.logAudit(
+          { id: this.activeUser.id, name: this.activeUser.name, email: this.activeUser.email },
+          'PASSWORD_RESET_COMPLETED',
+          undefined,
+          { method: 'email_recovery_link' }
+        );
+      }
+
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Erro ao processar redefinição de senha.' };
     }
-
-    // Atualiza na sessão ativa
-    this.saveSession(safeUser);
-
-    try {
-      await supabase.from('users').update({
-        password_hash: newHash,
-        salt: newSalt,
-        must_change_password: false,
-        updated_at: now,
-      }).eq('id', userId);
-    } catch {
-      // ignore
-    }
-
-    try {
-      await supabase.from('profiles').update({
-        must_change_password: false,
-        updated_at: now,
-      }).eq('id', userId);
-    } catch {
-      // ignore
-    }
-
-    await this.logAudit(
-      { id: safeUser.id, name: safeUser.name, email: safeUser.email },
-      'password.changed',
-      { id: safeUser.id, name: safeUser.name }
-    );
-
-    return { success: true };
   }
 
-  // ============================================================================
-  // GERENCIAMENTO DE USUÁRIOS (PRIVILÉGIO EXCLUSIVO DE ADMINISTRADOR)
-  // ============================================================================
+  /**
+   * Dispara o envio oficial de e-mail de redefinição de senha para o usuário
+   */
+  async sendPasswordResetEmail(
+    actor: User,
+    targetUser: { id?: string; email: string; name?: string }
+  ): Promise<{ success: boolean; error?: string; message?: string }> {
+    const normalizedEmail = targetUser.email.trim().toLowerCase();
+    const redirectToUrl = `${window.location.origin}/`;
 
+    try {
+      // Tenta primeiramente via backend administrativo
+      const apiRes = await this.callAdminApi(actor, 'reset_email', {
+        userId: targetUser.id,
+        email: normalizedEmail,
+        name: targetUser.name,
+        redirectTo: redirectToUrl,
+      });
+
+      if (apiRes.success) {
+        return { success: true, message: apiRes.message || `E-mail de redefinição enviado para ${normalizedEmail}.` };
+      }
+
+      // Fallback: Disparo direto via Supabase Auth client
+      const { error: resetErr } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+        redirectTo: redirectToUrl,
+      });
+
+      if (resetErr) {
+        return { success: false, error: resetErr.message || 'Erro ao solicitar redefinição de senha.' };
+      }
+
+      // Registra no log de auditoria
+      await this.logAudit(
+        { id: actor.id, name: actor.name, email: actor.email },
+        'PASSWORD_RESET_REQUESTED',
+        { id: targetUser.id, name: targetUser.name || normalizedEmail },
+        { target_email: normalizedEmail, method: 'supabase_auth_direct_client' }
+      );
+
+      return { success: true, message: `E-mail de redefinição enviado com sucesso para ${normalizedEmail}.` };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Falha de comunicação ao solicitar redefinição de senha.' };
+    }
+  }
+
+  /**
+   * Altera a própria senha do usuário logado (Primeiro acesso)
+   */
+  async changePassword(userId: string, newPassword: string): Promise<{ success: boolean; error?: string }> {
+    if (newPassword.length < 6) {
+      return { success: false, error: 'A senha deve conter pelo menos 6 caracteres.' };
+    }
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+        data: { must_change_password: false },
+      });
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      await supabase
+        .from('profiles')
+        .update({ must_change_password: false, updated_at: new Date().toISOString() })
+        .eq('id', userId);
+
+      if (this.activeUser && this.activeUser.id === userId) {
+        this.activeUser.mustChangePassword = false;
+        this.saveSessionToStorage(this.activeUser);
+      }
+
+      if (this.activeUser) {
+        await this.logAudit(
+          { id: this.activeUser.id, name: this.activeUser.name, email: this.activeUser.email },
+          'PASSWORD_CHANGED',
+          undefined,
+          { method: 'first_login_onboarding' }
+        );
+      }
+
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Falha ao alterar senha.' };
+    }
+  }
+
+  /**
+   * Lista todos os usuários cadastrados
+   */
   async getUsers(actor: User): Promise<{ success: boolean; data?: User[]; error?: string }> {
-    if (actor.role !== 'ADMINISTRADOR') {
-      return { success: false, error: 'Acesso negado: privilégio de administrador necessário.' };
+    try {
+      const { data: profiles, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        // Tenta via backend admin API
+        const apiRes = await this.callAdminApi(actor, 'list');
+        if (apiRes.success && apiRes.data) {
+          return {
+            success: true,
+            data: apiRes.data.map((p: any) => ({
+              id: p.id,
+              name: p.name,
+              email: p.email,
+              role: p.role as UserRole,
+              status: p.status as UserStatus,
+              mustChangePassword: p.must_change_password || false,
+              lastLoginAt: p.last_login_at,
+              createdAt: p.created_at,
+              updatedAt: p.updated_at,
+              createdBy: p.created_by,
+            })),
+          };
+        }
+        return { success: false, error: error.message };
+      }
+
+      const users: User[] = (profiles || []).map(p => ({
+        id: p.id,
+        name: p.name,
+        email: p.email,
+        role: p.role as UserRole,
+        status: p.status as UserStatus,
+        mustChangePassword: p.must_change_password || false,
+        lastLoginAt: p.last_login_at,
+        createdAt: p.created_at,
+        updatedAt: p.updated_at,
+        createdBy: p.created_by,
+      }));
+
+      return { success: true, data: users };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Erro ao listar usuários.' };
     }
-    await this.initBootstrap();
-    return {
-      success: true,
-      data: this.localUsers.map(u => this.sanitizeUser(u)),
-    };
   }
 
+  /**
+   * Criação Real de Usuário no Supabase Auth + Profiles
+   */
   async createUser(
     actor: User,
     params: {
@@ -478,194 +487,163 @@ class AuthService {
       initialPassword: string;
     }
   ): Promise<{ success: boolean; user?: User; error?: string }> {
-    if (actor.role !== 'ADMINISTRADOR') {
-      return { success: false, error: 'Acesso negado: apenas Administradores podem criar contas.' };
+    const res = await this.callAdminApi(actor, 'create', params);
+    if (!res.success || !res.data) {
+      return { success: false, error: res.error || 'Erro ao criar usuário.' };
     }
 
-    const email = params.email.trim().toLowerCase();
-    if (!params.name.trim() || !email) {
-      return { success: false, error: 'Nome e E-mail são obrigatórios.' };
-    }
-
-    const val = validatePasswordRequirements(params.initialPassword);
-    if (!val.isValid) {
-      return { success: false, error: val.message };
-    }
-
-    // Verificar unicidade de e-mail (case-insensitive)
-    const exists = this.localUsers.some(u => u.email.toLowerCase() === email);
-    if (exists) {
-      return { success: false, error: 'Já existe um usuário cadastrado com este e-mail.' };
-    }
-
-    const salt = generateSalt();
-    const passwordHash = await hashPassword(params.initialPassword, salt);
-    const now = new Date().toISOString();
-    const newId = `usr-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-
-    const newUser: DatabaseUser = {
-      id: newId,
-      name: params.name.trim(),
-      email,
-      passwordHash,
-      salt,
-      role: params.role,
-      status: params.status,
-      mustChangePassword: true, // Sempre exigir troca no primeiro login
-      createdAt: now,
-      updatedAt: now,
-      createdBy: actor.email,
+    const p = res.data;
+    const newUser: User = {
+      id: p.id,
+      name: p.name,
+      email: p.email,
+      role: p.role as UserRole,
+      status: p.status as UserStatus,
+      mustChangePassword: p.must_change_password || false,
+      lastLoginAt: p.last_login_at,
+      createdAt: p.created_at,
+      updatedAt: p.updated_at,
+      createdBy: p.created_by,
     };
 
-    this.localUsers.push(newUser);
-    this.saveToLocalStorage();
-
-    try {
-      await supabase.from('users').insert({
-        id: newUser.id,
-        name: newUser.name,
-        email: newUser.email,
-        password_hash: newUser.passwordHash,
-        salt: newUser.salt,
-        role: newUser.role,
-        status: newUser.status,
-        must_change_password: newUser.mustChangePassword,
-        created_at: newUser.createdAt,
-        updated_at: newUser.updatedAt,
-        created_by: newUser.createdBy,
-      });
-    } catch {
-      // ignore
-    }
-
-    await this.logAudit(
-      { id: actor.id, name: actor.name, email: actor.email },
-      'user.created',
-      { id: newUser.id, name: newUser.name },
-      { role: newUser.role, status: newUser.status }
-    );
-
-    return { success: true, user: this.sanitizeUser(newUser) };
+    return { success: true, user: newUser };
   }
 
+  /**
+   * Atualização de Perfil de Usuário
+   */
   async updateUser(
     actor: User,
     userId: string,
-    params: {
-      name: string;
-      role: UserRole;
-      status: UserStatus;
-    }
+    params: { name: string; role: UserRole; status: UserStatus }
   ): Promise<{ success: boolean; user?: User; error?: string }> {
-    if (actor.role !== 'ADMINISTRADOR') {
-      return { success: false, error: 'Acesso negado: apenas Administradores podem editar contas.' };
+    const res = await this.callAdminApi(actor, 'update', { userId, ...params });
+    if (!res.success || !res.data) {
+      return { success: false, error: res.error || 'Erro ao atualizar usuário.' };
     }
 
-    const userIndex = this.localUsers.findIndex(u => u.id === userId);
-    if (userIndex === -1) {
-      return { success: false, error: 'Usuário não encontrado.' };
-    }
+    const p = res.data;
+    const updatedUser: User = {
+      id: p.id,
+      name: p.name,
+      email: p.email,
+      role: p.role as UserRole,
+      status: p.status as UserStatus,
+      mustChangePassword: p.must_change_password || false,
+      lastLoginAt: p.last_login_at,
+      createdAt: p.created_at,
+      updatedAt: p.updated_at,
+      createdBy: p.created_by,
+    };
 
-    const current = this.localUsers[userIndex];
-
-    // REGRA DE PROTEÇÃO DO ÚLTIMO ADMINISTRADOR
-    if (current.role === 'ADMINISTRADOR' && (params.role !== 'ADMINISTRADOR' || params.status !== 'Ativo')) {
-      const activeAdminsCount = this.localUsers.filter(
-        u => u.role === 'ADMINISTRADOR' && u.status === 'Ativo' && u.id !== userId
-      ).length;
-
-      if (activeAdminsCount === 0) {
-        return {
-          success: false,
-          error: 'Operação não permitida: o sistema precisa manter ao menos um Administrador ativo.',
-        };
-      }
-    }
-
-    const now = new Date().toISOString();
-    current.name = params.name.trim();
-    current.role = params.role;
-    current.status = params.status;
-    current.updatedAt = now;
-
-    this.saveToLocalStorage();
-
-    try {
-      await supabase.from('users').update({
-        name: current.name,
-        role: current.role,
-        status: current.status,
-        updated_at: now,
-      }).eq('id', userId);
-    } catch {
-      // ignore
-    }
-
-    await this.logAudit(
-      { id: actor.id, name: actor.name, email: actor.email },
-      'user.updated',
-      { id: current.id, name: current.name },
-      { newRole: params.role, newStatus: params.status }
-    );
-
-    return { success: true, user: this.sanitizeUser(current) };
+    return { success: true, user: updatedUser };
   }
 
-  async resetPassword(
+  /**
+   * Ativação / Desativação de Conta
+   */
+  async updateUserStatus(
     actor: User,
     userId: string,
-    temporaryPasswordRaw: string
+    newStatus: UserStatus
   ): Promise<{ success: boolean; error?: string }> {
-    if (actor.role !== 'ADMINISTRADOR') {
-      return { success: false, error: 'Acesso negado: apenas Administradores podem redefinir senhas.' };
+    const res = await this.callAdminApi(actor, 'status', { userId, newStatus });
+    if (!res.success) {
+      return { success: false, error: res.error || 'Erro ao alterar status.' };
     }
-
-    const val = validatePasswordRequirements(temporaryPasswordRaw);
-    if (!val.isValid) {
-      return { success: false, error: val.message };
-    }
-
-    const targetUser = this.localUsers.find(u => u.id === userId);
-    if (!targetUser) {
-      return { success: false, error: 'Usuário não encontrado.' };
-    }
-
-    const salt = generateSalt();
-    const hash = await hashPassword(temporaryPasswordRaw, salt);
-    const now = new Date().toISOString();
-
-    targetUser.passwordHash = hash;
-    targetUser.salt = salt;
-    targetUser.mustChangePassword = true; // Exigir troca no próximo login
-    targetUser.updatedAt = now;
-
-    this.saveToLocalStorage();
-
-    try {
-      await supabase.from('users').update({
-        password_hash: hash,
-        salt,
-        must_change_password: true,
-        updated_at: now,
-      }).eq('id', userId);
-    } catch {
-      // ignore
-    }
-
-    await this.logAudit(
-      { id: actor.id, name: actor.name, email: actor.email },
-      'user.password_reset_by_admin',
-      { id: targetUser.id, name: targetUser.name }
-    );
-
     return { success: true };
   }
 
-  async getAuditLogs(actor: User): Promise<{ success: boolean; data?: AuditLog[]; error?: string }> {
-    if (actor.role !== 'ADMINISTRADOR') {
-      return { success: false, error: 'Acesso negado aos registros de auditoria.' };
+  /**
+   * Redefinição Administrativa de Senha
+   */
+  async resetPassword(
+    actor: User,
+    userId: string,
+    newPasswordRaw: string
+  ): Promise<{ success: boolean; error?: string }> {
+    const res = await this.callAdminApi(actor, 'password', { userId, newPassword: newPasswordRaw });
+    if (!res.success) {
+      return { success: false, error: res.error || 'Erro ao redefinir senha.' };
     }
-    return { success: true, data: [...this.localLogs] };
+    return { success: true };
+  }
+
+  /**
+   * Remoção Real de Conta no Supabase Auth + Profiles
+   */
+  async deleteUser(
+    actor: User,
+    userId: string
+  ): Promise<{ success: boolean; error?: string }> {
+    const res = await this.callAdminApi(actor, 'delete', { userId });
+    if (!res.success) {
+      return { success: false, error: res.error || 'Erro ao remover usuário.' };
+    }
+    return { success: true };
+  }
+
+  /**
+   * Consulta Logs de Auditoria
+   */
+  async getAuditLogs(_actor: User): Promise<{ success: boolean; data?: AuditLog[]; error?: string }> {
+    try {
+      const { data, error } = await supabase
+        .from('audit_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(200);
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      const logs: AuditLog[] = (data || []).map(row => ({
+        id: row.id,
+        actorId: row.actor_id,
+        actorName: row.actor_name,
+        actorEmail: row.actor_email,
+        action: row.action,
+        targetId: row.target_id,
+        targetName: row.target_name,
+        details: row.details,
+        createdAt: row.created_at,
+      }));
+
+      return { success: true, data: logs };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Erro ao buscar logs de auditoria.' };
+    }
+  }
+
+  /**
+   * Bootstrap inicial idempotente
+   */
+  async initBootstrap(): Promise<void> {
+    // Sincroniza sessão ativa atual se existir
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .maybeSingle();
+
+      if (profile && profile.status === 'Ativo') {
+        this.saveSessionToStorage({
+          id: profile.id,
+          name: profile.name,
+          email: profile.email,
+          role: profile.role as UserRole,
+          status: profile.status as UserStatus,
+          mustChangePassword: profile.must_change_password || false,
+          lastLoginAt: profile.last_login_at,
+          createdAt: profile.created_at,
+          updatedAt: profile.updated_at,
+          createdBy: profile.created_by,
+        });
+      }
+    }
   }
 }
 

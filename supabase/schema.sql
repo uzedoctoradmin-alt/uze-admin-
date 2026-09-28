@@ -781,6 +781,26 @@ CREATE POLICY "Global full access financial_categories" ON public.financial_cate
 DROP POLICY IF EXISTS "Global full access audit_logs" ON public.audit_logs;
 CREATE POLICY "Global full access audit_logs" ON public.audit_logs FOR ALL USING (true) WITH CHECK (true);
 
+-- 10. CONFIGURAÇÕES DA EMPRESA (OPCIONAIS)
+CREATE TABLE IF NOT EXISTS public.company_settings (
+    id TEXT PRIMARY KEY DEFAULT 'default',
+    trade_name TEXT,
+    legal_name TEXT,
+    tax_id TEXT,
+    commercial_address TEXT,
+    corporate_email TEXT,
+    default_min_stock INTEGER DEFAULT 5,
+    enable_low_stock_alert BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_by TEXT
+);
+
+ALTER TABLE public.company_settings ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Global full access company_settings" ON public.company_settings;
+CREATE POLICY "Global full access company_settings" ON public.company_settings FOR ALL USING (true) WITH CHECK (true);
+
 -- ==============================================================================
 -- END OF SCHEMA
 -- ==============================================================================

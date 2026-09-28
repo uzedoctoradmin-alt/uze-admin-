@@ -11,6 +11,11 @@ interface AuthContextType {
   login: (email: string, passwordAttempt: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   changePassword: (newPassword: string) => Promise<{ success: boolean; error?: string }>;
+  changePasswordWithVerification: (currentPassword: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
+  sendPasswordResetEmail: (targetUser: { id?: string; email: string; name?: string }) => Promise<{ success: boolean; error?: string; message?: string }>;
+  completePasswordRecovery: (newPassword: string) => Promise<{ success: boolean; error?: string }>;
+  isPasswordRecovery: boolean;
+  setIsPasswordRecovery: (value: boolean) => void;
   
   // User Management
   usersList: User[];
@@ -28,9 +33,16 @@ interface AuthContextType {
     userId: string,
     params: { name: string; role: UserRole; status: UserStatus }
   ) => Promise<{ success: boolean; error?: string }>;
+  updateUserStatus: (
+    userId: string,
+    newStatus: UserStatus
+  ) => Promise<{ success: boolean; error?: string }>;
   resetUserPassword: (
     userId: string,
     temporaryPasswordRaw: string
+  ) => Promise<{ success: boolean; error?: string }>;
+  deleteUser: (
+    userId: string
   ) => Promise<{ success: boolean; error?: string }>;
 
   isLoading: boolean;
@@ -41,12 +53,21 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState<boolean>(false);
   const [usersList, setUsersList] = useState<User[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
 
   // Carrega sessão ativa e inicializa bootstrap
   useEffect(() => {
     let mounted = true;
+    
+    // Verifica parâmetros de recuperação na URL
+    const hash = window.location.hash || '';
+    const search = window.location.search || '';
+    if (hash.includes('type=recovery') || search.includes('type=recovery')) {
+      setIsPasswordRecovery(true);
+    }
+
     const initAuth = async () => {
       try {
         await authService.initBootstrap();
@@ -138,6 +159,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return res;
   };
 
+  const changePasswordWithVerification = async (currentPassword: string, newPassword: string) => {
+    if (!user) return { success: false, error: 'Nenhum usuário logado.' };
+    const res = await authService.changePasswordWithVerification(currentPassword, newPassword);
+    if (res.success) {
+      setUser(prev => (prev ? { ...prev, mustChangePassword: false } : null));
+    }
+    return res;
+  };
+
+  const sendPasswordResetEmail = async (targetUser: { id?: string; email: string; name?: string }) => {
+    if (!user || user.role !== 'ADMINISTRADOR') {
+      return { success: false, error: 'Apenas administradores podem enviar links de redefinição de senha.' };
+    }
+    const res = await authService.sendPasswordResetEmail(user, targetUser);
+    if (res.success) {
+      await refreshAuditLogs();
+    }
+    return res;
+  };
+
+  const completePasswordRecovery = async (newPassword: string) => {
+    const res = await authService.completePasswordRecovery(newPassword);
+    if (res.success) {
+      setIsPasswordRecovery(false);
+      // Limpa os parâmetros de hash/search da URL de forma elegante
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+      if (user) {
+        setUser(prev => (prev ? { ...prev, mustChangePassword: false } : null));
+      }
+    }
+    return res;
+  };
+
   const createUser = async (params: {
     name: string;
     email: string;
@@ -165,10 +221,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     const res = await authService.updateUser(user, userId, params);
     if (res.success) {
-      // Se alterou o próprio usuário, atualiza a sessão local
       if (userId === user.id && res.user) {
         setUser(res.user);
       }
+      await refreshUsers();
+      await refreshAuditLogs();
+    }
+    return res;
+  };
+
+  const updateUserStatus = async (userId: string, newStatus: UserStatus) => {
+    if (!user || user.role !== 'ADMINISTRADOR') {
+      return { success: false, error: 'Acesso negado.' };
+    }
+    const res = await authService.updateUserStatus(user, userId, newStatus);
+    if (res.success) {
       await refreshUsers();
       await refreshAuditLogs();
     }
@@ -187,6 +254,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return res;
   };
 
+  const deleteUser = async (userId: string) => {
+    if (!user || user.role !== 'ADMINISTRADOR') {
+      return { success: false, error: 'Acesso negado.' };
+    }
+    const res = await authService.deleteUser(user, userId);
+    if (res.success) {
+      await refreshUsers();
+      await refreshAuditLogs();
+    }
+    return res;
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -197,13 +276,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login,
         logout,
         changePassword,
+        changePasswordWithVerification,
+        sendPasswordResetEmail,
+        completePasswordRecovery,
+        isPasswordRecovery,
+        setIsPasswordRecovery,
         usersList,
         auditLogs,
         refreshUsers,
         refreshAuditLogs,
         createUser,
         updateUser,
+        updateUserStatus,
         resetUserPassword,
+        deleteUser,
         isLoading,
       }}
     >

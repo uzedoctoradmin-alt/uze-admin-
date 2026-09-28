@@ -7,13 +7,17 @@ import {
   Edit3, 
   UserCheck, 
   UserX, 
+  Trash2,
   ShieldCheck, 
   Search, 
   AlertCircle,
   CheckCircle2,
   X,
   Lock,
-  Database
+  Database,
+  AlertTriangle,
+  Mail,
+  Send
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import type { User, UserRole, UserStatus } from '../types';
@@ -26,7 +30,10 @@ export const AdministracaoPage: React.FC = () => {
     auditLogs, 
     createUser, 
     updateUser, 
-    resetUserPassword 
+    updateUserStatus,
+    resetUserPassword,
+    sendPasswordResetEmail,
+    deleteUser 
   } = useAuth();
 
   const [activeSubTab, setActiveSubTab] = useState<'usuarios' | 'auditoria' | 'dados-backup'>('usuarios');
@@ -36,6 +43,10 @@ export const AdministracaoPage: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [resettingUser, setResettingUser] = useState<User | null>(null);
+  const [emailResetUser, setEmailResetUser] = useState<User | null>(null);
+  const [deletingUser, setDeletingUser] = useState<User | null>(null);
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Formulário de Criação
   const [newName, setNewName] = useState('');
@@ -59,7 +70,7 @@ export const AdministracaoPage: React.FC = () => {
 
   const showFeedback = (type: 'success' | 'error', message: string) => {
     setFeedback({ type, message });
-    setTimeout(() => setFeedback(null), 4000);
+    setTimeout(() => setFeedback(null), 5000);
   };
 
   // Filtragem de Usuários
@@ -80,24 +91,29 @@ export const AdministracaoPage: React.FC = () => {
       return;
     }
 
-    const res = await createUser({
-      name: newName,
-      email: newEmail,
-      role: newRole,
-      status: newStatus,
-      initialPassword: newPassword,
-    });
+    setIsSubmitting(true);
+    try {
+      const res = await createUser({
+        name: newName,
+        email: newEmail,
+        role: newRole,
+        status: newStatus,
+        initialPassword: newPassword,
+      });
 
-    if (res.success) {
-      showFeedback('success', `Usuário ${newName} criado com sucesso!`);
-      setIsCreateModalOpen(false);
-      setNewName('');
-      setNewEmail('');
-      setNewPassword('');
-      setNewPasswordConfirm('');
-      setNewRole('VENDEDOR');
-    } else {
-      showFeedback('error', res.error || 'Erro ao criar usuário.');
+      if (res.success) {
+        showFeedback('success', `Usuário ${newName} criado com sucesso no Supabase Auth e perfis!`);
+        setIsCreateModalOpen(false);
+        setNewName('');
+        setNewEmail('');
+        setNewPassword('');
+        setNewPasswordConfirm('');
+        setNewRole('VENDEDOR');
+      } else {
+        showFeedback('error', res.error || 'Erro ao criar usuário.');
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -114,28 +130,29 @@ export const AdministracaoPage: React.FC = () => {
     e.preventDefault();
     if (!editingUser) return;
 
-    const res = await updateUser(editingUser.id, {
-      name: editName,
-      role: editRole,
-      status: editStatus,
-    });
+    setIsSubmitting(true);
+    try {
+      const res = await updateUser(editingUser.id, {
+        name: editName,
+        role: editRole,
+        status: editStatus,
+      });
 
-    if (res.success) {
-      showFeedback('success', 'Cadastro do usuário atualizado com sucesso.');
-      setEditingUser(null);
-    } else {
-      showFeedback('error', res.error || 'Falha ao atualizar usuário.');
+      if (res.success) {
+        showFeedback('success', 'Cadastro do usuário atualizado com sucesso no Supabase.');
+        setEditingUser(null);
+      } else {
+        showFeedback('error', res.error || 'Falha ao atualizar usuário.');
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   // Handle Quick Toggle Status
   const handleToggleStatus = async (user: User) => {
     const newStatus: UserStatus = user.status === 'Ativo' ? 'Inativo' : 'Ativo';
-    const res = await updateUser(user.id, {
-      name: user.name,
-      role: user.role,
-      status: newStatus,
-    });
+    const res = await updateUserStatus(user.id, newStatus);
 
     if (res.success) {
       showFeedback('success', `Status do usuário alterado para ${newStatus}.`);
@@ -144,7 +161,7 @@ export const AdministracaoPage: React.FC = () => {
     }
   };
 
-  // Handle Reset Password Submit
+  // Handle Reset Password Submit (Manual / Direct)
   const handleResetSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!resettingUser) return;
@@ -158,14 +175,73 @@ export const AdministracaoPage: React.FC = () => {
       return;
     }
 
-    const res = await resetUserPassword(resettingUser.id, tempPassword);
-    if (res.success) {
-      showFeedback('success', `Nova senha temporária definida para ${resettingUser.name}. Ele deverá alterá-la no próximo login.`);
-      setResettingUser(null);
-      setTempPassword('');
-      setTempPasswordConfirm('');
-    } else {
-      showFeedback('error', res.error || 'Falha ao redefinir senha.');
+    setIsSubmitting(true);
+    try {
+      const res = await resetUserPassword(resettingUser.id, tempPassword);
+      if (res.success) {
+        showFeedback('success', `Senha redefinida com sucesso no Supabase Auth para ${resettingUser.name}.`);
+        setResettingUser(null);
+        setTempPassword('');
+        setTempPasswordConfirm('');
+      } else {
+        showFeedback('error', res.error || 'Falha ao redefinir senha.');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handle Send Password Reset Email Submit (Official Supabase Flow)
+  const handleSendResetEmailSubmit = async () => {
+    if (!emailResetUser) return;
+
+    setIsSubmitting(true);
+    try {
+      const res = await sendPasswordResetEmail({
+        id: emailResetUser.id,
+        email: emailResetUser.email,
+        name: emailResetUser.name,
+      });
+
+      if (res.success) {
+        showFeedback('success', res.message || `E-mail de redefinição enviado com sucesso para ${emailResetUser.email}.`);
+        setEmailResetUser(null);
+      } else {
+        showFeedback('error', res.error || 'Falha ao enviar e-mail de redefinição.');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handle Open Delete Modal
+  const handleOpenDelete = (user: User) => {
+    setDeletingUser(user);
+    setDeleteConfirmationText('');
+  };
+
+  // Handle Delete Submit
+  const handleDeleteSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!deletingUser) return;
+
+    if (deletingUser.role === 'ADMINISTRADOR' && deleteConfirmationText.trim().toUpperCase() !== 'REMOVER') {
+      showFeedback('error', 'Digite exatamente a palavra REMOVER para confirmar a exclusão de um administrador.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const res = await deleteUser(deletingUser.id);
+      if (res.success) {
+        showFeedback('success', `Conta de ${deletingUser.name} removida definitivamente do Supabase Auth.`);
+        setDeletingUser(null);
+        setDeleteConfirmationText('');
+      } else {
+        showFeedback('error', res.error || 'Erro ao remover conta.');
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -363,9 +439,17 @@ export const AdministracaoPage: React.FC = () => {
                           </button>
 
                           <button
+                            onClick={() => setEmailResetUser(userItem)}
+                            className="p-1.5 text-[#344054] hover:text-[#173E75] hover:bg-[#F2F4F7] rounded-md transition-colors"
+                            title="Enviar redefinição de senha por e-mail"
+                          >
+                            <Mail size={15} />
+                          </button>
+
+                          <button
                             onClick={() => setResettingUser(userItem)}
                             className="p-1.5 text-[#344054] hover:text-[#C69A43] hover:bg-[#F2F4F7] rounded-md transition-colors"
-                            title="Redefinir senha"
+                            title="Redefinir senha diretamente"
                           >
                             <Key size={15} />
                           </button>
@@ -374,13 +458,23 @@ export const AdministracaoPage: React.FC = () => {
                             onClick={() => handleToggleStatus(userItem)}
                             className={`p-1.5 rounded-md transition-colors ${
                               userItem.status === 'Ativo'
-                                ? 'text-rose-600 hover:bg-rose-50'
+                                ? 'text-amber-600 hover:bg-amber-50'
                                 : 'text-emerald-600 hover:bg-emerald-50'
                             }`}
                             title={userItem.status === 'Ativo' ? 'Desativar conta' : 'Reativar conta'}
                           >
                             {userItem.status === 'Ativo' ? <UserX size={15} /> : <UserCheck size={15} />}
                           </button>
+
+                          {currentUser?.role === 'ADMINISTRADOR' && (
+                            <button
+                              onClick={() => handleOpenDelete(userItem)}
+                              className="p-1.5 text-[#475467] hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
+                              title="Remover conta definitivamente"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -427,30 +521,44 @@ export const AdministracaoPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#D0D5DD]">
+                  <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-[#D0D5DD] flex-wrap">
                     <button
                       onClick={() => handleOpenEdit(userItem)}
-                      className="px-2.5 py-1 text-xs font-semibold text-[#173E75] bg-[#173E75]/10 rounded-md flex items-center gap-1"
+                      className="px-2 py-1 text-xs font-semibold text-[#173E75] bg-[#173E75]/10 rounded-md flex items-center gap-1"
                     >
                       <Edit3 size={13} /> Editar
                     </button>
                     <button
+                      onClick={() => setEmailResetUser(userItem)}
+                      className="px-2 py-1 text-xs font-semibold text-[#173E75] bg-[#173E75]/10 rounded-md flex items-center gap-1"
+                    >
+                      <Mail size={13} /> Reset E-mail
+                    </button>
+                    <button
                       onClick={() => setResettingUser(userItem)}
-                      className="px-2.5 py-1 text-xs font-semibold text-[#C69A43] bg-[#C69A43]/15 rounded-md flex items-center gap-1"
+                      className="px-2 py-1 text-xs font-semibold text-[#C69A43] bg-[#C69A43]/15 rounded-md flex items-center gap-1"
                     >
                       <Key size={13} /> Senha
                     </button>
                     <button
                       onClick={() => handleToggleStatus(userItem)}
-                      className={`px-2.5 py-1 text-xs font-semibold rounded-md flex items-center gap-1 ${
+                      className={`px-2 py-1 text-xs font-semibold rounded-md flex items-center gap-1 ${
                         userItem.status === 'Ativo'
-                          ? 'text-rose-700 bg-rose-50'
+                          ? 'text-amber-700 bg-amber-50'
                           : 'text-emerald-700 bg-emerald-50'
                       }`}
                     >
                       {userItem.status === 'Ativo' ? <UserX size={13} /> : <UserCheck size={13} />}
                       {userItem.status === 'Ativo' ? 'Desativar' : 'Reativar'}
                     </button>
+                    {currentUser?.role === 'ADMINISTRADOR' && (
+                      <button
+                        onClick={() => handleOpenDelete(userItem)}
+                        className="px-2 py-1 text-xs font-semibold text-rose-700 bg-rose-50 rounded-md flex items-center gap-1"
+                      >
+                        <Trash2 size={13} /> Remover
+                      </button>
+                    )}
                   </div>
                 </div>
               ))
@@ -487,6 +595,11 @@ export const AdministracaoPage: React.FC = () => {
                     {log.targetName && (
                       <p className="text-[11px] text-[#475467]">
                         Alvo da ação: <strong className="text-[#101828]">{log.targetName}</strong>
+                      </p>
+                    )}
+                    {log.details && (
+                      <p className="text-[10px] text-[#475467] font-mono">
+                        Detalhes: {JSON.stringify(log.details)}
                       </p>
                     )}
                   </div>
@@ -535,7 +648,7 @@ export const AdministracaoPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-bold text-[#344054] mb-1">E-mail Corporativo (Usuário de Login) *</label>
+                <label className="block font-bold text-[#344054] mb-1">E-mail Corporativo (Login no Supabase Auth) *</label>
                 <input
                   type="email"
                   required
@@ -575,7 +688,7 @@ export const AdministracaoPage: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3 pt-1 border-t border-[#D0D5DD]">
                 <div>
-                  <label className="block font-bold text-[#344054] mb-1">Senha Inicial Temporária *</label>
+                  <label className="block font-bold text-[#344054] mb-1">Senha Inicial *</label>
                   <input
                     type="password"
                     required
@@ -600,19 +713,20 @@ export const AdministracaoPage: React.FC = () => {
               </div>
 
               <p className="text-[11px] text-[#475467] italic">
-                * O usuário será obrigado a redefinir esta senha no primeiro login antes de acessar o sistema.
+                * A conta será criada no Supabase Auth com o mesmo ID em perfis e permissões vinculadas.
               </p>
 
               <div className="flex justify-end gap-2 pt-3 border-t border-[#D0D5DD]">
                 <button
                   type="button"
+                  disabled={isSubmitting}
                   onClick={() => setIsCreateModalOpen(false)}
                   className="px-4 py-2 border border-[#D0D5DD] rounded-lg text-xs font-semibold text-[#344054] hover:bg-[#F2F4F7]"
                 >
                   Cancelar
                 </button>
-                <button type="submit" className="uze-btn-primary text-xs">
-                  Criar Usuário
+                <button type="submit" disabled={isSubmitting} className="uze-btn-primary text-xs">
+                  {isSubmitting ? 'Criando no Supabase...' : 'Criar Usuário'}
                 </button>
               </div>
             </form>
@@ -681,13 +795,14 @@ export const AdministracaoPage: React.FC = () => {
               <div className="flex justify-end gap-2 pt-3 border-t border-[#D0D5DD]">
                 <button
                   type="button"
+                  disabled={isSubmitting}
                   onClick={() => setEditingUser(null)}
                   className="px-4 py-2 border border-[#D0D5DD] rounded-lg text-xs font-semibold text-[#344054] hover:bg-[#F2F4F7]"
                 >
                   Cancelar
                 </button>
-                <button type="submit" className="uze-btn-primary text-xs">
-                  Salvar Alterações
+                <button type="submit" disabled={isSubmitting} className="uze-btn-primary text-xs">
+                  {isSubmitting ? 'Salvando...' : 'Salvar Alterações'}
                 </button>
               </div>
             </form>
@@ -712,12 +827,12 @@ export const AdministracaoPage: React.FC = () => {
             </div>
 
             <p className="text-xs text-[#475467]">
-              Defina uma nova senha temporária. Ao efetuar login com ela, o usuário precisará cadastrar sua própria senha.
+              Defina a nova senha diretamente no Supabase Auth para este usuário.
             </p>
 
             <form onSubmit={handleResetSubmit} className="space-y-3.5 text-xs">
               <div>
-                <label className="block font-bold text-[#344054] mb-1">Nova Senha Temporária *</label>
+                <label className="block font-bold text-[#344054] mb-1">Nova Senha *</label>
                 <input
                   type="password"
                   required
@@ -743,16 +858,146 @@ export const AdministracaoPage: React.FC = () => {
               <div className="flex justify-end gap-2 pt-3 border-t border-[#D0D5DD]">
                 <button
                   type="button"
+                  disabled={isSubmitting}
                   onClick={() => setResettingUser(null)}
                   className="px-4 py-2 border border-[#D0D5DD] rounded-lg text-xs font-semibold text-[#344054] hover:bg-[#F2F4F7]"
                 >
                   Cancelar
                 </button>
-                <button type="submit" className="uze-btn-primary text-xs">
-                  Atualizar Senha
+                <button type="submit" disabled={isSubmitting} className="uze-btn-primary text-xs">
+                  {isSubmitting ? 'Atualizando...' : 'Atualizar Senha'}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: REMOVER CONTA DEFINITIVAMENTE */}
+      {deletingUser && (
+        <div className="fixed inset-0 z-50 bg-[#07101F]/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-[#D0D5DD] rounded-2xl max-w-md w-full p-6 shadow-xl animate-fadeIn space-y-4">
+            <div className="flex items-center justify-between border-b border-[#D0D5DD] pb-3">
+              <div className="flex items-center gap-2 text-rose-600">
+                <div className="p-1.5 rounded-lg bg-rose-100 text-rose-600">
+                  <AlertTriangle size={18} />
+                </div>
+                <h3 className="text-sm font-bold text-[#101828]">Remover Conta do Sistema?</h3>
+              </div>
+              <button onClick={() => setDeletingUser(null)} className="text-[#475467] hover:text-[#101828]">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-1.5 text-xs">
+              <p className="text-[#101828] font-bold">{deletingUser.name}</p>
+              <p className="text-[#475467] font-mono text-[11px]">{deletingUser.email}</p>
+              <div className="pt-1">{getRoleBadge(deletingUser.role)}</div>
+            </div>
+
+            <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-900 text-xs space-y-1.5">
+              <p className="font-bold">Esta ação removerá o acesso deste usuário à plataforma.</p>
+              <p className="text-[11px] text-rose-800">
+                A credencial de login será eliminada do Supabase Auth. O histórico empresarial (vendas, auditoria e movimentações) será preservado de forma íntegra.
+              </p>
+            </div>
+
+            <form onSubmit={handleDeleteSubmit} className="space-y-3.5 text-xs">
+              {deletingUser.role === 'ADMINISTRADOR' && (
+                <div>
+                  <label className="block font-bold text-rose-900 mb-1">
+                    Confirmação de Segurança: Digite <span className="font-mono bg-rose-100 px-1 rounded text-rose-700">REMOVER</span> para confirmar:
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="REMOVER"
+                    className="uze-input text-xs uppercase"
+                    value={deleteConfirmationText}
+                    onChange={e => setDeleteConfirmationText(e.target.value)}
+                  />
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-[#D0D5DD]">
+                <button
+                  type="button"
+                  disabled={isSubmitting}
+                  onClick={() => setDeletingUser(null)}
+                  className="px-4 py-2 border border-[#D0D5DD] rounded-lg text-xs font-semibold text-[#344054] hover:bg-[#F2F4F7]"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting || (deletingUser.role === 'ADMINISTRADOR' && deleteConfirmationText.trim().toUpperCase() !== 'REMOVER')}
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition-colors shadow-xs"
+                >
+                  {isSubmitting ? 'Removendo do Supabase...' : 'Confirmar Remoção'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 5: ENVIAR REDEFINIÇÃO DE SENHA POR E-MAIL */}
+      {emailResetUser && (
+        <div className="fixed inset-0 z-50 bg-[#07101F]/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-[#D0D5DD] rounded-2xl max-w-md w-full p-6 shadow-xl animate-fadeIn space-y-4">
+            <div className="flex items-center justify-between border-b border-[#D0D5DD] pb-3">
+              <div className="flex items-center gap-2 text-[#173E75]">
+                <div className="p-1.5 rounded-lg bg-[#173E75]/10 text-[#173E75]">
+                  <Mail size={18} />
+                </div>
+                <h3 className="text-sm font-bold text-[#101828]">Enviar Redefinição de Senha</h3>
+              </div>
+              <button onClick={() => setEmailResetUser(null)} className="text-[#475467] hover:text-[#101828]">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-1 text-xs">
+              <p className="text-[#101828] font-bold">{emailResetUser.name}</p>
+              <p className="text-[#475467] font-mono text-[11px]">{emailResetUser.email}</p>
+            </div>
+
+            <p className="text-xs text-[#344054] leading-relaxed">
+              Enviar um e-mail de redefinição de senha para <strong className="text-[#101828]">{emailResetUser.email}</strong>?
+            </p>
+
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-[11px] text-[#173E75] space-y-1">
+              <p className="font-bold">Fluxo Oficial Supabase Auth:</p>
+              <p className="leading-relaxed">
+                Um link de recuperação seguro e temporário será encaminhado para a caixa de entrada do usuário. O usuário poderá definir sua nova senha com total sigilo.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-[#D0D5DD]">
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={() => setEmailResetUser(null)}
+                className="px-4 py-2 border border-[#D0D5DD] rounded-lg text-xs font-semibold text-[#344054] hover:bg-[#F2F4F7]"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={handleSendResetEmailSubmit}
+                className="uze-btn-primary text-xs flex items-center gap-1.5"
+              >
+                {isSubmitting ? (
+                  <span>Enviando pelo Supabase...</span>
+                ) : (
+                  <>
+                    <Send size={13} />
+                    <span>Enviar redefinição</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
