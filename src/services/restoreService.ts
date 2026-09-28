@@ -6,7 +6,7 @@
 import { supabase } from './supabase';
 import { backupService, type UzeDoctorBackupPackage } from './backupService';
 import { authService } from './authService';
-import type { Customer, ProductModel, ProductVariant, Sale, StockMovement, Revenue, Expense } from '../types';
+import type { Customer, ProductModel, ProductVariant, Sale, StockMovement, Revenue, Expense, Employee } from '../types';
 
 export interface RestoreOptions {
   mode: 'merge' | 'replace';
@@ -20,6 +20,7 @@ export interface RestoreOptions {
     movements: StockMovement[];
     revenues: Revenue[];
     expenses: Expense[];
+    employees?: Employee[];
   };
 }
 
@@ -64,7 +65,30 @@ export const restoreService = {
         movements: 0,
         revenues: 0,
         expenses: 0,
+        employees: 0,
       };
+
+      // 1.5. Restauração de Funcionários
+      if (Array.isArray(d.employees) && d.employees.length > 0) {
+        const empRows = d.employees.map(e => ({
+          id: e.id,
+          name: e.name,
+          job_title: e.jobTitle || 'Vendedor',
+          is_seller: e.isSeller ?? true,
+          phone: e.phone || null,
+          email: e.email || null,
+          notes: e.notes || null,
+          status: e.status || 'Ativo',
+          user_id: e.userId || null,
+        }));
+
+        const { error: empErr } = await supabase.from('employees').upsert(empRows);
+        if (empErr) console.warn(`Aviso ao restaurar funcionários: ${empErr.message}`);
+        else {
+          restoredCounts.employees = empRows.length;
+          details.push(`${empRows.length} funcionários restaurados.`);
+        }
+      }
 
       // 2. Restauração de Clientes
       if (Array.isArray(d.customers) && d.customers.length > 0) {
@@ -100,7 +124,8 @@ export const restoreService = {
           base_cost: m.baseCost,
           gender: m.gender,
           status: m.status,
-          image_url: m.imageUrl || null,
+          image_url: m.imageUrl || m.imagePath || null,
+          image_path: m.imagePath || m.imageUrl || null,
         }));
 
         const { error: modErr } = await supabase.from('models').upsert(modelRows);
@@ -158,8 +183,17 @@ export const restoreService = {
           customer_id: s.customerId || null,
           customer_name: s.customerName,
           customer_email: s.customerEmail || null,
+          seller_id: s.sellerId || null,
+          seller_name: s.sellerName || null,
           subtotal: s.subtotal,
-          discount: s.discount,
+          discount: s.discount || 0,
+          discount_type: s.discountType || 'FIXED',
+          discount_value: s.discountValue ?? s.discount ?? 0,
+          discount_amount: s.discountAmount ?? s.discount ?? 0,
+          discount_note: s.discountNote || null,
+          has_referral: Boolean(s.hasReferral || s.referralName),
+          referral_name: s.referralName || null,
+          referral_note: s.referralNote || null,
           shipping: s.shipping,
           total: s.total,
           total_cost: s.totalCost,

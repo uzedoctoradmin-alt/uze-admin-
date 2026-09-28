@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useERP } from '../../context/ERPContext';
+import { useAuth } from '../../context/AuthContext';
 import { Modal } from '../common/Modal';
-import type { Sale, SaleItem, PaymentMethod, SaleStatus } from '../../types';
-import { Plus, Trash2, ShoppingCart, UserPlus, CheckCircle2, Package, Sparkles } from 'lucide-react';
+import type { Sale, SaleItem, PaymentMethod, SaleStatus, DiscountType } from '../../types';
+import { Plus, Trash2, ShoppingCart, UserPlus, CheckCircle2, Package, Sparkles, UserCheck, Tag, Gift, Calendar } from 'lucide-react';
 
 interface NovaVendaModalProps {
   isOpen: boolean;
@@ -11,11 +12,17 @@ interface NovaVendaModalProps {
 }
 
 export const NovaVendaModal: React.FC<NovaVendaModalProps> = ({ isOpen, onClose, saleToEdit }) => {
-  const { customers, models, variants, addSale, updateSale, addCustomer } = useERP();
+  const { customers, models, variants, employees, addSale, updateSale, addCustomer } = useERP();
+  const { user: currentUser } = useAuth();
 
   // Active customers (hide archived unless editing an older sale for that customer)
   const activeCustomers = customers.filter(
     c => c.status !== 'Arquivado' || (saleToEdit && c.id === saleToEdit.customerId)
+  );
+
+  // Active sellers list
+  const activeSellers = employees.filter(
+    e => (e.isSeller && e.status === 'Ativo') || (saleToEdit && e.id === saleToEdit.sellerId)
   );
 
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
@@ -24,6 +31,17 @@ export const NovaVendaModal: React.FC<NovaVendaModalProps> = ({ isOpen, onClose,
   const [newCustEmail, setNewCustEmail] = useState('');
   const [newCustPhone, setNewCustPhone] = useState('');
   const [newCustCity, setNewCustCity] = useState('');
+
+  // Sale Date State (Commercial / Retroactive)
+  const [saleDate, setSaleDate] = useState<string>('');
+
+  // Seller State
+  const [selectedSellerId, setSelectedSellerId] = useState<string>('');
+
+  // Referral State
+  const [hasReferral, setHasReferral] = useState(false);
+  const [referralName, setReferralName] = useState('');
+  const [referralNote, setReferralNote] = useState('');
 
   // Cart Items State
   const [cartItems, setCartItems] = useState<Omit<SaleItem, 'id'>[]>([]);
@@ -43,25 +61,79 @@ export const NovaVendaModal: React.FC<NovaVendaModalProps> = ({ isOpen, onClose,
   const [customNotes, setCustomNotes] = useState('');
 
   // Financial adjusters
-  const [discount, setDiscount] = useState<number>(0);
+  const [discountType, setDiscountType] = useState<DiscountType>('FIXED');
+  const [discountValue, setDiscountValue] = useState<number>(0);
+  const [discountNote, setDiscountNote] = useState('');
   const [shipping, setShipping] = useState<number>(0);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('PIX');
   const [saleStatus, setSaleStatus] = useState<SaleStatus>('Concluído');
+
+  // Helper to find matching seller for logged in user
+  const findLinkedSellerId = (): string => {
+    if (!currentUser) return activeSellers[0]?.id || '';
+    // Look for employee directly matching user ID or matching name/email
+    const matchedEmployee = employees.find(
+      e => e.isSeller && (
+        (e.userId && e.userId === currentUser.id) ||
+        (e.email && currentUser.email && e.email.toLowerCase() === currentUser.email.toLowerCase()) ||
+        (e.name.toLowerCase() === currentUser.name.toLowerCase())
+      )
+    );
+    if (matchedEmployee) return matchedEmployee.id;
+    return activeSellers[0]?.id || '';
+  };
+
+  // Helper to get formatted date string for input type="date"
+  const getTodayInputDate = () => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const parseExistingDateToInput = (dateStr?: string) => {
+    if (!dateStr) return getTodayInputDate();
+    if (dateStr.includes('-')) {
+      return dateStr.split(' ')[0].slice(0, 10);
+    }
+    if (dateStr.includes('/')) {
+      const parts = dateStr.split(' ')[0].split('/');
+      if (parts.length === 3) {
+        return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+      }
+    }
+    return getTodayInputDate();
+  };
 
   // Populate form on edit or reset on create
   useEffect(() => {
     if (isOpen) {
       if (saleToEdit) {
         setSelectedCustomerId(saleToEdit.customerId);
+        setSelectedSellerId(saleToEdit.sellerId || '');
+        setSaleDate(parseExistingDateToInput(saleToEdit.date || saleToEdit.saleDate));
         setCartItems(saleToEdit.items.map(it => ({ ...it })));
-        setDiscount(saleToEdit.discount || 0);
+        setDiscountType(saleToEdit.discountType || 'FIXED');
+        setDiscountValue(saleToEdit.discountValue ?? (saleToEdit.discount || 0));
+        setDiscountNote(saleToEdit.discountNote || '');
+        setHasReferral(Boolean(saleToEdit.hasReferral || saleToEdit.referralName));
+        setReferralName(saleToEdit.referralName || '');
+        setReferralNote(saleToEdit.referralNote || '');
         setShipping(saleToEdit.shipping || 0);
         setPaymentMethod(saleToEdit.paymentMethod);
         setSaleStatus(saleToEdit.status);
       } else {
         setSelectedCustomerId(activeCustomers[0]?.id || '');
+        setSelectedSellerId(findLinkedSellerId());
+        setSaleDate(getTodayInputDate());
         setCartItems([]);
-        setDiscount(0);
+        setDiscountType('FIXED');
+        setDiscountValue(0);
+        setDiscountNote('');
+        setHasReferral(false);
+        setReferralName('');
+        setReferralNote('');
         setShipping(0);
         setPaymentMethod('PIX');
         setSaleStatus('Concluído');
@@ -160,24 +232,56 @@ export const NovaVendaModal: React.FC<NovaVendaModalProps> = ({ isOpen, onClose,
     setNewCustCity('');
   };
 
+  // Calculations
   const subtotal = cartItems.reduce((acc, i) => acc + i.subtotal, 0);
   const totalCost = cartItems.reduce((acc, i) => acc + ((i.unitCost || 0) * i.quantity), 0);
-  const total = Math.max(0, subtotal - discount + shipping);
+  
+  // Calculate discount amount based on type
+  const safeDiscountValue = Math.max(0, discountValue || 0);
+  let calculatedDiscountAmount = 0;
+  if (discountType === 'PERCENTAGE') {
+    const safePercent = Math.min(100, safeDiscountValue);
+    calculatedDiscountAmount = (subtotal * safePercent) / 100;
+  } else {
+    calculatedDiscountAmount = Math.min(subtotal, safeDiscountValue);
+  }
+
+  const safeShipping = Math.max(0, shipping || 0);
+  const total = Math.max(0, subtotal - calculatedDiscountAmount + safeShipping);
   const estimatedProfit = total - totalCost;
 
   const handleFinalizeSale = () => {
     if (!selectedCustomerId || cartItems.length === 0) return;
 
     const customer = customers.find(c => c.id === selectedCustomerId);
+    const seller = employees.find(e => e.id === selectedSellerId);
+
+    // Format commercial sale date (YYYY-MM-DD HH:mm or selected date + current time)
+    const timePortion = new Date().toLocaleTimeString('pt-BR').slice(0, 5);
+    const formattedCommercialDate = saleDate
+      ? `${saleDate} ${timePortion}`
+      : new Date().toISOString().replace('T', ' ').slice(0, 16);
 
     const salePayload = {
       customerId: selectedCustomerId,
       customerName: customer?.name || 'Cliente Geral',
       customerEmail: customer?.email || undefined,
+      sellerId: selectedSellerId || undefined,
+      sellerName: seller?.name || undefined,
+      date: formattedCommercialDate,
+      saleDate: saleDate || getTodayInputDate(),
+      occurredAt: saleDate ? new Date(`${saleDate}T12:00:00Z`).toISOString() : new Date().toISOString(),
       items: cartItems.map((item, idx) => ({ ...item, id: `sli-${Date.now()}-${idx}` })),
       subtotal,
-      discount,
-      shipping,
+      discount: calculatedDiscountAmount,
+      discountType,
+      discountValue: safeDiscountValue,
+      discountAmount: calculatedDiscountAmount,
+      discountNote: discountNote.trim() || undefined,
+      hasReferral,
+      referralName: hasReferral && referralName.trim() ? referralName.trim() : undefined,
+      referralNote: hasReferral && referralNote.trim() ? referralNote.trim() : undefined,
+      shipping: safeShipping,
       total,
       totalCost,
       estimatedProfit,
@@ -212,77 +316,125 @@ export const NovaVendaModal: React.FC<NovaVendaModalProps> = ({ isOpen, onClose,
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* Left Form: 8 cols */}
         <div className="lg:col-span-8 space-y-4">
-          {/* 1. Cliente */}
-          <div className="p-3.5 bg-[#F9FAFB] rounded-lg border border-[#D0D5DD]">
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-semibold uppercase text-[#101828]">1. Cliente</label>
-              <button
-                type="button"
-                onClick={() => setShowNewCustomerForm(!showNewCustomerForm)}
-                className="text-xs text-[#173E75] font-semibold hover:underline flex items-center gap-1"
-              >
-                <UserPlus size={13} /> {showNewCustomerForm ? 'Selecionar da Lista' : '+ Novo Cliente'}
-              </button>
+          {/* 1. Data, Vendedor & Cliente */}
+          <div className="p-3.5 bg-[#F9FAFB] rounded-lg border border-[#D0D5DD] space-y-3">
+            {/* Linha com Data Comercial e Vendedor */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Data da Venda */}
+              <div>
+                <label className="text-xs font-semibold uppercase text-[#101828] flex items-center gap-1.5 mb-1.5">
+                  <Calendar size={14} className="text-[#173E75]" />
+                  Data da Venda (Comercial)
+                </label>
+                <input
+                  type="date"
+                  className="uze-input text-xs bg-white font-medium cursor-pointer"
+                  value={saleDate}
+                  onChange={e => setSaleDate(e.target.value)}
+                />
+                <span className="text-[10px] text-[#475467] block mt-0.5">
+                  * Pode ser retroativa para registrar pedidos anteriores
+                </span>
+              </div>
+
+              {/* Vendedor Responsável */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold uppercase text-[#101828] flex items-center gap-1.5">
+                    <UserCheck size={14} className="text-[#173E75]" />
+                    Vendedor Responsável
+                  </label>
+                  <span className="text-[10px] text-[#475467]">
+                    {activeSellers.length} disponíveis
+                  </span>
+                </div>
+                <select
+                  className="uze-input text-xs cursor-pointer bg-white"
+                  value={selectedSellerId}
+                  onChange={e => setSelectedSellerId(e.target.value)}
+                >
+                  <option value="">Selecione o vendedor...</option>
+                  {activeSellers.map(s => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.jobTitle || 'Vendas'}) {s.status === 'Inativo' ? '[Inativo]' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
-            {showNewCustomerForm ? (
-              <div className="space-y-2 pt-1">
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    type="text"
-                    placeholder="Nome do cliente *"
-                    className="uze-input text-xs"
-                    value={newCustName}
-                    onChange={e => setNewCustName(e.target.value)}
-                  />
-                  <input
-                    type="email"
-                    placeholder="E-mail (opcional)"
-                    className="uze-input text-xs"
-                    value={newCustEmail}
-                    onChange={e => setNewCustEmail(e.target.value)}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    type="text"
-                    placeholder="Telefone / WhatsApp (opcional)"
-                    className="uze-input text-xs"
-                    value={newCustPhone}
-                    onChange={e => setNewCustPhone(e.target.value)}
-                  />
-                  <input
-                    type="text"
-                    placeholder="Cidade (opcional)"
-                    className="uze-input text-xs"
-                    value={newCustCity}
-                    onChange={e => setNewCustCity(e.target.value)}
-                  />
-                </div>
+            {/* Cliente */}
+            <div className="pt-2 border-t border-[#EAECF0]">
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-semibold uppercase text-[#101828]">Cliente</label>
                 <button
                   type="button"
-                  onClick={handleCreateCustomer}
-                  className="uze-btn-secondary text-xs w-full justify-center"
+                  onClick={() => setShowNewCustomerForm(!showNewCustomerForm)}
+                  className="text-xs text-[#173E75] font-semibold hover:underline flex items-center gap-1"
                 >
-                  Cadastrar e Selecionar
+                  <UserPlus size={13} /> {showNewCustomerForm ? 'Selecionar da Lista' : '+ Novo Cliente'}
                 </button>
               </div>
-            ) : (
-              <select
-                className="uze-input text-xs cursor-pointer"
-                value={selectedCustomerId}
-                onChange={e => setSelectedCustomerId(e.target.value)}
-              >
-                {activeCustomers.length === 0 && (
-                  <option value="">Nenhum cliente disponível (cadastre acima)</option>
-                )}
-                {activeCustomers.map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} {c.city ? `— ${c.city}` : ''} {c.phone ? `(${c.phone})` : ''} {c.status === 'Arquivado' ? '[Arquivado]' : ''}
-                  </option>
-                ))}
-              </select>
-            )}
+
+              {showNewCustomerForm ? (
+                <div className="space-y-2 pt-1">
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      placeholder="Nome do cliente *"
+                      className="uze-input text-xs"
+                      value={newCustName}
+                      onChange={e => setNewCustName(e.target.value)}
+                    />
+                    <input
+                      type="email"
+                      placeholder="E-mail (opcional)"
+                      className="uze-input text-xs"
+                      value={newCustEmail}
+                      onChange={e => setNewCustEmail(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      placeholder="Telefone / WhatsApp (opcional)"
+                      className="uze-input text-xs"
+                      value={newCustPhone}
+                      onChange={e => setNewCustPhone(e.target.value)}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Cidade (opcional)"
+                      className="uze-input text-xs"
+                      value={newCustCity}
+                      onChange={e => setNewCustCity(e.target.value)}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCreateCustomer}
+                    className="uze-btn-secondary text-xs w-full justify-center"
+                  >
+                    Cadastrar e Selecionar
+                  </button>
+                </div>
+              ) : (
+                <select
+                  className="uze-input text-xs cursor-pointer bg-white"
+                  value={selectedCustomerId}
+                  onChange={e => setSelectedCustomerId(e.target.value)}
+                >
+                  {activeCustomers.length === 0 && (
+                    <option value="">Nenhum cliente disponível (cadastre acima)</option>
+                  )}
+                  {activeCustomers.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} {c.city ? `— ${c.city}` : ''} {c.phone ? `(${c.phone})` : ''} {c.status === 'Arquivado' ? '[Arquivado]' : ''}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
           </div>
 
           {/* 2. Selecionar Produto & Variante OU Item Avulso */}
@@ -297,7 +449,7 @@ export const NovaVendaModal: React.FC<NovaVendaModalProps> = ({ isOpen, onClose,
                   onClick={() => setItemMode('catalogo')}
                   className={`px-2.5 py-1 rounded flex items-center gap-1 transition-all ${
                     itemMode === 'catalogo'
-                      ? 'bg-white text-[#173E75] shadow-xs'
+                      ? 'bg-white text-[#173E75] shadow-xs font-bold'
                       : 'text-[#475467] hover:text-[#101828]'
                   }`}
                 >
@@ -308,7 +460,7 @@ export const NovaVendaModal: React.FC<NovaVendaModalProps> = ({ isOpen, onClose,
                   onClick={() => setItemMode('avulso')}
                   className={`px-2.5 py-1 rounded flex items-center gap-1 transition-all ${
                     itemMode === 'avulso'
-                      ? 'bg-white text-[#173E75] shadow-xs'
+                      ? 'bg-white text-[#173E75] shadow-xs font-bold'
                       : 'text-[#475467] hover:text-[#101828]'
                   }`}
                 >
@@ -323,7 +475,7 @@ export const NovaVendaModal: React.FC<NovaVendaModalProps> = ({ isOpen, onClose,
                 <div>
                   <span className="text-[10px] font-semibold text-[#475467] uppercase block mb-1">Modelo</span>
                   <select
-                    className="uze-input text-xs cursor-pointer"
+                    className="uze-input text-xs cursor-pointer bg-white"
                     value={selectedModelId}
                     onChange={e => {
                       setSelectedModelId(e.target.value);
@@ -344,7 +496,7 @@ export const NovaVendaModal: React.FC<NovaVendaModalProps> = ({ isOpen, onClose,
                 <div>
                   <span className="text-[10px] font-semibold text-[#475467] uppercase block mb-1">Variante / Cor / Tam</span>
                   <select
-                    className="uze-input text-xs cursor-pointer"
+                    className="uze-input text-xs cursor-pointer bg-white"
                     value={selectedVariantId}
                     onChange={e => setSelectedVariantId(e.target.value)}
                   >
@@ -367,7 +519,7 @@ export const NovaVendaModal: React.FC<NovaVendaModalProps> = ({ isOpen, onClose,
                     <input
                       type="number"
                       min="1"
-                      className="uze-input text-xs w-16 text-center font-bold"
+                      className="uze-input text-xs w-16 text-center font-bold bg-white"
                       value={itemQty}
                       onChange={e => setItemQty(parseInt(e.target.value) || 1)}
                     />
@@ -509,12 +661,62 @@ export const NovaVendaModal: React.FC<NovaVendaModalProps> = ({ isOpen, onClose,
             </div>
           </div>
 
-          {/* 3. Pagamento e Status */}
+          {/* 3. Indicação da Venda (Opcional) */}
+          <div className="p-3.5 bg-[#F9FAFB] rounded-lg border border-[#D0D5DD]">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold uppercase text-[#101828] flex items-center gap-1.5">
+                <Gift size={14} className="text-[#C69A43]" />
+                Indicação
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={hasReferral}
+                  onChange={e => setHasReferral(e.target.checked)}
+                  className="rounded border-[#D0D5DD] text-[#173E75] focus:ring-[#173E75]"
+                />
+                <span className="text-xs font-semibold text-[#344054]">
+                  Venda originada por indicação
+                </span>
+              </label>
+            </div>
+
+            {hasReferral && (
+              <div className="mt-3 pt-3 border-t border-[#EAECF0] grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label className="text-[10px] font-semibold text-[#475467] block mb-1">
+                    Indicado por * (Nome livre)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Dra. Ana Beatriz, Dr. Carlos, Cliente Maria..."
+                    className="uze-input text-xs bg-white"
+                    value={referralName}
+                    onChange={e => setReferralName(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-semibold text-[#475467] block mb-1">
+                    Observação / Clínica / Parceria
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Paciente da Clínica X, Parceria Hospital Y..."
+                    className="uze-input text-xs bg-white"
+                    value={referralNote}
+                    onChange={e => setReferralNote(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 4. Pagamento e Status */}
           <div className="grid grid-cols-2 gap-3 p-3.5 bg-[#F9FAFB] rounded-lg border border-[#D0D5DD]">
             <div>
               <label className="text-[10px] font-semibold text-[#475467] uppercase block mb-1">Forma de Pagamento</label>
               <select
-                className="uze-input text-xs cursor-pointer"
+                className="uze-input text-xs cursor-pointer bg-white"
                 value={paymentMethod}
                 onChange={e => setPaymentMethod(e.target.value as PaymentMethod)}
               >
@@ -527,7 +729,7 @@ export const NovaVendaModal: React.FC<NovaVendaModalProps> = ({ isOpen, onClose,
             <div>
               <label className="text-[10px] font-semibold text-[#475467] uppercase block mb-1">Status da Venda</label>
               <select
-                className="uze-input text-xs cursor-pointer"
+                className="uze-input text-xs cursor-pointer bg-white"
                 value={saleStatus}
                 onChange={e => setSaleStatus(e.target.value as SaleStatus)}
               >
@@ -549,34 +751,97 @@ export const NovaVendaModal: React.FC<NovaVendaModalProps> = ({ isOpen, onClose,
               <h4 className="font-bold text-xs uppercase tracking-wider text-white">Resumo da Venda</h4>
             </div>
 
-            <div className="space-y-2.5 text-xs">
+            <div className="space-y-3 text-xs">
               <div className="flex justify-between text-slate-300">
                 <span>Subtotal ({cartItems.reduce((sum, i) => sum + i.quantity, 0)} itens):</span>
                 <span className="font-semibold text-white">R$ {subtotal.toFixed(2)}</span>
               </div>
 
-              <div>
-                <label className="text-[10px] text-slate-400 block mb-1">Desconto (R$):</label>
-                <input
-                  type="number"
-                  min="0"
-                  className="w-full h-7 bg-slate-900 border border-slate-700 rounded px-2 text-xs text-white outline-none focus:border-[#C69A43]"
-                  value={discount}
-                  onChange={e => setDiscount(parseFloat(e.target.value) || 0)}
-                />
+              {/* Discount Section */}
+              <div className="p-3 bg-slate-900/90 rounded-lg border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1">
+                    <Tag size={12} className="text-[#C69A43]" /> Desconto
+                  </label>
+                  {/* Toggle Fixed vs Percentage */}
+                  <div className="flex items-center bg-slate-800 rounded p-0.5 text-[10px]">
+                    <button
+                      type="button"
+                      onClick={() => setDiscountType('FIXED')}
+                      className={`px-2 py-0.5 rounded transition-all font-semibold ${
+                        discountType === 'FIXED'
+                          ? 'bg-[#C69A43] text-[#07101F] font-bold'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      R$ Fixo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDiscountType('PERCENTAGE')}
+                      className={`px-2 py-0.5 rounded transition-all font-semibold ${
+                        discountType === 'PERCENTAGE'
+                          ? 'bg-[#C69A43] text-[#07101F] font-bold'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      % Porc.
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <span className="absolute left-2.5 top-1.5 text-xs text-slate-400 font-bold">
+                      {discountType === 'FIXED' ? 'R$' : '%'}
+                    </span>
+                    <input
+                      type="number"
+                      min="0"
+                      max={discountType === 'PERCENTAGE' ? 100 : subtotal}
+                      step={discountType === 'PERCENTAGE' ? '1' : '0.01'}
+                      className="w-full h-8 bg-slate-950 border border-slate-700 rounded pl-8 pr-2 text-xs text-white outline-none focus:border-[#C69A43] font-bold"
+                      value={discountValue || ''}
+                      placeholder="0"
+                      onChange={e => {
+                        const val = parseFloat(e.target.value) || 0;
+                        setDiscountValue(val);
+                      }}
+                    />
+                  </div>
+                  {discountType === 'PERCENTAGE' && calculatedDiscountAmount > 0 && (
+                    <span className="text-[11px] font-mono text-emerald-400 font-semibold whitespace-nowrap">
+                      - R$ {calculatedDiscountAmount.toFixed(2)}
+                    </span>
+                  )}
+                </div>
+
+                <div>
+                  <input
+                    type="text"
+                    placeholder="Motivo / negociação do desconto (opcional)"
+                    className="w-full h-7 bg-slate-950 border border-slate-700 rounded px-2 text-[11px] text-slate-300 outline-none focus:border-[#C69A43]"
+                    value={discountNote}
+                    onChange={e => setDiscountNote(e.target.value)}
+                  />
+                </div>
               </div>
 
+              {/* Shipping */}
               <div>
                 <label className="text-[10px] text-slate-400 block mb-1">Frete (R$):</label>
                 <input
                   type="number"
                   min="0"
-                  className="w-full h-7 bg-slate-900 border border-slate-700 rounded px-2 text-xs text-white outline-none focus:border-[#C69A43]"
-                  value={shipping}
+                  step="0.01"
+                  className="w-full h-8 bg-slate-900 border border-slate-700 rounded px-2.5 text-xs text-white outline-none focus:border-[#C69A43]"
+                  value={shipping || ''}
+                  placeholder="0.00"
                   onChange={e => setShipping(parseFloat(e.target.value) || 0)}
                 />
               </div>
 
+              {/* Total Final */}
               <div className="pt-3 border-t border-slate-800">
                 <div className="flex justify-between items-center text-sm font-bold text-white">
                   <span>TOTAL:</span>
@@ -586,6 +851,7 @@ export const NovaVendaModal: React.FC<NovaVendaModalProps> = ({ isOpen, onClose,
                 </div>
               </div>
 
+              {/* Profit summary */}
               <div className="p-2.5 bg-slate-900/90 rounded border border-slate-800 space-y-1 text-[11px]">
                 <div className="flex justify-between text-slate-400">
                   <span>Custo Peças:</span>

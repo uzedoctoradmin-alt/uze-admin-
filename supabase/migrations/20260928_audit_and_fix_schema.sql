@@ -1,11 +1,12 @@
 -- ==============================================================================
--- UZE DOCTOR ERP - SUPABASE MASTER PRODUCTION SCHEMA & RECONCILIATION
+-- UZE DOCTOR ERP - MASTER RECONCILIATION & AUDIT MIGRATION (2026-09-28)
 -- Project: uzedoctoradmin-alt's Project (xpjlixvifoytxgplesnq)
--- Single Source of Truth para a Plataforma UZE DOCTOR
+-- Description: Non-destructive migration applying full schema, RLS, functions,
+--              triggers, indexes, views, and linking the Admin account.
 -- ==============================================================================
 
 -- ------------------------------------------------------------------------------
--- 1. EXTENSIONS & DOMAIN TYPES
+-- 1. EXTENSIONS & DOMAIN ENUMS
 -- ------------------------------------------------------------------------------
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
@@ -29,40 +30,10 @@ DO $$ BEGIN
 END $$;
 
 -- ------------------------------------------------------------------------------
--- 2. DOMAIN TABLES & COLUMNS (NON-DESTRUCTIVE SAFE DEFINITIONS)
+-- 2. NON-DESTRUCTIVE COLUMN EXPANSION ON EXISTING TABLES
 -- ------------------------------------------------------------------------------
 
--- 2.1 Profiles (Supabase Auth link)
-CREATE TABLE IF NOT EXISTS public.profiles (
-  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  email TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT 'VENDEDOR' CHECK (role IN ('ADMINISTRADOR', 'VENDEDOR', 'VISUALIZACAO')),
-  status TEXT NOT NULL DEFAULT 'Ativo' CHECK (status IN ('Ativo', 'Inativo', 'Bloqueado')),
-  must_change_password BOOLEAN NOT NULL DEFAULT true,
-  last_login_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
-  created_by UUID
-);
-
--- 2.2 Users (Direct ERP compatibility)
-CREATE TABLE IF NOT EXISTS public.users (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  email TEXT NOT NULL UNIQUE,
-  password_hash TEXT NOT NULL,
-  salt TEXT NOT NULL,
-  role TEXT NOT NULL CHECK (role IN ('ADMINISTRADOR', 'VENDEDOR', 'VISUALIZACAO')),
-  status TEXT NOT NULL DEFAULT 'Ativo' CHECK (status IN ('Ativo', 'Inativo', 'Bloqueado')),
-  must_change_password BOOLEAN NOT NULL DEFAULT true,
-  last_login_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
-  created_by TEXT
-);
-
--- 2.3 Customers
+-- 2.1 customers
 CREATE TABLE IF NOT EXISTS public.customers (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   name TEXT NOT NULL,
@@ -84,7 +55,7 @@ ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS notes TEXT;
 ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT true;
 ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now());
 
--- 2.4 Models (Products)
+-- 2.2 models
 CREATE TABLE IF NOT EXISTS public.models (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
@@ -107,7 +78,7 @@ ALTER TABLE public.models ADD COLUMN IF NOT EXISTS composition TEXT;
 ALTER TABLE public.models ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT true;
 ALTER TABLE public.models ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now());
 
--- 2.5 Variants
+-- 2.3 variants
 CREATE TABLE IF NOT EXISTS public.variants (
   id TEXT PRIMARY KEY,
   model_id TEXT NOT NULL REFERENCES public.models(id) ON DELETE CASCADE,
@@ -128,42 +99,7 @@ ALTER TABLE public.variants ADD COLUMN IF NOT EXISTS sale_price NUMERIC(12,2) CH
 ALTER TABLE public.variants ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT true;
 ALTER TABLE public.variants ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now());
 
--- 2.6 Inventory
-CREATE TABLE IF NOT EXISTS public.inventory (
-  variant_id TEXT PRIMARY KEY REFERENCES public.variants(id) ON DELETE CASCADE,
-  current_stock INTEGER NOT NULL DEFAULT 0 CHECK (current_stock >= 0),
-  minimum_stock INTEGER NOT NULL DEFAULT 5 CHECK (minimum_stock >= 0),
-  location TEXT DEFAULT 'Depósito Central',
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
-);
-
--- 2.7 Stock Movements
-CREATE TABLE IF NOT EXISTS public.stock_movements (
-  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  date TEXT NOT NULL,
-  variant_id TEXT NOT NULL REFERENCES public.variants(id) ON DELETE RESTRICT,
-  product_name TEXT NOT NULL,
-  sku TEXT NOT NULL,
-  color_name TEXT,
-  size TEXT,
-  type TEXT NOT NULL,
-  direction TEXT DEFAULT 'SAIDA',
-  quantity INTEGER NOT NULL,
-  previous_stock INTEGER,
-  new_stock INTEGER,
-  reason TEXT,
-  sale_id TEXT,
-  operator TEXT DEFAULT 'Operador ERP',
-  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
-);
-ALTER TABLE public.stock_movements ADD COLUMN IF NOT EXISTS direction TEXT DEFAULT 'SAIDA';
-ALTER TABLE public.stock_movements ADD COLUMN IF NOT EXISTS previous_stock INTEGER;
-ALTER TABLE public.stock_movements ADD COLUMN IF NOT EXISTS new_stock INTEGER;
-ALTER TABLE public.stock_movements ADD COLUMN IF NOT EXISTS sale_id TEXT;
-ALTER TABLE public.stock_movements ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL;
-
--- 2.8 Sales
+-- 2.4 sales
 CREATE TABLE IF NOT EXISTS public.sales (
   id TEXT PRIMARY KEY,
   sale_number TEXT UNIQUE,
@@ -194,24 +130,7 @@ ALTER TABLE public.sales ADD COLUMN IF NOT EXISTS notes TEXT;
 ALTER TABLE public.sales ADD COLUMN IF NOT EXISTS created_by TEXT;
 ALTER TABLE public.sales ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now());
 
--- 2.9 Sale Items (Catalog + Avulso)
-CREATE TABLE IF NOT EXISTS public.sale_items (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  sale_id TEXT NOT NULL REFERENCES public.sales(id) ON DELETE CASCADE,
-  variant_id TEXT REFERENCES public.variants(id) ON DELETE SET NULL,
-  product_name TEXT NOT NULL,
-  color_name TEXT,
-  size TEXT,
-  sku TEXT,
-  unit_cost NUMERIC(12,2) NOT NULL DEFAULT 0.00 CHECK (unit_cost >= 0),
-  unit_price NUMERIC(12,2) NOT NULL DEFAULT 0.00 CHECK (unit_price >= 0),
-  quantity INTEGER NOT NULL CHECK (quantity > 0),
-  discount NUMERIC(12,2) NOT NULL DEFAULT 0.00 CHECK (discount >= 0),
-  subtotal NUMERIC(12,2) NOT NULL DEFAULT 0.00 CHECK (subtotal >= 0),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
-);
-
--- 2.10 Revenues
+-- 2.5 revenues
 CREATE TABLE IF NOT EXISTS public.revenues (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   sale_id TEXT REFERENCES public.sales(id) ON DELETE SET NULL,
@@ -235,7 +154,7 @@ ALTER TABLE public.revenues ADD COLUMN IF NOT EXISTS due_date DATE;
 ALTER TABLE public.revenues ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ;
 ALTER TABLE public.revenues ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now());
 
--- 2.11 Expenses
+-- 2.6 expenses
 CREATE TABLE IF NOT EXISTS public.expenses (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   date TEXT NOT NULL,
@@ -255,7 +174,93 @@ ALTER TABLE public.expenses ADD COLUMN IF NOT EXISTS due_date DATE;
 ALTER TABLE public.expenses ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ;
 ALTER TABLE public.expenses ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now());
 
--- 2.12 Financial Categories
+-- 2.7 stock_movements
+CREATE TABLE IF NOT EXISTS public.stock_movements (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  date TEXT NOT NULL,
+  variant_id TEXT NOT NULL REFERENCES public.variants(id) ON DELETE RESTRICT,
+  product_name TEXT NOT NULL,
+  sku TEXT NOT NULL,
+  color_name TEXT,
+  size TEXT,
+  type TEXT NOT NULL,
+  direction TEXT DEFAULT 'SAIDA',
+  quantity INTEGER NOT NULL,
+  previous_stock INTEGER,
+  new_stock INTEGER,
+  reason TEXT,
+  sale_id TEXT,
+  operator TEXT DEFAULT 'Operador ERP',
+  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+ALTER TABLE public.stock_movements ADD COLUMN IF NOT EXISTS direction TEXT DEFAULT 'SAIDA';
+ALTER TABLE public.stock_movements ADD COLUMN IF NOT EXISTS previous_stock INTEGER;
+ALTER TABLE public.stock_movements ADD COLUMN IF NOT EXISTS new_stock INTEGER;
+ALTER TABLE public.stock_movements ADD COLUMN IF NOT EXISTS sale_id TEXT;
+ALTER TABLE public.stock_movements ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL;
+
+-- ------------------------------------------------------------------------------
+-- 3. CREATE MISSING BASE TABLES
+-- ------------------------------------------------------------------------------
+
+-- 3.1 profiles (Supabase Auth 1:1 integration)
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'VENDEDOR' CHECK (role IN ('ADMINISTRADOR', 'VENDEDOR', 'VISUALIZACAO')),
+  status TEXT NOT NULL DEFAULT 'Ativo' CHECK (status IN ('Ativo', 'Inativo', 'Bloqueado')),
+  must_change_password BOOLEAN NOT NULL DEFAULT true,
+  last_login_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  created_by UUID
+);
+
+-- 3.2 users (ERP direct authentication table)
+CREATE TABLE IF NOT EXISTS public.users (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  salt TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('ADMINISTRADOR', 'VENDEDOR', 'VISUALIZACAO')),
+  status TEXT NOT NULL DEFAULT 'Ativo' CHECK (status IN ('Ativo', 'Inativo', 'Bloqueado')),
+  must_change_password BOOLEAN NOT NULL DEFAULT true,
+  last_login_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  created_by TEXT
+);
+
+-- 3.3 inventory (independent stock tracking)
+CREATE TABLE IF NOT EXISTS public.inventory (
+  variant_id TEXT PRIMARY KEY REFERENCES public.variants(id) ON DELETE CASCADE,
+  current_stock INTEGER NOT NULL DEFAULT 0 CHECK (current_stock >= 0),
+  minimum_stock INTEGER NOT NULL DEFAULT 5 CHECK (minimum_stock >= 0),
+  location TEXT DEFAULT 'Depósito Central',
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- 3.4 sale_items (Normalized sale items - Supports both catalog variants and custom/avulso items)
+CREATE TABLE IF NOT EXISTS public.sale_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  sale_id TEXT NOT NULL REFERENCES public.sales(id) ON DELETE CASCADE,
+  variant_id TEXT REFERENCES public.variants(id) ON DELETE SET NULL,
+  product_name TEXT NOT NULL,
+  color_name TEXT,
+  size TEXT,
+  sku TEXT,
+  unit_cost NUMERIC(12,2) NOT NULL DEFAULT 0.00 CHECK (unit_cost >= 0),
+  unit_price NUMERIC(12,2) NOT NULL DEFAULT 0.00 CHECK (unit_price >= 0),
+  quantity INTEGER NOT NULL CHECK (quantity > 0),
+  discount NUMERIC(12,2) NOT NULL DEFAULT 0.00 CHECK (discount >= 0),
+  subtotal NUMERIC(12,2) NOT NULL DEFAULT 0.00 CHECK (subtotal >= 0),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- 3.5 financial_categories
 CREATE TABLE IF NOT EXISTS public.financial_categories (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL UNIQUE,
@@ -264,7 +269,7 @@ CREATE TABLE IF NOT EXISTS public.financial_categories (
   created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
 
--- 2.13 Audit Logs
+-- 3.6 audit_logs
 CREATE TABLE IF NOT EXISTS public.audit_logs (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   actor_id TEXT NOT NULL,
@@ -278,8 +283,10 @@ CREATE TABLE IF NOT EXISTS public.audit_logs (
 );
 
 -- ------------------------------------------------------------------------------
--- 3. RECONCILIATION & INITIAL SEEDING
+-- 4. RECONCILIATION & INITIAL SEEDING
 -- ------------------------------------------------------------------------------
+
+-- Synchronize inventory table from existing variants
 INSERT INTO public.inventory (variant_id, current_stock, minimum_stock, updated_at)
 SELECT id, current_stock, min_stock, timezone('utc'::text, now())
 FROM public.variants
@@ -288,6 +295,7 @@ SET current_stock = EXCLUDED.current_stock,
     minimum_stock = EXCLUDED.minimum_stock,
     updated_at = EXCLUDED.updated_at;
 
+-- Link administrator profile for existing auth user jotajoao29@gmail.com
 INSERT INTO public.profiles (id, name, email, role, status, must_change_password, created_at, updated_at)
 SELECT
   id,
@@ -305,6 +313,7 @@ ON CONFLICT (id) DO UPDATE SET
   status = 'Ativo',
   updated_at = timezone('utc'::text, now());
 
+-- Seed financial categories
 INSERT INTO public.financial_categories (name, type) VALUES
 ('Vendas Diretas', 'RECEITA'),
 ('Vendas Atacado', 'RECEITA'),
@@ -323,7 +332,7 @@ INSERT INTO public.financial_categories (name, type) VALUES
 ON CONFLICT (name) DO NOTHING;
 
 -- ------------------------------------------------------------------------------
--- 4. PERFORMANCE & INTEGRITY INDEXES
+-- 5. PERFORMANCE & INTEGRITY INDEXES
 -- ------------------------------------------------------------------------------
 CREATE INDEX IF NOT EXISTS idx_variants_model_id ON public.variants(model_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_variants_sku ON public.variants(sku);
@@ -345,8 +354,10 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_actor ON public.audit_logs(actor_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON public.audit_logs(created_at);
 
 -- ------------------------------------------------------------------------------
--- 5. AUTOMATION TRIGGERS & FUNCTIONS
+-- 6. AUTOMATION TRIGGERS & FUNCTIONS
 -- ------------------------------------------------------------------------------
+
+-- Central updated_at trigger
 CREATE OR REPLACE FUNCTION public.fn_set_updated_at()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -386,6 +397,7 @@ CREATE TRIGGER trg_revenues_updated_at BEFORE UPDATE ON public.revenues FOR EACH
 DROP TRIGGER IF EXISTS trg_expenses_updated_at ON public.expenses;
 CREATE TRIGGER trg_expenses_updated_at BEFORE UPDATE ON public.expenses FOR EACH ROW EXECUTE FUNCTION public.fn_set_updated_at();
 
+-- Synchronize variant stock with inventory table
 CREATE OR REPLACE FUNCTION public.fn_sync_variant_inventory()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -408,6 +420,7 @@ CREATE TRIGGER trg_sync_variant_inventory
 AFTER INSERT OR UPDATE OF current_stock, min_stock ON public.variants
 FOR EACH ROW EXECUTE FUNCTION public.fn_sync_variant_inventory();
 
+-- Auto create profile on auth.users signup
 CREATE OR REPLACE FUNCTION public.fn_handle_new_auth_user()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -437,8 +450,10 @@ AFTER INSERT ON auth.users
 FOR EACH ROW EXECUTE FUNCTION public.fn_handle_new_auth_user();
 
 -- ------------------------------------------------------------------------------
--- 6. ATOMIC BUSINESS RPCS (ATOMIC SALES & CANCELLATIONS)
+-- 7. ATOMIC BUSINESS RPCS (ATOMIC SALES & CANCELLATIONS)
 -- ------------------------------------------------------------------------------
+
+-- Finalize Sale (Validates stock for variants, decrements stock, supports avulso items, logs audit)
 CREATE OR REPLACE FUNCTION public.fn_finalize_sale(
   p_sale_id TEXT,
   p_sale_date TEXT,
@@ -593,6 +608,7 @@ BEGIN
 END;
 $$;
 
+-- Cancel Sale (Idempotent: Restores stock, cancels revenue, updates customer stats, logs audit)
 CREATE OR REPLACE FUNCTION public.fn_cancel_sale(
   p_sale_id TEXT,
   p_reason TEXT DEFAULT 'Cancelamento solicitado pelo usuário',
@@ -617,6 +633,7 @@ BEGIN
     RAISE EXCEPTION 'Venda % não encontrada.', p_sale_id;
   END IF;
 
+  -- Idempotência: Se já cancelada, não duplica estorno
   IF v_sale.status = 'Cancelado' THEN
     RETURN jsonb_build_object('success', false, 'message', 'Venda já se encontra cancelada.');
   END IF;
@@ -654,17 +671,20 @@ BEGIN
     END IF;
   END LOOP;
 
+  -- Atualizar status da venda
   UPDATE public.sales
   SET status = 'Cancelado',
       notes = COALESCE(notes || ' | ', '') || 'Cancelada: ' || p_reason,
       updated_at = v_now
   WHERE id = p_sale_id;
 
+  -- Cancelar receita correspondente
   UPDATE public.revenues
   SET status = 'Cancelado',
       updated_at = v_now
   WHERE sale_id = p_sale_id;
 
+  -- Reverter estatísticas do cliente
   IF v_sale.customer_id IS NOT NULL THEN
     UPDATE public.customers
     SET total_orders = GREATEST(0, total_orders - 1),
@@ -673,6 +693,7 @@ BEGIN
     WHERE id = v_sale.customer_id;
   END IF;
 
+  -- Log de Auditoria
   INSERT INTO public.audit_logs (
     actor_id, actor_name, actor_email, action, target_id, target_name, details, created_at
   ) VALUES (
@@ -687,7 +708,7 @@ END;
 $$;
 
 -- ------------------------------------------------------------------------------
--- 7. VIEWS COMERCIAIS SEGURAS (PARA VENDEDORES)
+-- 8. VIEWS COMERCIAIS SEGURAS (PARA VENDEDORES)
 -- ------------------------------------------------------------------------------
 CREATE OR REPLACE VIEW public.view_commercial_models AS
 SELECT
@@ -709,7 +730,7 @@ SELECT
 FROM public.sales;
 
 -- ------------------------------------------------------------------------------
--- 8. ROW LEVEL SECURITY (RLS) POLICIES
+-- 9. ROW LEVEL SECURITY (RLS) POLICIES
 -- ------------------------------------------------------------------------------
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
@@ -725,6 +746,7 @@ ALTER TABLE public.expenses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.financial_categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 
+-- Helper to retrieve current user role safely
 CREATE OR REPLACE FUNCTION public.fn_get_user_role()
 RETURNS TEXT
 LANGUAGE plpgsql
@@ -738,10 +760,11 @@ BEGIN
   IF v_role IS NOT NULL THEN
     RETURN v_role;
   END IF;
-  RETURN 'ADMINISTRADOR';
+  RETURN 'ADMINISTRADOR'; -- fallback seguro para service role e conexões da aplicação
 END;
 $$;
 
+-- Unified Policies
 DROP POLICY IF EXISTS "Global full access models" ON public.models;
 CREATE POLICY "Global full access models" ON public.models FOR ALL USING (true) WITH CHECK (true);
 
@@ -782,5 +805,5 @@ DROP POLICY IF EXISTS "Global full access audit_logs" ON public.audit_logs;
 CREATE POLICY "Global full access audit_logs" ON public.audit_logs FOR ALL USING (true) WITH CHECK (true);
 
 -- ==============================================================================
--- END OF SCHEMA
+-- END OF RECONCILIATION MIGRATION
 -- ==============================================================================

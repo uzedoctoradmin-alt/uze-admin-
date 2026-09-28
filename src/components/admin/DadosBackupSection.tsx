@@ -43,6 +43,7 @@ export const DadosBackupSection: React.FC = () => {
     movements, 
     revenues, 
     expenses,
+    employees,
     refreshData 
   } = useERP();
 
@@ -105,7 +106,7 @@ export const DadosBackupSection: React.FC = () => {
       setIsGeneratingBackup(true);
       const pkg = backupService.createBackupPackage(
         backupModules,
-        { models, variants, customers, sales, movements, revenues, expenses },
+        { models, variants, customers, sales, movements, revenues, expenses, employees },
         currentUser?.name || 'Administrador'
       );
       const filename = backupService.downloadBackup(pkg, backupModules.includes('all') ? 'completo' : 'seletivo');
@@ -171,7 +172,7 @@ export const DadosBackupSection: React.FC = () => {
           name: currentUser?.name || 'Administrador',
           email: currentUser?.email || 'admin@uzedoctor.com.br',
         },
-        currentSystemData: { models, variants, customers, sales, movements, revenues, expenses },
+        currentSystemData: { models, variants, customers, sales, movements, revenues, expenses, employees },
       });
 
       if (result.success) {

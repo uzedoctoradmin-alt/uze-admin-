@@ -6,6 +6,7 @@ import {
   LayoutDashboard, 
   ShoppingBag, 
   Users, 
+  UserCheck,
   Package, 
   Shirt, 
   Boxes, 
@@ -57,6 +58,7 @@ export const Sidebar: React.FC = () => {
       items: [
         { tab: 'vendas', label: 'Vendas', icon: ShoppingBag },
         { tab: 'clientes', label: 'Clientes', icon: Users },
+        { tab: 'funcionarios', label: 'Funcionários', icon: UserCheck, requiredPermission: 'employees.read' },
       ],
     },
     {

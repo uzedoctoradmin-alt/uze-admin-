@@ -3,6 +3,7 @@ import type {
   ProductModel,
   ProductVariant,
   Customer,
+  Employee,
   Sale,
   StockMovement,
   Revenue,
@@ -36,6 +37,7 @@ export const supabaseService = {
         gender: row.gender,
         status: row.status,
         imageUrl: row.image_url || '',
+        imagePath: row.image_path || '',
         createdAt: row.created_at ? row.created_at.split('T')[0] : '',
       }));
     } catch (err) {
@@ -56,7 +58,8 @@ export const supabaseService = {
         base_cost: model.baseCost,
         gender: model.gender,
         status: model.status,
-        image_url: model.imageUrl,
+        image_url: model.imageUrl || null,
+        image_path: model.imagePath || null,
       });
 
       if (modelError) {
@@ -128,6 +131,7 @@ export const supabaseService = {
         payload.is_active = updates.status !== 'Inativo' && updates.status !== 'Arquivado';
       }
       if (updates.imageUrl !== undefined) payload.image_url = updates.imageUrl;
+      if (updates.imagePath !== undefined) payload.image_path = updates.imagePath;
       payload.updated_at = new Date().toISOString();
 
       const { error } = await supabase.from('models').update(payload).eq('id', id);
@@ -198,6 +202,108 @@ export const supabaseService = {
 
   async updateVariantStock(variantId: string, newStock: number): Promise<boolean> {
     return this.updateVariant(variantId, { currentStock: newStock });
+  },
+
+  // ==========================================
+  // EMPLOYEES (FUNCIONÁRIOS / VENDEDORES)
+  // ==========================================
+  async fetchEmployees(): Promise<Employee[] | null> {
+    try {
+      const { data, error } = await supabase
+        .from('employees')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.warn('[Supabase] fetchEmployees warning:', error.message);
+        return null;
+      }
+
+      return (data || []).map((row: any) => ({
+        id: row.id,
+        name: row.name,
+        jobTitle: row.job_title,
+        isSeller: Boolean(row.is_seller),
+        phone: row.phone || '',
+        email: row.email || '',
+        notes: row.notes || '',
+        status: row.status,
+        userId: row.user_id || undefined,
+        createdAt: row.created_at ? row.created_at.split('T')[0] : '',
+        updatedAt: row.updated_at,
+        createdBy: row.created_by,
+        archivedAt: row.archived_at,
+      }));
+    } catch (err) {
+      console.warn('[Supabase] fetchEmployees exception:', err);
+      return null;
+    }
+  },
+
+  async insertEmployee(employee: Employee): Promise<boolean> {
+    try {
+      const { error } = await supabase.from('employees').insert({
+        id: employee.id,
+        name: employee.name,
+        job_title: employee.jobTitle,
+        is_seller: employee.isSeller,
+        phone: employee.phone || null,
+        email: employee.email || null,
+        notes: employee.notes || null,
+        status: employee.status,
+        user_id: employee.userId || null,
+        created_by: employee.createdBy || null,
+      });
+
+      if (error) {
+        console.error('[Supabase] insertEmployee error:', error);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.error('[Supabase] insertEmployee exception:', err);
+      return false;
+    }
+  },
+
+  async updateEmployee(id: string, updates: Partial<Employee>): Promise<boolean> {
+    try {
+      const payload: Record<string, any> = {};
+      if (updates.name !== undefined) payload.name = updates.name;
+      if (updates.jobTitle !== undefined) payload.job_title = updates.jobTitle;
+      if (updates.isSeller !== undefined) payload.is_seller = updates.isSeller;
+      if (updates.phone !== undefined) payload.phone = updates.phone || null;
+      if (updates.email !== undefined) payload.email = updates.email || null;
+      if (updates.notes !== undefined) payload.notes = updates.notes || null;
+      if (updates.status !== undefined) payload.status = updates.status;
+      if (updates.userId !== undefined) payload.user_id = updates.userId || null;
+      if (updates.archivedAt !== undefined) payload.archived_at = updates.archivedAt;
+      payload.updated_at = new Date().toISOString();
+
+      const { error } = await supabase.from('employees').update(payload).eq('id', id);
+      if (error) {
+        console.error('[Supabase] updateEmployee error:', error);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.error('[Supabase] updateEmployee exception:', err);
+      return false;
+    }
+  },
+
+  async deleteEmployee(id: string): Promise<boolean> {
+    try {
+      const { error } = await supabase.from('employees').delete().eq('id', id);
+      if (error) {
+        console.error('[Supabase] deleteEmployee error:', error);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.error('[Supabase] deleteEmployee exception:', err);
+      return false;
+    }
   },
 
   // ==========================================
@@ -353,18 +459,31 @@ export const supabaseService = {
 
       return (data || []).map((row: any) => ({
         id: row.id,
-        date: row.date,
+        saleNumber: row.sale_number || row.id,
+        date: row.date || row.sale_date || (row.created_at ? row.created_at.replace('T', ' ').slice(0, 16) : ''),
+        saleDate: row.sale_date || (row.date ? row.date.split(' ')[0] : undefined),
+        occurredAt: row.occurred_at || row.created_at,
         customerId: row.customer_id,
         customerName: row.customer_name,
         customerEmail: row.customer_email || '',
+        sellerId: row.seller_id || undefined,
+        sellerName: row.seller_name || undefined,
         subtotal: Number(row.subtotal) || 0,
         discount: Number(row.discount) || 0,
+        discountType: row.discount_type || 'FIXED',
+        discountValue: Number(row.discount_value) || 0,
+        discountAmount: Number(row.discount_amount) || Number(row.discount) || 0,
+        discountNote: row.discount_note || '',
+        hasReferral: Boolean(row.has_referral),
+        referralName: row.referral_name || '',
+        referralNote: row.referral_note || '',
         shipping: Number(row.shipping) || 0,
         total: Number(row.total) || 0,
         totalCost: Number(row.total_cost) || 0,
         estimatedProfit: Number(row.estimated_profit) || 0,
         paymentMethod: row.payment_method,
         status: row.status,
+        notes: row.notes || '',
         items: row.items || [],
       }));
     } catch (err) {
@@ -377,18 +496,32 @@ export const supabaseService = {
     try {
       const { error } = await supabase.from('sales').insert({
         id: sale.id,
+        sale_number: sale.saleNumber || sale.id,
         date: sale.date,
+        sale_date: sale.saleDate || (sale.date ? sale.date.split(' ')[0] : new Date().toISOString().split('T')[0]),
+        occurred_at: sale.occurredAt || (sale.date ? new Date(sale.date.replace(' ', 'T')).toISOString() : new Date().toISOString()),
         customer_id: sale.customerId,
         customer_name: sale.customerName,
-        customer_email: sale.customerEmail,
+        customer_email: sale.customerEmail || null,
+        seller_id: sale.sellerId || null,
+        seller_name: sale.sellerName || null,
         subtotal: sale.subtotal,
         discount: sale.discount,
+        discount_type: sale.discountType || 'FIXED',
+        discount_value: sale.discountValue || 0,
+        discount_amount: sale.discountAmount || sale.discount || 0,
+        discount_note: sale.discountNote || null,
+        has_referral: sale.hasReferral || false,
+        referral_name: sale.referralName || null,
+        referral_note: sale.referralNote || null,
         shipping: sale.shipping,
         total: sale.total,
         total_cost: sale.totalCost,
         estimated_profit: sale.estimatedProfit,
+        paymentMethod: sale.paymentMethod,
         payment_method: sale.paymentMethod,
         status: sale.status,
+        notes: sale.notes || null,
         items: sale.items,
       });
 
@@ -406,11 +539,23 @@ export const supabaseService = {
   async updateSale(sale: Sale): Promise<boolean> {
     try {
       const { error } = await supabase.from('sales').update({
+        date: sale.date,
+        sale_date: sale.saleDate || (sale.date ? sale.date.split(' ')[0] : undefined),
+        occurred_at: sale.occurredAt || (sale.date ? new Date(sale.date.replace(' ', 'T')).toISOString() : undefined),
         customer_id: sale.customerId,
         customer_name: sale.customerName,
         customer_email: sale.customerEmail || null,
+        seller_id: sale.sellerId || null,
+        seller_name: sale.sellerName || null,
         subtotal: sale.subtotal,
         discount: sale.discount,
+        discount_type: sale.discountType || 'FIXED',
+        discount_value: sale.discountValue || 0,
+        discount_amount: sale.discountAmount || sale.discount || 0,
+        discount_note: sale.discountNote || null,
+        has_referral: sale.hasReferral || false,
+        referral_name: sale.referralName || null,
+        referral_note: sale.referralNote || null,
         shipping: sale.shipping,
         total: sale.total,
         total_cost: sale.totalCost,

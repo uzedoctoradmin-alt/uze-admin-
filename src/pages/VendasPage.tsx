@@ -6,7 +6,7 @@ import { DataTable } from '../components/common/DataTable';
 import type { Sale, SaleStatus } from '../types';
 import { StatCard } from '../components/common/StatCard';
 import { SaleStatusBadge } from '../components/common/Badge';
-import { Plus, Eye, Edit2, XCircle, AlertTriangle } from 'lucide-react';
+import { Plus, Eye, Edit2, XCircle, AlertTriangle, UserCheck, Gift } from 'lucide-react';
 import { NovaVendaModal } from '../components/modals/NovaVendaModal';
 import { Modal } from '../components/common/Modal';
 import { ExportMenu } from '../components/common/ExportMenu';
@@ -14,13 +14,15 @@ import { exportReportToPdf } from '../services/pdfExportService';
 import { excelService } from '../services/excelService';
 
 export const VendasPage: React.FC = () => {
-  const { filteredSales, dashboardMetrics, updateSaleStatus, cancelSale, periodFilter } = useERP();
+  const { filteredSales, dashboardMetrics, updateSaleStatus, cancelSale, periodFilter, employees } = useERP();
   const { user, hasPermission } = useAuth();
 
   const [isNovaVendaOpen, setIsNovaVendaOpen] = useState(false);
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [saleToEdit, setSaleToEdit] = useState<Sale | null>(null);
   const [saleToCancel, setSaleToCancel] = useState<Sale | null>(null);
+
+  const sellersList = employees.filter(e => e.isSeller);
 
   const columns: Column<Sale>[] = [
     {
@@ -47,6 +49,19 @@ export const VendasPage: React.FC = () => {
       ),
     },
     {
+      header: 'Vendedor',
+      accessorKey: 'sellerName',
+      sortable: true,
+      cell: (s) => (
+        <div className="flex items-center gap-1 text-xs">
+          <UserCheck size={13} className="text-[#173E75] shrink-0" />
+          <span className="font-medium text-[#344054]">
+            {s.sellerName || 'Geral'}
+          </span>
+        </div>
+      ),
+    },
+    {
       header: 'Itens',
       align: 'center',
       cell: (s) => {
@@ -66,18 +81,26 @@ export const VendasPage: React.FC = () => {
       accessorKey: 'discount',
       sortable: true,
       align: 'right',
-      cell: (s) => s.discount > 0 ? (
-        <span className="text-[#B42318] font-bold">- R$ {s.discount.toFixed(2)}</span>
+      cell: (s) => (s.discount || 0) > 0 ? (
+        <div>
+          <span className="text-[#B42318] font-bold">- R$ {s.discount.toFixed(2)}</span>
+          {s.discountType === 'PERCENTAGE' && s.discountValue && (
+            <span className="block text-[9px] text-[#475467]">({s.discountValue}%)</span>
+          )}
+        </div>
       ) : <span className="text-[#475467] font-medium">-</span>,
     },
     {
-      header: 'Frete',
-      accessorKey: 'shipping',
+      header: 'Indicação',
+      accessorKey: 'referralName',
       sortable: true,
-      align: 'right',
-      cell: (s) => s.shipping > 0 ? (
-        <span className="text-[#475467] font-medium">+ R$ {s.shipping.toFixed(2)}</span>
-      ) : <span className="text-[#027A48] font-semibold">Grátis</span>,
+      cell: (s) => s.referralName ? (
+        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#C69A43] bg-[#FEF6EE] px-1.5 py-0.5 rounded border border-[#F9DBAF]">
+          <Gift size={11} /> {s.referralName}
+        </span>
+      ) : (
+        <span className="text-xs text-[#98A2B3]">-</span>
+      ),
     },
     {
       header: 'Total',
@@ -113,25 +136,28 @@ export const VendasPage: React.FC = () => {
     ];
 
     const pdfColumns = [
-      { header: 'Venda', dataKey: 'id', width: 22 },
-      { header: 'Data', dataKey: 'date', width: 28 },
+      { header: 'Venda', dataKey: 'id', width: 18 },
+      { header: 'Data', dataKey: 'date', width: 22 },
       { header: 'Cliente', dataKey: 'customerName' },
-      { header: 'Itens', dataKey: 'itemsSummary', align: 'center' as const, width: 20 },
-      { header: 'Subtotal (R$)', dataKey: 'subtotalStr', align: 'right' as const, width: 26 },
-      { header: 'Desconto (R$)', dataKey: 'discountStr', align: 'right' as const, width: 24 },
-      { header: 'Total (R$)', dataKey: 'totalStr', align: 'right' as const, width: 28 },
-      { header: 'Pagamento', dataKey: 'paymentMethod', width: 28 },
-      { header: 'Status', dataKey: 'status', align: 'center' as const, width: 24 },
+      { header: 'Vendedor', dataKey: 'sellerName', width: 24 },
+      { header: 'Itens', dataKey: 'itemsSummary', align: 'center' as const, width: 15 },
+      { header: 'Subtotal', dataKey: 'subtotalStr', align: 'right' as const, width: 22 },
+      { header: 'Desconto', dataKey: 'discountStr', align: 'right' as const, width: 20 },
+      { header: 'Total (R$)', dataKey: 'totalStr', align: 'right' as const, width: 24 },
+      { header: 'Indicação', dataKey: 'referralName', width: 22 },
+      { header: 'Status', dataKey: 'status', align: 'center' as const, width: 20 },
     ];
 
     const rows = filteredSales.map(s => ({
       id: s.id,
       date: s.date,
       customerName: s.customerName,
+      sellerName: s.sellerName || 'Geral',
       itemsSummary: `${s.items.reduce((sum, i) => sum + i.quantity, 0)} un`,
       subtotalStr: s.subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
       discountStr: s.discount > 0 ? `-${s.discount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '0,00',
       totalStr: s.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
+      referralName: s.referralName || '-',
       paymentMethod: s.paymentMethod,
       status: s.status,
     }));
@@ -157,11 +183,15 @@ export const VendasPage: React.FC = () => {
       { header: 'Data', dataKey: 'Data' },
       { header: 'Cliente', dataKey: 'Cliente' },
       { header: 'E-mail', dataKey: 'E-mail' },
+      { header: 'Vendedor', dataKey: 'Vendedor' },
       { header: 'Itens (un)', dataKey: 'Itens' },
       { header: 'Subtotal (R$)', dataKey: 'Subtotal' },
       { header: 'Desconto (R$)', dataKey: 'Desconto' },
+      { header: 'Observação Desconto', dataKey: 'ObsDesconto' },
       { header: 'Frete (R$)', dataKey: 'Frete' },
       { header: 'Total (R$)', dataKey: 'Total' },
+      { header: 'Indicação', dataKey: 'Indicacao' },
+      { header: 'Obs Indicação', dataKey: 'ObsIndicacao' },
       ...(!isSeller ? [
         { header: 'Custo Total (R$)', dataKey: 'Custo' },
         { header: 'Lucro Estimado (R$)', dataKey: 'Lucro' },
@@ -175,11 +205,15 @@ export const VendasPage: React.FC = () => {
       'Data': s.date,
       'Cliente': s.customerName,
       'E-mail': s.customerEmail || '-',
+      'Vendedor': s.sellerName || 'Geral',
       'Itens': s.items.reduce((sum, i) => sum + i.quantity, 0),
       'Subtotal': s.subtotal,
       'Desconto': s.discount,
+      'ObsDesconto': s.discountNote || '-',
       'Frete': s.shipping,
       'Total': s.total,
+      'Indicacao': s.referralName || '-',
+      'ObsIndicacao': s.referralNote || '-',
       ...(!isSeller ? {
         'Custo': s.totalCost,
         'Lucro': s.estimatedProfit,
@@ -274,63 +308,69 @@ export const VendasPage: React.FC = () => {
         <DataTable
           columns={columns}
           data={filteredSales}
-          searchPlaceholder="Buscar por venda #, cliente ou e-mail..."
-          searchField={(s) => `${s.id} ${s.customerName} ${s.customerEmail} ${s.paymentMethod} ${s.status}`}
+          searchPlaceholder="Buscar por venda #, cliente, vendedor ou indicação..."
+          searchField={(s) => `${s.id} ${s.customerName} ${s.customerEmail} ${s.sellerName || ''} ${s.referralName || ''} ${s.paymentMethod} ${s.status}`}
           filterOptions={[
-          {
-            label: 'Status',
-            key: 'status',
-            options: [
-              { value: 'Concluído', label: 'Concluído' },
-              { value: 'Pago', label: 'Pago' },
-              { value: 'Em produção', label: 'Em produção' },
-              { value: 'Pendente', label: 'Pendente' },
-              { value: 'Cancelado', label: 'Cancelado' },
-            ],
-            filterFn: (s, val) => s.status === val,
-          },
-          {
-            label: 'Pagamento',
-            key: 'paymentMethod',
-            options: [
-              { value: 'PIX', label: 'PIX' },
-              { value: 'Cartão de Crédito', label: 'Cartão de Crédito' },
-              { value: 'Boleto', label: 'Boleto' },
-              { value: 'Transferência', label: 'Transferência' },
-            ],
-            filterFn: (s, val) => s.paymentMethod === val,
-          },
-        ]}
-        actions={(s) => (
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setSelectedSale(s)}
-              className="p-1 text-[#475467] hover:text-[#173E75] hover:bg-[#F2F4F7] rounded transition-colors"
-              title="Ver detalhes"
-            >
-              <Eye size={15} />
-            </button>
-            {hasPermission('sales.edit') && s.status !== 'Cancelado' && (
+            {
+              label: 'Vendedor',
+              key: 'sellerId',
+              options: sellersList.map(s => ({ value: s.id, label: s.name })),
+              filterFn: (s, val) => s.sellerId === val,
+            },
+            {
+              label: 'Status',
+              key: 'status',
+              options: [
+                { value: 'Concluído', label: 'Concluído' },
+                { value: 'Pago', label: 'Pago' },
+                { value: 'Em produção', label: 'Em produção' },
+                { value: 'Pendente', label: 'Pendente' },
+                { value: 'Cancelado', label: 'Cancelado' },
+              ],
+              filterFn: (s, val) => s.status === val,
+            },
+            {
+              label: 'Pagamento',
+              key: 'paymentMethod',
+              options: [
+                { value: 'PIX', label: 'PIX' },
+                { value: 'Cartão de Crédito', label: 'Cartão de Crédito' },
+                { value: 'Boleto', label: 'Boleto' },
+                { value: 'Transferência', label: 'Transferência' },
+              ],
+              filterFn: (s, val) => s.paymentMethod === val,
+            },
+          ]}
+          actions={(s) => (
+            <div className="flex items-center gap-1">
               <button
-                onClick={() => setSaleToEdit(s)}
-                className="p-1 text-[#173E75] hover:text-[#0C2340] hover:bg-[#173E75]/10 rounded transition-colors"
-                title="Editar venda"
+                onClick={() => setSelectedSale(s)}
+                className="p-1 text-[#475467] hover:text-[#173E75] hover:bg-[#F2F4F7] rounded transition-colors"
+                title="Ver detalhes"
               >
-                <Edit2 size={15} />
+                <Eye size={15} />
               </button>
-            )}
-            {hasPermission('sales.cancel') && s.status !== 'Cancelado' && (
-              <button
-                onClick={() => setSaleToCancel(s)}
-                className="p-1 text-[#B42318] hover:text-[#912018] hover:bg-[#FEF3F2] rounded transition-colors"
-                title="Cancelar venda"
-              >
-                <XCircle size={15} />
-              </button>
-            )}
-          </div>
-        )}
-      />
+              {hasPermission('sales.edit') && s.status !== 'Cancelado' && (
+                <button
+                  onClick={() => setSaleToEdit(s)}
+                  className="p-1 text-[#173E75] hover:text-[#0C2340] hover:bg-[#173E75]/10 rounded transition-colors"
+                  title="Editar venda"
+                >
+                  <Edit2 size={15} />
+                </button>
+              )}
+              {hasPermission('sales.cancel') && s.status !== 'Cancelado' && (
+                <button
+                  onClick={() => setSaleToCancel(s)}
+                  className="p-1 text-[#B42318] hover:text-[#912018] hover:bg-[#FEF3F2] rounded transition-colors"
+                  title="Cancelar venda"
+                >
+                  <XCircle size={15} />
+                </button>
+              )}
+            </div>
+          )}
+        />
       )}
 
       {/* Nova Venda / Edição de Venda Modal */}
@@ -412,15 +452,26 @@ export const VendasPage: React.FC = () => {
           maxWidth="2xl"
         >
           <div className="space-y-4 text-xs">
-            <div className="p-3.5 bg-[#F9FAFB] rounded-lg border border-[#D0D5DD] flex items-center justify-between">
+            {/* Header info */}
+            <div className="p-3.5 bg-[#F9FAFB] rounded-lg border border-[#D0D5DD] grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
               <div>
-                <p className="text-[10px] font-bold uppercase text-[#344054]">Cliente</p>
+                <p className="text-[10px] font-bold uppercase text-[#475467]">Cliente</p>
                 <h3 className="font-bold text-sm text-[#101828]">{selectedSale.customerName}</h3>
                 <p className="text-[#475467] font-medium">{selectedSale.customerEmail || 'E-mail não informado'}</p>
               </div>
 
+              <div>
+                <p className="text-[10px] font-bold uppercase text-[#475467]">Vendedor Responsável</p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <UserCheck size={14} className="text-[#173E75]" />
+                  <span className="font-bold text-xs text-[#101828]">
+                    {selectedSale.sellerName || 'Venda Direta / Geral'}
+                  </span>
+                </div>
+              </div>
+
               <div className="text-right space-y-1">
-                <label className="text-[10px] uppercase font-bold text-[#344054] block">Alterar Status</label>
+                <label className="text-[10px] uppercase font-bold text-[#475467] block">Alterar Status</label>
                 <select
                   className="uze-input text-xs py-1 h-7"
                   value={selectedSale.status}
@@ -439,6 +490,22 @@ export const VendasPage: React.FC = () => {
                 </select>
               </div>
             </div>
+
+            {/* Indicação Badge if any */}
+            {selectedSale.referralName && (
+              <div className="p-3 bg-[#FEF6EE] border border-[#F9DBAF] rounded-lg flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <Gift size={16} className="text-[#C69A43] shrink-0" />
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-[#B54708] block">Venda com Indicação</span>
+                    <span className="font-bold text-[#101828]">{selectedSale.referralName}</span>
+                    {selectedSale.referralNote && (
+                      <span className="text-[#475467] italic ml-1.5">({selectedSale.referralNote})</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div>
               <h4 className="font-bold text-[#101828] uppercase text-[11px] mb-2">Itens Solicitados</h4>
@@ -486,9 +553,14 @@ export const VendasPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="p-3 bg-[#F9FAFB] rounded border border-[#D0D5DD] space-y-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="p-3 bg-[#F9FAFB] rounded border border-[#D0D5DD] space-y-1.5">
                 <p className="font-bold text-[#101828]">Forma: <span className="text-[#173E75]">{selectedSale.paymentMethod}</span></p>
+                {selectedSale.discountNote && (
+                  <p className="text-[11px] text-[#B54708] bg-[#FEF6EE] p-1.5 rounded border border-[#F9DBAF]">
+                    <strong>Motivo Desconto:</strong> {selectedSale.discountNote}
+                  </p>
+                )}
                 {hasPermission('finance.read') && (
                   <>
                     <p className="text-[#475467] font-medium">Custo Peças: R$ {selectedSale.totalCost.toFixed(2)}</p>
@@ -499,7 +571,12 @@ export const VendasPage: React.FC = () => {
 
               <div className="p-3 bg-[#07101F] text-white rounded border border-slate-800 space-y-1 text-right">
                 <p className="text-slate-300 text-xs font-medium">Subtotal: R$ {selectedSale.subtotal.toFixed(2)}</p>
-                <p className="text-red-400 text-xs font-semibold">Desconto: - R$ {selectedSale.discount.toFixed(2)}</p>
+                <p className="text-red-400 text-xs font-semibold">
+                  Desconto: - R$ {selectedSale.discount.toFixed(2)}
+                  {selectedSale.discountType === 'PERCENTAGE' && selectedSale.discountValue && (
+                    <span className="text-slate-400 text-[10px] ml-1">({selectedSale.discountValue}%)</span>
+                  )}
+                </p>
                 <p className="text-slate-300 text-xs font-medium">Frete: + R$ {selectedSale.shipping.toFixed(2)}</p>
                 <p className="text-sm font-black text-[#E5B869] pt-1 border-t border-slate-800">
                   TOTAL: R$ {selectedSale.total.toFixed(2)}

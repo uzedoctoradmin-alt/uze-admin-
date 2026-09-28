@@ -7,6 +7,7 @@ import { Header } from './components/common/Header';
 import { DashboardPage } from './pages/DashboardPage';
 import { VendasPage } from './pages/VendasPage';
 import { ClientesPage } from './pages/ClientesPage';
+import { FuncionariosPage } from './pages/FuncionariosPage';
 import { ProdutosPage } from './pages/ProdutosPage';
 import { ModelosPage } from './pages/ModelosPage';
 import { EstoquePage } from './pages/EstoquePage';
@@ -36,6 +37,8 @@ const ERPMainContent: React.FC = () => {
         return <VendasPage />;
       case 'clientes':
         return <ClientesPage />;
+      case 'funcionarios':
+        return <FuncionariosPage />;
       case 'produtos':
         return <ProdutosPage />;
       case 'modelos':

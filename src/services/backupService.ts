@@ -3,9 +3,9 @@
  * Opera diretamente sobre os dados centrais com preservação relacional e versionamento de schema.
  */
 
-import type { ProductModel, ProductVariant, Customer, Sale, StockMovement, Revenue, Expense } from '../types';
+import type { ProductModel, ProductVariant, Customer, Sale, StockMovement, Revenue, Expense, Employee } from '../types';
 
-export const BACKUP_SCHEMA_VERSION = 1;
+export const BACKUP_SCHEMA_VERSION = 2;
 
 export interface UzeDoctorBackupMetadata {
   app: 'UZE DOCTOR';
@@ -25,6 +25,7 @@ export interface UzeDoctorBackupData {
   movements?: StockMovement[];
   revenues?: Revenue[];
   expenses?: Expense[];
+  employees?: Employee[];
 }
 
 export interface UzeDoctorBackupPackage {
@@ -46,6 +47,7 @@ export interface BackupValidationResult {
     movements: number;
     revenues: number;
     expenses: number;
+    employees: number;
   };
   error?: string;
 }
@@ -64,12 +66,13 @@ export const backupService = {
       movements: StockMovement[];
       revenues: Revenue[];
       expenses: Expense[];
+      employees?: Employee[];
     },
     operatorName: string
   ): UzeDoctorBackupPackage {
     const isFull = selectedModules.includes('all');
     const included = isFull 
-      ? ['produtos', 'estoque', 'clientes', 'vendas', 'financeiro'] 
+      ? ['produtos', 'estoque', 'clientes', 'vendas', 'financeiro', 'funcionarios'] 
       : selectedModules;
 
     const backupData: UzeDoctorBackupData = {};
@@ -100,6 +103,11 @@ export const backupService = {
       backupData.revenues = data.revenues;
       backupData.expenses = data.expenses;
       totalCount += data.revenues.length + data.expenses.length;
+    }
+
+    if (isFull || included.includes('funcionarios')) {
+      backupData.employees = data.employees || [];
+      totalCount += (data.employees || []).length;
     }
 
     const pkg: UzeDoctorBackupPackage = {
@@ -174,6 +182,7 @@ export const backupService = {
         movements: Array.isArray(d.movements) ? d.movements.length : 0,
         revenues: Array.isArray(d.revenues) ? d.revenues.length : 0,
         expenses: Array.isArray(d.expenses) ? d.expenses.length : 0,
+        employees: Array.isArray(d.employees) ? d.employees.length : 0,
       };
 
       return {
@@ -198,6 +207,7 @@ export const backupService = {
       movements: 0,
       revenues: 0,
       expenses: 0,
+      employees: 0,
     };
   }
 };

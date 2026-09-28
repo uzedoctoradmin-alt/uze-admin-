@@ -199,7 +199,44 @@ class AuthService {
 
     const email = emailRaw.trim().toLowerCase();
 
-    // Buscar no banco local/remoto
+    // 1. Tentar login oficial via Supabase Auth se configurado
+    try {
+      const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
+        email,
+        password: passwordAttempt,
+      });
+
+      if (!authErr && authData?.user) {
+        const u = authData.user;
+        const role = (u.user_metadata?.role || u.app_metadata?.role || 'ADMINISTRADOR') as UserRole;
+        const name = u.user_metadata?.name || 'Administrador UZE DOCTOR';
+        const mustChange = Boolean(u.user_metadata?.must_change_password);
+
+        const safeUser: User = {
+          id: u.id,
+          name,
+          email: u.email?.toLowerCase() || email,
+          role,
+          status: 'Ativo',
+          mustChangePassword: mustChange,
+          lastLoginAt: new Date().toISOString(),
+          createdAt: u.created_at,
+          updatedAt: u.updated_at,
+        };
+
+        this.saveSession(safeUser);
+        await this.logAudit(
+          { id: safeUser.id, name: safeUser.name, email: safeUser.email },
+          'auth.login.success'
+        );
+
+        return { success: true, user: safeUser };
+      }
+    } catch {
+      // Falha na rede do Supabase Auth -> segue para verificação do store
+    }
+
+    // 2. Buscar no banco local/remoto users
     let dbUser = this.localUsers.find(u => u.email.toLowerCase() === email);
 
     // Tentar buscar no Supabase se não achar localmente
@@ -338,31 +375,68 @@ class AuthService {
       return { success: false, error: val.message };
     }
 
-    const userIndex = this.localUsers.findIndex(u => u.id === userId);
-    if (userIndex === -1) {
-      return { success: false, error: 'Usuário não encontrado.' };
+    const session = this.getActiveSession();
+    let userIndex = this.localUsers.findIndex(u => u.id === userId);
+    if (userIndex === -1 && session) {
+      userIndex = this.localUsers.findIndex(u => u.email.toLowerCase() === session.email.toLowerCase());
+    }
+
+    // 1. Atualizar no Supabase Auth
+    try {
+      await supabase.auth.updateUser({
+        password: newPasswordRaw,
+        data: { must_change_password: false },
+      });
+    } catch {
+      // ignore
     }
 
     const newSalt = generateSalt();
     const newHash = await hashPassword(newPasswordRaw, newSalt);
     const now = new Date().toISOString();
 
-    const targetUser = this.localUsers[userIndex];
-    targetUser.passwordHash = newHash;
-    targetUser.salt = newSalt;
-    targetUser.mustChangePassword = false;
-    targetUser.updatedAt = now;
-
-    this.saveToLocalStorage();
+    let safeUser: User;
+    if (userIndex !== -1) {
+      const targetUser = this.localUsers[userIndex];
+      targetUser.passwordHash = newHash;
+      targetUser.salt = newSalt;
+      targetUser.mustChangePassword = false;
+      targetUser.updatedAt = now;
+      this.saveToLocalStorage();
+      safeUser = this.sanitizeUser(targetUser);
+    } else if (session) {
+      safeUser = {
+        ...session,
+        id: userId,
+        mustChangePassword: false,
+        updatedAt: now,
+      };
+      this.localUsers.push({
+        ...safeUser,
+        passwordHash: newHash,
+        salt: newSalt,
+      });
+      this.saveToLocalStorage();
+    } else {
+      return { success: false, error: 'Sessão expirada. Faça login novamente.' };
+    }
 
     // Atualiza na sessão ativa
-    const safeUser = this.sanitizeUser(targetUser);
     this.saveSession(safeUser);
 
     try {
       await supabase.from('users').update({
         password_hash: newHash,
         salt: newSalt,
+        must_change_password: false,
+        updated_at: now,
+      }).eq('id', userId);
+    } catch {
+      // ignore
+    }
+
+    try {
+      await supabase.from('profiles').update({
         must_change_password: false,
         updated_at: now,
       }).eq('id', userId);

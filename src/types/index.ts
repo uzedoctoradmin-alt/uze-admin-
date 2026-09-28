@@ -15,6 +15,7 @@ export interface ProductModel {
   gender: GenderCategory;
   status: ProductStatus;
   imageUrl: string;
+  imagePath?: string;
   createdAt: string;
 }
 
@@ -62,6 +63,22 @@ export interface Customer {
   status?: 'Ativo' | 'Arquivado' | 'Inativo';
 }
 
+export interface Employee {
+  id: string;
+  name: string;
+  jobTitle: string;
+  isSeller: boolean;
+  phone?: string;
+  email?: string;
+  notes?: string;
+  status: 'Ativo' | 'Inativo';
+  userId?: string;
+  createdAt: string;
+  updatedAt?: string;
+  createdBy?: string;
+  archivedAt?: string;
+}
+
 export interface SaleItem {
   id: string;
   variantId?: string;
@@ -94,15 +111,29 @@ export type PaymentMethod =
   | 'Boleto' 
   | 'Transferência';
 
+export type DiscountType = 'FIXED' | 'PERCENTAGE';
+
 export interface Sale {
   id: string;
+  saleNumber?: string;
   date: string;
+  saleDate?: string;
+  occurredAt?: string;
   customerId: string;
   customerName: string;
   customerEmail?: string;
+  sellerId?: string;
+  sellerName?: string;
   items: SaleItem[];
   subtotal: number;
   discount: number;
+  discountType?: DiscountType;
+  discountValue?: number;
+  discountAmount?: number;
+  discountNote?: string;
+  hasReferral?: boolean;
+  referralName?: string;
+  referralNote?: string;
   shipping: number;
   total: number;
   totalCost: number;
@@ -155,6 +186,7 @@ export type ViewTab =
   | 'dashboard'
   | 'vendas'
   | 'clientes'
+  | 'funcionarios'
   | 'produtos'
   | 'modelos'
   | 'estoque'
@@ -203,6 +235,10 @@ export type Permission =
   | 'customers.create'
   | 'customers.edit'
   | 'customers.delete'
+  | 'employees.read'
+  | 'employees.create'
+  | 'employees.edit'
+  | 'employees.delete'
   | 'products.read'
   | 'products.create'
   | 'products.edit'
@@ -230,4 +266,3 @@ export interface AuditLog {
   details?: Record<string, any>;
   createdAt: string;
 }
-

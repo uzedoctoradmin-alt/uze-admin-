@@ -1,54 +1,65 @@
 import React, { useState } from 'react';
-import { Shirt } from 'lucide-react';
+import { Package, Shirt } from 'lucide-react';
 
 interface ProductImageProps {
   src?: string;
   alt: string;
   className?: string;
-  size?: 'sm' | 'md' | 'lg' | 'custom';
+  category?: string;
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'custom';
 }
 
 export const ProductImage: React.FC<ProductImageProps> = ({
   src,
   alt,
   className = '',
+  category = '',
   size = 'md',
 }) => {
   const [hasError, setHasError] = useState(false);
 
-  // Size dimensions
+  // Tamanhos pré-definidos
   const sizeClasses = {
-    sm: 'w-10 h-10 min-w-10 min-h-10 text-xs',
-    md: 'w-14 h-14 min-w-14 min-h-14 sm:w-16 sm:h-16 sm:min-w-16 sm:min-h-16 text-sm',
-    lg: 'w-20 h-20 min-w-20 min-h-20 text-base',
+    sm: 'w-9 h-9 rounded-lg text-xs',
+    md: 'w-12 h-12 rounded-xl text-sm',
+    lg: 'w-20 h-20 rounded-xl text-base',
+    xl: 'w-32 h-32 rounded-2xl text-lg',
     custom: '',
-  }[size];
+  };
 
-  if (!src || hasError) {
+  const isScrubs = category.toLowerCase().includes('scrub');
+  const IconComponent = isScrubs ? Shirt : Package;
+
+  if (src && !hasError) {
     return (
-      <div
-        className={`
-          ${sizeClasses} rounded-lg bg-gradient-to-br from-[#07101F] to-[#173E75]
-          flex flex-col items-center justify-center text-[#C69A43] border border-[#C69A43]/30
-          shrink-0 select-none shadow-xs ${className}
-        `}
-        title={alt}
-      >
-        <Shirt size={size === 'sm' ? 16 : 24} className="stroke-[1.75]" />
-        <span className="text-[9px] font-bold text-white tracking-widest uppercase mt-1">UZE DOCTOR</span>
+      <div className={`relative overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0 ${sizeClasses[size]} ${className}`}>
+        <img
+          src={src}
+          alt={alt}
+          onError={() => setHasError(true)}
+          className="w-full h-full object-cover object-center transition-transform duration-300 hover:scale-105"
+          loading="lazy"
+        />
       </div>
     );
   }
 
+  // Placeholder elegante UZE DOCTOR
   return (
-    <div className={`relative ${sizeClasses} rounded-lg overflow-hidden border border-[#E5E7EB] shrink-0 bg-slate-100 ${className}`}>
-      <img
-        src={src}
-        alt={alt}
-        onError={() => setHasError(true)}
-        className="w-full h-full object-cover object-top transition-transform duration-200 hover:scale-105"
-        loading="lazy"
-      />
+    <div
+      className={`
+        relative overflow-hidden bg-gradient-to-br from-[#07101F] to-[#173E75] text-[#C69A43]
+        flex flex-col items-center justify-center shrink-0 border border-[#C69A43]/20 select-none shadow-xs
+        ${sizeClasses[size]} ${className}
+      `}
+      title={alt || 'Produto UZE DOCTOR'}
+    >
+      <IconComponent className="stroke-[1.75] opacity-90 transition-transform duration-300 group-hover:scale-110" />
+      {size === 'xl' && (
+        <span className="text-[10px] font-bold tracking-wider uppercase text-slate-300 mt-1">
+          UZE DOCTOR
+        </span>
+      )}
     </div>
   );
 };
