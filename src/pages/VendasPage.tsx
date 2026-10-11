@@ -6,23 +6,44 @@ import { DataTable } from '../components/common/DataTable';
 import type { Sale, SaleStatus } from '../types';
 import { StatCard } from '../components/common/StatCard';
 import { SaleStatusBadge } from '../components/common/Badge';
-import { Plus, Eye, Edit2, XCircle, AlertTriangle, UserCheck, Gift } from 'lucide-react';
+import { Plus, Eye, Edit2, XCircle, AlertTriangle, UserCheck, Gift, Trash2, ShieldAlert, FileText } from 'lucide-react';
 import { NovaVendaModal } from '../components/modals/NovaVendaModal';
 import { Modal } from '../components/common/Modal';
 import { ExportMenu } from '../components/common/ExportMenu';
 import { exportReportToPdf } from '../services/pdfExportService';
 import { excelService } from '../services/excelService';
+import { generateSaleReceiptPdf } from '../services/comprovanteVendaPdfService';
 
 export const VendasPage: React.FC = () => {
-  const { filteredSales, dashboardMetrics, updateSaleStatus, cancelSale, periodFilter, employees } = useERP();
+  const { filteredSales, dashboardMetrics, updateSaleStatus, cancelSale, deleteSale, periodFilter, employees, customers } = useERP();
   const { user, hasPermission } = useAuth();
+  const isAdmin = user?.role === 'ADMINISTRADOR';
+  const canDeleteSales = isAdmin || hasPermission('sales.delete' as any);
 
   const [isNovaVendaOpen, setIsNovaVendaOpen] = useState(false);
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [saleToEdit, setSaleToEdit] = useState<Sale | null>(null);
   const [saleToCancel, setSaleToCancel] = useState<Sale | null>(null);
+  const [saleToDelete, setSaleToDelete] = useState<Sale | null>(null);
+  const [deleteReason, setDeleteReason] = useState('Exclusão de pedido de teste/incorreto');
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
   const sellersList = employees.filter(e => e.isSeller);
+
+  const handleGenerateComprovante = async (sale: Sale) => {
+    const customer = customers.find(c => c.id === sale.customerId || c.name.toLowerCase() === sale.customerName.toLowerCase());
+    await generateSaleReceiptPdf({
+      sale,
+      customer,
+      company: {
+        name: 'UZE DOCTOR',
+        document: 'CNPJ: 00.000.000/0001-00',
+        phone: '(11) 99999-9999',
+        city: 'São Paulo - SP',
+      },
+      currentUser: user?.name,
+    });
+  };
 
   const columns: Column<Sale>[] = [
     {
@@ -350,6 +371,13 @@ export const VendasPage: React.FC = () => {
               >
                 <Eye size={15} />
               </button>
+              <button
+                onClick={() => handleGenerateComprovante(s)}
+                className="p-1 text-[#173E75] hover:text-[#0C2340] hover:bg-[#EFF4FF] rounded transition-colors"
+                title="Comprovante de Venda (PDF)"
+              >
+                <FileText size={15} />
+              </button>
               {hasPermission('sales.edit') && s.status !== 'Cancelado' && (
                 <button
                   onClick={() => setSaleToEdit(s)}
@@ -366,6 +394,18 @@ export const VendasPage: React.FC = () => {
                   title="Cancelar venda"
                 >
                   <XCircle size={15} />
+                </button>
+              )}
+              {canDeleteSales && (
+                <button
+                  onClick={() => {
+                    setSaleToDelete(s);
+                    setDeleteConfirmText('');
+                  }}
+                  className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
+                  title="Excluir venda definitivamente (Administrador)"
+                >
+                  <Trash2 size={15} />
                 </button>
               )}
             </div>
@@ -442,7 +482,95 @@ export const VendasPage: React.FC = () => {
         </Modal>
       )}
 
-      {/* Sale Detail Drawer / Modal */}
+      {/* Modal de Exclusão Definitiva de Venda (Administrador) */}
+      {saleToDelete && (
+        <Modal
+          isOpen={!!saleToDelete}
+          onClose={() => setSaleToDelete(null)}
+          title={`Excluir Venda Permanentemente: ${saleToDelete.id}`}
+          subtitle={`Cliente: ${saleToDelete.customerName} • Valor: R$ ${saleToDelete.total.toFixed(2)}`}
+          maxWidth="md"
+        >
+          <div className="space-y-4 text-xs">
+            <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-lg text-rose-900 space-y-2.5">
+              <div className="flex items-start gap-2">
+                <ShieldAlert size={18} className="shrink-0 text-rose-700 mt-0.5" />
+                <div>
+                  <p className="font-bold text-rose-900">Atenção: Exclusão Física Irreversível</p>
+                  <p className="text-slate-700 leading-relaxed mt-1">
+                    Esta operação remove o registro da venda e reverte com segurança todos os seus efeitos colaterais:
+                  </p>
+                  <ul className="list-disc pl-4 mt-1.5 space-y-1 text-slate-600">
+                    {saleToDelete.status !== 'Cancelado' && saleToDelete.status !== 'Orçamento' ? (
+                      <li>
+                        <strong>Restauração de Estoque:</strong> As {saleToDelete.items.reduce((acc, i) => acc + (i.isCustom ? 0 : i.quantity), 0)} unidades físicas serão automaticamente devolvidas ao saldo das respectivas variantes.
+                      </li>
+                    ) : (
+                      <li>Estoque já havia sido reconciliado ou não baixado.</li>
+                    )}
+                    <li>
+                      <strong>Financeiro:</strong> Todos os lançamentos de receita, contas a receber e parcelas associadas serão excluídos/anulados.
+                    </li>
+                    <li>
+                      <strong>Auditoria:</strong> Um evento administrativo com usuário, data e ID será gravado permanentemente nos logs.
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-700 uppercase tracking-wider block">
+                Motivo da Exclusão (Auditoria)
+              </label>
+              <input
+                type="text"
+                className="uze-input text-xs"
+                placeholder="Ex: Venda teste / erro de lançamento / duplicidade"
+                value={deleteReason}
+                onChange={e => setDeleteReason(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-700 uppercase tracking-wider block">
+                Digite <b>EXCLUIR</b> para confirmar a exclusão permanente:
+              </label>
+              <input
+                type="text"
+                className="uze-input text-xs font-bold uppercase tracking-wider"
+                placeholder="EXCLUIR"
+                value={deleteConfirmText}
+                onChange={e => setDeleteConfirmText(e.target.value)}
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-[#D0D5DD]">
+              <button
+                type="button"
+                onClick={() => setSaleToDelete(null)}
+                className="uze-btn-secondary text-xs"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={deleteConfirmText !== 'EXCLUIR'}
+                onClick={() => {
+                  deleteSale(saleToDelete.id, { force: true, reason: deleteReason });
+                  if (selectedSale?.id === saleToDelete.id) {
+                    setSelectedSale(null);
+                  }
+                  setSaleToDelete(null);
+                }}
+                className="uze-btn-primary bg-rose-700 hover:bg-rose-800 text-xs disabled:opacity-40"
+              >
+                Confirmar Exclusão Definitiva
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
       {selectedSale && (
         <Modal
           isOpen={!!selectedSale}
@@ -585,32 +713,59 @@ export const VendasPage: React.FC = () => {
             </div>
 
             {/* Actions in detail drawer */}
-            {hasPermission('sales.edit') && selectedSale.status !== 'Cancelado' && (
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#D0D5DD]">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const s = selectedSale;
-                    setSelectedSale(null);
-                    setSaleToEdit(s);
-                  }}
-                  className="uze-btn-secondary text-xs text-[#173E75]"
-                >
-                  <Edit2 size={13} /> Editar Venda
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const s = selectedSale;
-                    setSelectedSale(null);
-                    setSaleToCancel(s);
-                  }}
-                  className="uze-btn-secondary text-xs text-[#B42318]"
-                >
-                  <XCircle size={13} /> Cancelar Venda
-                </button>
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-[#D0D5DD]">
+              <button
+                type="button"
+                onClick={() => handleGenerateComprovante(selectedSale)}
+                className="uze-btn-secondary text-xs text-[#173E75] bg-[#EFF4FF] border-[#B2CCFF] hover:bg-[#D1E0FF] font-semibold"
+                title="Emitir Comprovante de Venda Oficial (PDF)"
+              >
+                <FileText size={14} className="text-[#173E75]" /> Comprovante de Venda
+              </button>
+
+              <div className="flex items-center gap-2">
+                {hasPermission('sales.edit') && selectedSale.status !== 'Cancelado' && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const s = selectedSale;
+                        setSelectedSale(null);
+                        setSaleToEdit(s);
+                      }}
+                      className="uze-btn-secondary text-xs text-[#173E75]"
+                    >
+                      <Edit2 size={13} /> Editar Venda
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const s = selectedSale;
+                        setSelectedSale(null);
+                        setSaleToCancel(s);
+                      }}
+                      className="uze-btn-secondary text-xs text-[#B42318]"
+                    >
+                      <XCircle size={13} /> Cancelar Venda
+                    </button>
+                  </>
+                )}
+                {canDeleteSales && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const s = selectedSale;
+                      setSelectedSale(null);
+                      setSaleToDelete(s);
+                      setDeleteConfirmText('');
+                    }}
+                    className="uze-btn-secondary text-xs text-rose-700 hover:bg-rose-50 border-rose-200"
+                  >
+                    <Trash2 size={13} /> Excluir Definitivamente
+                  </button>
+                )}
               </div>
-            )}
+            </div>
           </div>
         </Modal>
       )}

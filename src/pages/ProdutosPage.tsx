@@ -8,13 +8,13 @@ import {
   SlidersHorizontal, 
   ChevronRight, 
   Layers, 
-  Boxes,
-  X,
-  Edit2,
-  Archive,
-  Trash2,
-  RotateCcw,
-  AlertTriangle
+  Boxes, 
+  Edit2, 
+  Archive, 
+  Trash2, 
+  RotateCcw, 
+  AlertTriangle,
+  ShieldAlert
 } from 'lucide-react';
 import { ProductImage } from '../components/common/ProductImage';
 import { NovoProdutoModal } from '../components/modals/NovoProdutoModal';
@@ -29,6 +29,7 @@ export const ProdutosPage: React.FC = () => {
   const { user, hasPermission } = useAuth();
 
   const canReadCosts = hasPermission('products.cost.read');
+  const isAdmin = user?.role === 'ADMINISTRADOR';
 
   const [isNovoProdutoOpen, setIsNovoProdutoOpen] = useState(false);
   const [selectedModel, setSelectedModel] = useState<ProductModel | null>(null);
@@ -36,19 +37,15 @@ export const ProdutosPage: React.FC = () => {
   const [modelToArchive, setModelToArchive] = useState<ProductModel | null>(null);
   const [modelToDelete, setModelToDelete] = useState<ProductModel | null>(null);
   const [deleteErrorMessage, setDeleteErrorMessage] = useState<string | null>(null);
+  const [adminConfirmWord, setAdminConfirmWord] = useState('');
+  const [deleteReason, setDeleteReason] = useState('Remoção de produto de teste/descontinuado');
   const [statusTab, setStatusTab] = useState<'Ativos' | 'Arquivados' | 'Todos'>('Ativos');
 
   // Filters state
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [selectedCollection, setSelectedCollection] = useState<string>('all');
   const [selectedStockStatus, setSelectedStockStatus] = useState<string>('all');
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
-
-  // Unique collections for filter
-  const collections = useMemo(() => {
-    return Array.from(new Set(models.map(m => m.collection)));
-  }, [models]);
 
   // Unique categories for filter
   const categories = useMemo(() => {
@@ -85,19 +82,13 @@ export const ProdutosPage: React.FC = () => {
         const matchesName = m.name.toLowerCase().includes(query);
         const matchesSku = m.id.toLowerCase().includes(query);
         const matchesCategory = m.category.toLowerCase().includes(query);
-        const matchesCollection = m.collection.toLowerCase().includes(query);
-        if (!matchesName && !matchesSku && !matchesCategory && !matchesCollection) {
+        if (!matchesName && !matchesSku && !matchesCategory) {
           return false;
         }
       }
 
       // Category
       if (selectedCategory !== 'all' && m.category !== selectedCategory) {
-        return false;
-      }
-
-      // Collection
-      if (selectedCollection !== 'all' && m.collection !== selectedCollection) {
         return false;
       }
 
@@ -115,16 +106,14 @@ export const ProdutosPage: React.FC = () => {
 
       return true;
     });
-  }, [models, search, selectedCategory, selectedCollection, selectedStockStatus, statusTab, variants]);
+  }, [models, search, selectedCategory, selectedStockStatus, statusTab, variants]);
 
   const activeFiltersCount = 
     (selectedCategory !== 'all' ? 1 : 0) + 
-    (selectedCollection !== 'all' ? 1 : 0) + 
     (selectedStockStatus !== 'all' ? 1 : 0);
 
   const resetFilters = () => {
     setSelectedCategory('all');
-    setSelectedCollection('all');
     setSelectedStockStatus('all');
     setSearch('');
   };
@@ -135,21 +124,20 @@ export const ProdutosPage: React.FC = () => {
     const totalStockQty = filteredModels.reduce((sum, m) => sum + getModelStats(m.id).totalStock, 0);
 
     const kpis = [
-      { label: 'Modelos Filtrados', value: `${totalModels} linhas` },
+      { label: 'Produtos Filtrados', value: `${totalModels} itens` },
       { label: 'Total de SKUs', value: `${totalVariantsCount} variantes` },
       { label: 'Estoque Físico', value: `${totalStockQty} peças` },
     ];
 
     const pdfColumns = [
-      { header: 'Modelo / Produto', dataKey: 'name' },
-      { header: 'Categoria', dataKey: 'category', width: 28 },
-      { header: 'Coleção', dataKey: 'collection', width: 28 },
-      { header: 'Gênero', dataKey: 'gender', align: 'center' as const, width: 20 },
-      { header: 'Preço Venda (R$)', dataKey: 'priceStr', align: 'right' as const, width: 26 },
-      ...(canReadCosts ? [{ header: 'Custo Base (R$)', dataKey: 'costStr', align: 'right' as const, width: 26 }] : []),
-      { header: 'Variantes', dataKey: 'variantsStr', align: 'center' as const, width: 20 },
-      { header: 'Estoque Físico', dataKey: 'stockStr', align: 'right' as const, width: 24 },
-      { header: 'Status', dataKey: 'status', align: 'center' as const, width: 20 },
+      { header: 'Produto', dataKey: 'name' },
+      { header: 'Categoria', dataKey: 'category', width: 32 },
+      { header: 'Gênero', dataKey: 'gender', align: 'center' as const, width: 22 },
+      { header: 'Preço Venda (R$)', dataKey: 'priceStr', align: 'right' as const, width: 28 },
+      ...(canReadCosts ? [{ header: 'Custo Base (R$)', dataKey: 'costStr', align: 'right' as const, width: 28 }] : []),
+      { header: 'Variantes', dataKey: 'variantsStr', align: 'center' as const, width: 22 },
+      { header: 'Estoque Físico', dataKey: 'stockStr', align: 'right' as const, width: 26 },
+      { header: 'Status', dataKey: 'status', align: 'center' as const, width: 22 },
     ];
 
     const rows = filteredModels.map(m => {
@@ -157,7 +145,6 @@ export const ProdutosPage: React.FC = () => {
       return {
         name: m.name,
         category: m.category,
-        collection: m.collection || '-',
         gender: m.gender,
         priceStr: m.basePrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
         ...(canReadCosts ? { costStr: m.baseCost.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) } : {}),
@@ -169,11 +156,10 @@ export const ProdutosPage: React.FC = () => {
 
     const activeFilterLabels = [];
     if (selectedCategory !== 'all') activeFilterLabels.push(`Categoria: ${selectedCategory}`);
-    if (selectedCollection !== 'all') activeFilterLabels.push(`Coleção: ${selectedCollection}`);
     if (selectedStockStatus !== 'all') activeFilterLabels.push(`Estoque: ${selectedStockStatus}`);
 
     await exportReportToPdf({
-      title: 'Relatório Oficial de Catálogo de Produtos & Modelos',
+      title: 'Relatório Oficial de Catálogo de Produtos',
       subtitle: activeFilterLabels.length > 0 ? activeFilterLabels.join(' | ') : 'Todos os produtos ativos e fichas comerciais',
       operatorName: user?.name,
       orientation: 'landscape',
@@ -186,9 +172,8 @@ export const ProdutosPage: React.FC = () => {
 
   const handleExportExcel = async () => {
     const columns = [
-      { header: 'Modelo / Produto', dataKey: 'Modelo' },
+      { header: 'Produto', dataKey: 'Produto' },
       { header: 'Categoria', dataKey: 'Categoria' },
-      { header: 'Coleção', dataKey: 'Colecao' },
       { header: 'Gênero', dataKey: 'Genero' },
       { header: 'Preço Venda (R$)', dataKey: 'PrecoVenda' },
       ...(canReadCosts ? [{ header: 'Custo Base (R$)', dataKey: 'CustoBase' }] : []),
@@ -201,9 +186,8 @@ export const ProdutosPage: React.FC = () => {
     const data = filteredModels.map(m => {
       const stats = getModelStats(m.id);
       return {
-        'Modelo': m.name,
+        'Produto': m.name,
         'Categoria': m.category,
-        'Colecao': m.collection || '-',
         'Genero': m.gender,
         'PrecoVenda': m.basePrice,
         ...(canReadCosts ? { 'CustoBase': m.baseCost } : {}),
@@ -216,11 +200,11 @@ export const ProdutosPage: React.FC = () => {
 
     excelService.exportToExcel({
       filename: `uze-doctor-produtos-${new Date().toISOString().slice(0, 10)}.xlsx`,
-      sheetName: 'Produtos_Modelos',
+      sheetName: 'Produtos',
       data,
       columns,
       metadata: {
-        title: 'Catálogo Oficial de Modelos e Produtos',
+        title: 'Catálogo de Produtos UZE DOCTOR',
         operator: user?.name,
       }
     });
@@ -233,7 +217,7 @@ export const ProdutosPage: React.FC = () => {
         <div>
           <h2 className="text-base sm:text-lg font-bold text-[#101828] tracking-tight">Produtos</h2>
           <p className="text-xs text-[#475467] font-medium">
-            Gerencie modelos, preços, variantes e estoque.
+            Entidade central da loja: fotos, cores, tamanhos, variantes e controle de estoque.
           </p>
         </div>
 
@@ -250,17 +234,30 @@ export const ProdutosPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. Status Tabs & Search & Discreet Filters Bar */}
-      <div className="space-y-2.5">
-        <div className="flex flex-wrap items-center justify-between gap-2.5">
-          <div className="flex items-center gap-1 bg-[#F2F4F7] p-1 rounded-lg text-xs font-semibold">
+      {/* 2. Search & Filter Bar */}
+      <div className="space-y-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+          {/* Search Input */}
+          <div className="relative flex-1">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#98A2B3]" />
+            <input
+              type="text"
+              placeholder="Buscar por nome do produto, SKU ou categoria..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full h-9 pl-9 pr-4 text-xs bg-white border border-[#D0D5DD] rounded-lg text-[#101828] placeholder-[#98A2B3] focus:border-[#173E75] focus:ring-1 focus:ring-[#173E75] outline-none transition-all"
+            />
+          </div>
+
+          {/* Status Tabs */}
+          <div className="flex bg-[#F2F4F7] p-0.5 rounded-lg border border-[#D0D5DD] shrink-0">
             {(['Ativos', 'Arquivados', 'Todos'] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setStatusTab(tab)}
-                className={`px-3 py-1 rounded-md transition-all ${
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${
                   statusTab === tab
-                    ? 'bg-white text-[#101828] shadow-xs'
+                    ? 'bg-white text-[#173E75] shadow-xs'
                     : 'text-[#475467] hover:text-[#101828]'
                 }`}
               >
@@ -268,64 +265,30 @@ export const ProdutosPage: React.FC = () => {
               </button>
             ))}
           </div>
-        </div>
 
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-          {/* Search Box */}
-          <div className="relative flex-1">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#475467]" />
-            <input
-              type="text"
-              placeholder="Buscar por modelo, SKU ou categoria..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full h-9 pl-9 pr-3 text-xs bg-white border border-[#D0D5DD] rounded-lg outline-none focus:border-[#173E75] focus:ring-2 focus:ring-[#173E75]/15 text-[#101828] placeholder:text-[#667085] font-medium transition-all"
-            />
-            {search && (
-              <button
-                onClick={() => setSearch('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#475467] hover:text-[#101828] p-0.5"
-              >
-                <X size={14} />
-              </button>
-            )}
-          </div>
-
-          {/* Discreet Filters Button / Dropdown Trigger */}
-          <div className="relative flex items-center gap-2">
-            <button
-              onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-              className={`h-9 px-3 text-xs font-semibold rounded-lg border flex items-center gap-1.5 transition-colors ${
-                activeFiltersCount > 0 || showFilterDropdown
-                  ? 'border-[#173E75] bg-[#173E75]/10 text-[#173E75]'
-                  : 'border-[#D0D5DD] bg-white text-[#101828] hover:bg-[#F2F4F7]'
-              }`}
-            >
-              <SlidersHorizontal size={14} />
-              <span>Filtros</span>
-              {activeFiltersCount > 0 && (
-                <span className="w-4 h-4 rounded-full bg-[#173E75] text-white text-[10px] flex items-center justify-center font-bold">
-                  {activeFiltersCount}
-                </span>
-              )}
-            </button>
-
-            {/* Quick reset button if filters active */}
+          {/* Toggle Filters Button */}
+          <button
+            onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+            className={`h-9 px-3 text-xs font-semibold rounded-lg border transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
+              activeFiltersCount > 0
+                ? 'bg-[#EFF4FF] border-[#B2CCFF] text-[#173E75]'
+                : 'bg-white border-[#D0D5DD] text-[#344054] hover:bg-[#F9FAFB]'
+            }`}
+          >
+            <SlidersHorizontal size={14} />
+            <span>Filtros</span>
             {activeFiltersCount > 0 && (
-              <button
-                onClick={resetFilters}
-                className="h-9 px-2 text-xs text-[#475467] font-semibold hover:text-[#101828] hover:underline"
-              >
-                Limpar
-              </button>
+              <span className="w-4 h-4 rounded-full bg-[#173E75] text-white text-[10px] font-bold flex items-center justify-center">
+                {activeFiltersCount}
+              </span>
             )}
-          </div>
+          </button>
         </div>
 
-        {/* Discreet Filter Popover Panel */}
+        {/* Filter Dropdown Area */}
         {showFilterDropdown && (
-          <div className="bg-white border border-[#D0D5DD] rounded-lg p-3.5 shadow-md grid grid-cols-1 sm:grid-cols-3 gap-3 animate-fadeIn">
-            {/* Category Select */}
+          <div className="p-3 bg-white border border-[#D0D5DD] rounded-lg shadow-sm grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Category */}
             <div>
               <label className="text-[10px] font-bold text-[#344054] uppercase tracking-wider block mb-1">
                 Categoria
@@ -344,29 +307,10 @@ export const ProdutosPage: React.FC = () => {
               </select>
             </div>
 
-            {/* Collection Select */}
-            <div>
-              <label className="text-[10px] font-bold text-[#344054] uppercase tracking-wider block mb-1">
-                Coleção
-              </label>
-              <select
-                value={selectedCollection}
-                onChange={(e) => setSelectedCollection(e.target.value)}
-                className="w-full h-8 text-xs bg-[#F9FAFB] border border-[#D0D5DD] rounded-md px-2 text-[#101828] font-medium outline-none cursor-pointer focus:border-[#173E75]"
-              >
-                <option value="all">Todas as Coleções</option>
-                {collections.map((col: string) => (
-                  <option key={col} value={col}>
-                    {col}
-                  </option>
-                ))}
-              </select>
-            </div>
-
             {/* Stock Availability */}
             <div>
               <label className="text-[10px] font-bold text-[#344054] uppercase tracking-wider block mb-1">
-                Disponibilidade
+                Disponibilidade de Estoque
               </label>
               <select
                 value={selectedStockStatus}
@@ -426,9 +370,9 @@ export const ProdutosPage: React.FC = () => {
                 key={model.id}
                 className="bg-white border border-[#D0D5DD] rounded-lg p-3.5 sm:p-4.5 shadow-[0_1px_2px_rgba(0,0,0,0.02)] hover:border-[#173E75] hover:shadow-xs transition-all"
               >
-                {/* Desktop & Tablet Layout (>= 768px): Horizontal Elegant Block */}
+                {/* Desktop & Tablet Layout */}
                 <div className="hidden md:flex items-center justify-between gap-4">
-                  {/* Left Side: Photo + Name + Secondary Info + SKU */}
+                  {/* Left: Photo + Name + Category + SKU */}
                   <div className="flex items-center gap-3.5 min-w-0 max-w-[40%]">
                     <ProductImage
                       src={model.imageUrl}
@@ -446,8 +390,8 @@ export const ProdutosPage: React.FC = () => {
                         </span>
                       </div>
 
-                      <p className="text-xs text-[#475467] font-medium truncate mt-0.5" title={`${model.category} • ${model.collection}`}>
-                        {model.category} • {model.collection}
+                      <p className="text-xs text-[#475467] font-medium truncate mt-0.5" title={model.category}>
+                        {model.category}
                       </p>
 
                       <div className="mt-1">
@@ -458,7 +402,7 @@ export const ProdutosPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Center: Metrics (Preço para todos; Custo e Margem apenas para perfis autorizados) */}
+                  {/* Center: Prices */}
                   <div className="flex items-center gap-6 lg:gap-8 px-4 border-x border-[#D0D5DD] shrink-0 text-center">
                     <div>
                       <span className="text-[10px] font-bold text-[#344054] uppercase tracking-wider block">
@@ -492,144 +436,120 @@ export const ProdutosPage: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Right Side: Variants Count + Stock Units + Ver Detalhes Button */}
+                  {/* Right: Variants + Stock + Action */}
                   <div className="flex items-center gap-4 shrink-0 text-right">
                     <div>
                       <span className="text-xs font-bold text-[#101828] block">
                         {stats.variantCount} variantes
                       </span>
-                      <span className={`text-xs font-bold block ${
-                        stats.totalStock === 0 
-                          ? 'text-[#B42318]' 
-                          : stats.totalStock <= 15 
-                          ? 'text-[#B54708]' 
-                          : 'text-[#173E75]'
-                      }`}>
+                      <span
+                        className={`text-[11px] font-semibold block mt-0.5 ${
+                          stats.stockStatus === 'zero'
+                            ? 'text-[#B42318]'
+                            : stats.stockStatus === 'low'
+                            ? 'text-[#B54708]'
+                            : 'text-[#027A48]'
+                        }`}
+                      >
                         {stats.totalStock} em estoque
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-1.5 shrink-0">
+                    <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => setSelectedModel(model)}
-                        className="uze-btn-secondary text-xs px-2.5 py-1.5"
-                        title="Ver detalhes"
+                        className="uze-btn-secondary text-xs h-8 px-3"
                       >
-                        <span>Detalhes</span>
-                        <ChevronRight size={13} />
+                        Ver Detalhes
+                        <ChevronRight size={13} className="text-[#98A2B3]" />
                       </button>
+
                       {hasPermission('products.edit') && (
                         <button
                           onClick={() => setModelToEdit(model)}
-                          className="uze-btn-secondary text-xs px-2 py-1.5 text-[#173E75] hover:bg-[#173E75]/10"
-                          title="Editar modelo e variantes"
+                          className="w-8 h-8 rounded-md border border-[#D0D5DD] flex items-center justify-center text-[#475467] hover:text-[#173E75] hover:bg-[#F9FAFB] transition-colors"
+                          title="Editar Produto"
                         >
                           <Edit2 size={13} />
                         </button>
                       )}
+
                       {hasPermission('products.delete') && (
-                        <>
-                          <button
-                            onClick={() => setModelToArchive(model)}
-                            className="uze-btn-secondary text-xs px-2 py-1.5 text-[#B54708] hover:bg-[#B54708]/10"
-                            title={model.status === 'Arquivado' ? 'Reativar produto' : 'Arquivar produto'}
-                          >
-                            {model.status === 'Arquivado' ? <RotateCcw size={13} /> : <Archive size={13} />}
-                          </button>
-                          <button
-                            onClick={() => setModelToDelete(model)}
-                            className="uze-btn-secondary text-xs px-2 py-1.5 text-[#B42318] hover:bg-[#B42318]/10"
-                            title="Excluir produto"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </>
+                        <button
+                          onClick={() => {
+                            setModelToDelete(model);
+                            setAdminConfirmWord('');
+                            setDeleteErrorMessage(null);
+                          }}
+                          className="w-8 h-8 rounded-md border border-[#D0D5DD] flex items-center justify-center text-[#475467] hover:text-[#B42318] hover:bg-[#FEF3F2] transition-colors"
+                          title="Excluir Produto"
+                        >
+                          <Trash2 size={13} />
+                        </button>
                       )}
                     </div>
                   </div>
                 </div>
 
-                {/* Mobile Layout (< 768px): Compact Vertical Block */}
+                {/* Mobile Layout (< 768px) */}
                 <div className="md:hidden space-y-3">
-                  {/* Row 1: Image + Title + Category */}
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-start gap-3">
                     <ProductImage
                       src={model.imageUrl}
                       alt={model.name}
-                      size="md"
+                      size="sm"
                     />
 
                     <div className="min-w-0 flex-1">
-                      <h3 className="text-sm font-bold text-[#101828] truncate">
-                        {model.name}
-                      </h3>
-                      <p className="text-xs text-[#475467] font-medium truncate">
-                        {model.gender} • {model.collection}
-                      </p>
-                      <span className="text-[10px] font-mono text-[#344054] bg-[#F2F4F7] px-1.5 py-0.5 rounded border border-[#D0D5DD] font-semibold inline-block mt-0.5">
-                        SKU: {model.id}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Row 2: Price, Variants & Stock, Margin (if permitted) */}
-                  <div className="bg-[#F9FAFB] p-2.5 rounded-md border border-[#D0D5DD] flex items-center justify-between text-xs">
-                    <div>
-                      <span className="text-[10px] text-[#344054] uppercase block font-bold">Preço</span>
-                      <span className="font-bold text-[#101828]">R$ {model.basePrice.toFixed(2)}</span>
-                    </div>
-
-                    <div className="text-center">
-                      <span className="text-[10px] text-[#344054] uppercase block font-bold">Estoque</span>
-                      <span className="font-bold text-[#173E75]">
-                        {stats.variantCount} var • {stats.totalStock} un
-                      </span>
-                    </div>
-
-                    {canReadCosts && (
-                      <div className="text-right">
-                        <span className="text-[10px] text-[#344054] uppercase block font-bold">Margem</span>
-                        <span className="font-black text-[#027A48]">{margin.toFixed(1)}%</span>
+                      <div className="flex items-center justify-between gap-1">
+                        <h3 className="text-xs font-bold text-[#101828] truncate">{model.name}</h3>
+                        <span className="uze-badge uze-badge-navy text-[9px] shrink-0">{model.gender}</span>
                       </div>
-                    )}
+                      <p className="text-[11px] text-[#475467] font-medium truncate mt-0.5">{model.category}</p>
+                      <div className="mt-1 flex items-center gap-2">
+                        <span className="text-[9px] font-mono bg-[#F2F4F7] px-1 py-0.5 rounded border border-[#D0D5DD] text-[#344054]">
+                          {model.id}
+                        </span>
+                        <span className="text-[11px] font-bold text-[#101828]">
+                          R$ {model.basePrice.toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Row 3: Action Buttons */}
-                  <div className="flex items-center gap-1.5 pt-1">
-                    <button
-                      onClick={() => setSelectedModel(model)}
-                      className="flex-1 uze-btn-secondary text-xs justify-center py-1.5"
-                    >
-                      <span>Detalhes</span>
-                      <ChevronRight size={13} />
-                    </button>
-                    {hasPermission('products.edit') && (
+                  <div className="flex items-center justify-between pt-2 border-t border-[#D0D5DD] text-[11px]">
+                    <span className="font-semibold text-[#475467]">
+                      {stats.variantCount} var. • <b className={stats.stockStatus === 'zero' ? 'text-rose-600' : 'text-emerald-700'}>{stats.totalStock} un</b>
+                    </span>
+
+                    <div className="flex items-center gap-1.5">
                       <button
-                        onClick={() => setModelToEdit(model)}
-                        className="uze-btn-secondary text-xs p-1.5 text-[#173E75]"
-                        title="Editar produto"
+                        onClick={() => setSelectedModel(model)}
+                        className="uze-btn-secondary text-[11px] py-1 px-2.5 h-7"
                       >
-                        <Edit2 size={14} />
+                        Detalhes
                       </button>
-                    )}
-                    {hasPermission('products.delete') && (
-                      <>
+                      {hasPermission('products.edit') && (
                         <button
-                          onClick={() => setModelToArchive(model)}
-                          className="uze-btn-secondary text-xs p-1.5 text-[#B54708]"
-                          title={model.status === 'Arquivado' ? 'Reativar' : 'Arquivar'}
+                          onClick={() => setModelToEdit(model)}
+                          className="w-7 h-7 rounded border border-[#D0D5DD] flex items-center justify-center text-[#475467]"
                         >
-                          {model.status === 'Arquivado' ? <RotateCcw size={14} /> : <Archive size={14} />}
+                          <Edit2 size={12} />
                         </button>
+                      )}
+                      {hasPermission('products.delete') && (
                         <button
-                          onClick={() => setModelToDelete(model)}
-                          className="uze-btn-secondary text-xs p-1.5 text-[#B42318]"
-                          title="Excluir"
+                          onClick={() => {
+                            setModelToDelete(model);
+                            setAdminConfirmWord('');
+                            setDeleteErrorMessage(null);
+                          }}
+                          className="w-7 h-7 rounded border border-[#D0D5DD] flex items-center justify-center text-rose-600 hover:bg-rose-50"
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={12} />
                         </button>
-                      </>
-                    )}
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -638,59 +558,50 @@ export const ProdutosPage: React.FC = () => {
         )}
       </div>
 
-      {/* Modal Cadastro de Produto */}
-      <NovoProdutoModal
-        isOpen={isNovoProdutoOpen}
-        onClose={() => setIsNovoProdutoOpen(false)}
-      />
-
-      {/* Modal Edição de Produto */}
-      {modelToEdit && (
-        <EditarProdutoModal
-          isOpen={!!modelToEdit}
-          model={modelToEdit}
-          onClose={() => setModelToEdit(null)}
+      {/* Modal Novo Produto */}
+      {isNovoProdutoOpen && (
+        <NovoProdutoModal
+          isOpen={isNovoProdutoOpen}
+          onClose={() => setIsNovoProdutoOpen(false)}
         />
       )}
 
-      {/* Modal Confirmação de Arquivamento / Reativação */}
+      {/* Modal Editar Produto */}
+      {modelToEdit && (
+        <EditarProdutoModal
+          isOpen={!!modelToEdit}
+          onClose={() => setModelToEdit(null)}
+          model={modelToEdit}
+        />
+      )}
+
+      {/* Modal Arquivar Produto */}
       {modelToArchive && (
         <Modal
           isOpen={!!modelToArchive}
           onClose={() => setModelToArchive(null)}
           title={modelToArchive.status === 'Arquivado' ? 'Reativar Produto' : 'Arquivar Produto'}
-          subtitle={`Modelo: ${modelToArchive.name}`}
-          maxWidth="md"
+          subtitle={`Produto: ${modelToArchive.name}`}
+          maxWidth="sm"
         >
           <div className="space-y-4 text-xs">
-            <div className="p-3 bg-[#FEF6EE] border border-[#F9DBAF] rounded-lg text-[#B54708] flex items-start gap-2.5">
-              <AlertTriangle size={18} className="shrink-0 mt-0.5" />
-              <div>
-                <p className="font-bold">
-                  {modelToArchive.status === 'Arquivado'
-                    ? 'Deseja reativar este produto?'
-                    : 'Deseja arquivar este produto?'}
-                </p>
-                <p className="mt-1 text-[#344054]">
-                  {modelToArchive.status === 'Arquivado'
-                    ? 'O produto voltará a ficar disponível para seleção em novas vendas no catálogo comercial.'
-                    : 'Este produto não ficará disponível em novas vendas, mas continuará preservado no histórico, relatórios e vendas passadas.'}
-                </p>
-              </div>
-            </div>
+            <p className="text-[#344054] leading-relaxed">
+              {modelToArchive.status === 'Arquivado'
+                ? 'Deseja reativar este produto? Ele voltará a ficar disponível para novos pedidos e movimentações.'
+                : 'Ao arquivar, o produto não aparecerá em novos lançamentos de vendas, mas todo o histórico comercial, estatísticas e estoque atual permanecem integralmente preservados.'}
+            </p>
             <div className="flex justify-end gap-2 pt-2 border-t border-[#D0D5DD]">
               <button onClick={() => setModelToArchive(null)} className="uze-btn-secondary text-xs">
                 Cancelar
               </button>
               <button
-                onClick={async () => {
+                onClick={() => {
                   if (modelToArchive.status === 'Arquivado') {
-                    await reactivateModel(modelToArchive.id);
+                    reactivateModel(modelToArchive.id);
                   } else {
-                    await archiveModel(modelToArchive.id);
+                    archiveModel(modelToArchive.id);
                   }
                   setModelToArchive(null);
-                  if (selectedModel?.id === modelToArchive.id) setSelectedModel(null);
                 }}
                 className={`uze-btn-primary text-xs ${
                   modelToArchive.status === 'Arquivado' ? 'bg-[#027A48] hover:bg-[#05603A]' : 'bg-[#B54708] hover:bg-[#93370D]'
@@ -703,38 +614,68 @@ export const ProdutosPage: React.FC = () => {
         </Modal>
       )}
 
-      {/* Modal Exclusão de Produto (com Validação Segura) */}
+      {/* Modal Exclusão de Produto (Segurança + Opção Avançada Administrador) */}
       {modelToDelete && (
         <Modal
           isOpen={!!modelToDelete}
           onClose={() => { setModelToDelete(null); setDeleteErrorMessage(null); }}
           title="Excluir Produto"
-          subtitle={`Modelo: ${modelToDelete.name}`}
+          subtitle={`Produto: ${modelToDelete.name} (${modelToDelete.id})`}
           maxWidth="md"
         >
           <div className="space-y-4 text-xs">
             {(() => {
               const modelVarIds = variants.filter(v => v.modelId === modelToDelete.id).map(v => v.id);
               const hasSalesHistory = sales.some(s => s.items.some(it => it.variantId && modelVarIds.includes(it.variantId)));
-              const hasMovementHistory = movements.some(m => modelVarIds.includes(m.variantId));
-              const cannotDelete = hasSalesHistory || hasMovementHistory;
+              const hasMovements = movements.some(m => modelVarIds.includes(m.variantId));
 
-              if (cannotDelete) {
+              // Se tiver vendas históricas
+              if (hasSalesHistory) {
                 return (
-                  <div className="p-3 bg-[#FEF3F2] border border-[#FECDCA] rounded-lg text-[#B42318] space-y-2">
-                    <div className="flex items-start gap-2">
-                      <AlertTriangle size={18} className="shrink-0 mt-0.5" />
-                      <div>
-                        <p className="font-bold">Exclusão física bloqueada por segurança</p>
-                        <p className="mt-1 text-[#475467]">
-                          Este produto possui {hasSalesHistory ? 'vendas realizadas' : ''}{hasSalesHistory && hasMovementHistory ? ' e ' : ''}{hasMovementHistory ? 'movimentações de estoque registradas' : ''}. Para proteger a integridade contábil e de auditoria, ele não pode ser apagado fisicamente.
-                        </p>
-                        <p className="mt-2 text-xs font-semibold text-[#173E75]">
-                          Recomendação: utilize a opção "Arquivar produto" para removê-lo de novas operações mantendo o histórico intacto.
-                        </p>
+                  <div className="space-y-3">
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-900 space-y-2">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle size={18} className="shrink-0 text-amber-700 mt-0.5" />
+                        <div>
+                          <p className="font-bold text-amber-900">Este produto possui histórico de vendas realizadas</p>
+                          <p className="mt-1 text-slate-700 leading-relaxed">
+                            Para manter relatórios contábeis coerentes, a recomendação é <strong>Arquivar</strong> o produto. Ele deixará de ser ofertado sem quebrar o histórico.
+                          </p>
+                        </div>
                       </div>
                     </div>
-                    <div className="flex justify-end gap-2 pt-2 border-t border-[#FECDCA]">
+
+                    {isAdmin && (
+                      <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg space-y-2.5">
+                        <div className="flex items-center gap-1.5 text-rose-800 font-bold">
+                          <ShieldAlert size={16} />
+                          <span>Opção Avançada de Administrador: Excluir Definitivamente</span>
+                        </div>
+                        <p className="text-slate-600 leading-relaxed text-[11px]">
+                          Esta ação removerá o produto e suas variantes de teste ou obsoletas. Para confirmar, digite <b>EXCLUIR</b> abaixo:
+                        </p>
+                        <input
+                          type="text"
+                          placeholder="Digite EXCLUIR"
+                          className="uze-input text-xs font-bold uppercase tracking-wider"
+                          value={adminConfirmWord}
+                          onChange={e => setAdminConfirmWord(e.target.value)}
+                        />
+                        <input
+                          type="text"
+                          placeholder="Motivo da exclusão (auditoria)"
+                          className="uze-input text-xs"
+                          value={deleteReason}
+                          onChange={e => setDeleteReason(e.target.value)}
+                        />
+                      </div>
+                    )}
+
+                    {deleteErrorMessage && (
+                      <p className="text-xs text-rose-600 font-bold">{deleteErrorMessage}</p>
+                    )}
+
+                    <div className="flex justify-between items-center gap-2 pt-2 border-t border-[#D0D5DD]">
                       <button
                         onClick={() => {
                           const toArch = modelToDelete;
@@ -743,45 +684,73 @@ export const ProdutosPage: React.FC = () => {
                         }}
                         className="uze-btn-primary bg-[#B54708] hover:bg-[#93370D] text-xs"
                       >
-                        <Archive size={13} /> Arquivar Produto
+                        <Archive size={13} /> Arquivar (Recomendado)
                       </button>
-                      <button onClick={() => setModelToDelete(null)} className="uze-btn-secondary text-xs">
-                        Fechar
-                      </button>
+
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => setModelToDelete(null)} className="uze-btn-secondary text-xs">
+                          Fechar
+                        </button>
+                        {isAdmin && (
+                          <button
+                            disabled={adminConfirmWord !== 'EXCLUIR'}
+                            onClick={() => {
+                              const res = deleteModel(modelToDelete.id, { force: true, reason: deleteReason });
+                              if (res.success) {
+                                setModelToDelete(null);
+                                if (selectedModel?.id === modelToDelete.id) setSelectedModel(null);
+                              } else {
+                                setDeleteErrorMessage(res.reason || 'Erro ao excluir');
+                              }
+                            }}
+                            className="uze-btn-primary bg-rose-700 hover:bg-rose-800 text-xs disabled:opacity-40"
+                          >
+                            Excluir Definitivamente
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
               }
 
+              // Se NÃO tiver vendas (produto novo ou de teste, mesmo com movimentações de teste)
               return (
                 <div className="space-y-4">
-                  <div className="p-3 bg-[#FEF3F2] border border-[#FECDCA] rounded-lg text-[#B42318] flex items-start gap-2">
-                    <AlertTriangle size={18} className="shrink-0 mt-0.5" />
+                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-900 flex items-start gap-2">
+                    <Trash2 size={18} className="shrink-0 text-rose-700 mt-0.5" />
                     <div>
-                      <p className="font-bold">Atenção: Exclusão permanente</p>
-                      <p className="mt-1 text-[#475467]">
-                        Este produto não possui histórico comercial e pode ser removido do banco de dados definitivamente junto com suas variantes não utilizadas.
+                      <p className="font-bold">Excluir Produto Definitivamente</p>
+                      <p className="mt-1 text-slate-700 leading-relaxed">
+                        Este produto não possui histórico de vendas comerciais. Todas as suas variantes e dados dependentes serão removidos do sistema sem deixar registros órfãos.
                       </p>
+                      {hasMovements && (
+                        <p className="mt-1 text-xs text-amber-800 font-medium">
+                          * As movimentações de estoque associadas a este produto de teste serão devidamente limpas.
+                        </p>
+                      )}
                     </div>
                   </div>
+
                   {deleteErrorMessage && (
-                    <p className="text-xs text-[#B42318] font-semibold">{deleteErrorMessage}</p>
+                    <p className="text-xs text-rose-600 font-bold">{deleteErrorMessage}</p>
                   )}
+
                   <div className="flex justify-end gap-2 pt-2 border-t border-[#D0D5DD]">
                     <button onClick={() => setModelToDelete(null)} className="uze-btn-secondary text-xs">
                       Cancelar
                     </button>
                     <button
-                      onClick={async () => {
-                        try {
-                          await deleteModel(modelToDelete.id);
+                      onClick={() => {
+                        const res = deleteModel(modelToDelete.id, { force: true });
+                        if (res.success) {
                           setModelToDelete(null);
                           if (selectedModel?.id === modelToDelete.id) setSelectedModel(null);
-                        } catch (err: any) {
-                          setDeleteErrorMessage(err.message || 'Erro ao excluir modelo');
+                        } else {
+                          setDeleteErrorMessage(res.reason || 'Erro ao excluir modelo');
                         }
                       }}
-                      className="uze-btn-primary bg-[#B42318] hover:bg-[#912018] text-xs"
+                      className="uze-btn-primary bg-rose-700 hover:bg-rose-800 text-xs"
                     >
                       Confirmar Exclusão
                     </button>
@@ -799,7 +768,7 @@ export const ProdutosPage: React.FC = () => {
           isOpen={!!selectedModel}
           onClose={() => setSelectedModel(null)}
           title={`Produto: ${selectedModel.name}`}
-          subtitle={`Coleção: ${selectedModel.collection} • Categoria: ${selectedModel.category}`}
+          subtitle={`Categoria: ${selectedModel.category}`}
           maxWidth="2xl"
         >
           <div className="space-y-4 text-xs">
@@ -818,7 +787,7 @@ export const ProdutosPage: React.FC = () => {
                     {selectedModel.status}
                   </span>
                 </div>
-                <p className="text-[#344054] font-medium leading-relaxed">{selectedModel.description}</p>
+                <p className="text-[#344054] font-medium leading-relaxed">{selectedModel.description || 'Sem descrição cadastrada.'}</p>
                 <div className="flex flex-wrap items-center gap-4 pt-2 border-t border-[#D0D5DD] font-medium text-[#101828]">
                   <span>Preço de Venda: <strong className="text-[#101828] font-bold">R$ {selectedModel.basePrice.toFixed(2)}</strong></span>
                   {canReadCosts && (
@@ -828,7 +797,7 @@ export const ProdutosPage: React.FC = () => {
                   <span>SKU Base: <code className="font-mono text-[#173E75] font-bold bg-[#EFF4FF] px-1 py-0.5 rounded border border-[#D0D5DD]">{selectedModel.id}</code></span>
                 </div>
 
-                {/* Action buttons inside details modal */}
+                {/* Actions */}
                 <div className="flex items-center gap-2 pt-3 border-t border-[#D0D5DD]">
                   {hasPermission('products.edit') && (
                     <button
@@ -839,7 +808,7 @@ export const ProdutosPage: React.FC = () => {
                       }}
                       className="uze-btn-secondary text-xs text-[#173E75]"
                     >
-                      <Edit2 size={13} /> Editar Modelo
+                      <Edit2 size={13} /> Editar Produto / Variantes
                     </button>
                   )}
                   {hasPermission('products.delete') && (
@@ -875,7 +844,7 @@ export const ProdutosPage: React.FC = () => {
             <div>
               <h4 className="font-bold text-[#101828] uppercase text-[11px] mb-2 flex items-center gap-1.5">
                 <Layers size={13} className="text-[#173E75]" /> 
-                Variantes Físicas Associadas ({getModelStats(selectedModel.id).variantCount})
+                Variantes Físicas ({getModelStats(selectedModel.id).variantCount})
               </h4>
               <div className="uze-table-container">
                 <table className="uze-table text-xs">
@@ -895,7 +864,7 @@ export const ProdutosPage: React.FC = () => {
                         <td className="font-mono text-[#344054] font-semibold">{v.sku}</td>
                         <td className="flex items-center gap-2">
                           <span
-                            className="w-3.5 h-3.5 rounded-full border-2 border-[#D0D5DD] shadow-xs"
+                            className="w-3.5 h-3.5 rounded-full border border-black/20 shadow-xs"
                             style={{ backgroundColor: v.colorHex }}
                           />
                           <span className="font-medium text-[#101828]">{v.colorName}</span>

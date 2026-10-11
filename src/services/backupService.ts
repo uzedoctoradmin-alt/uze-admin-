@@ -3,9 +3,21 @@
  * Opera diretamente sobre os dados centrais com preservação relacional e versionamento de schema.
  */
 
-import type { ProductModel, ProductVariant, Customer, Sale, StockMovement, Revenue, Expense, Employee } from '../types';
+import type { 
+  ProductModel, 
+  ProductVariant, 
+  Customer, 
+  Sale, 
+  StockMovement, 
+  Revenue, 
+  Expense, 
+  Employee,
+  Supplier,
+  PurchaseEntry,
+  Installment
+} from '../types';
 
-export const BACKUP_SCHEMA_VERSION = 2;
+export const BACKUP_SCHEMA_VERSION = 3;
 
 export interface UzeDoctorBackupMetadata {
   app: 'UZE DOCTOR';
@@ -26,6 +38,9 @@ export interface UzeDoctorBackupData {
   revenues?: Revenue[];
   expenses?: Expense[];
   employees?: Employee[];
+  suppliers?: Supplier[];
+  purchases?: PurchaseEntry[];
+  installments?: Installment[];
 }
 
 export interface UzeDoctorBackupPackage {
@@ -48,6 +63,9 @@ export interface BackupValidationResult {
     revenues: number;
     expenses: number;
     employees: number;
+    suppliers: number;
+    purchases: number;
+    installments: number;
   };
   error?: string;
 }
@@ -67,12 +85,15 @@ export const backupService = {
       revenues: Revenue[];
       expenses: Expense[];
       employees?: Employee[];
+      suppliers?: Supplier[];
+      purchases?: PurchaseEntry[];
+      installments?: Installment[];
     },
     operatorName: string
   ): UzeDoctorBackupPackage {
     const isFull = selectedModules.includes('all');
     const included = isFull 
-      ? ['produtos', 'estoque', 'clientes', 'vendas', 'financeiro', 'funcionarios'] 
+      ? ['produtos', 'estoque', 'clientes', 'vendas', 'financeiro', 'funcionarios', 'fornecedores', 'entradas', 'parcelas'] 
       : selectedModules;
 
     const backupData: UzeDoctorBackupData = {};
@@ -108,6 +129,21 @@ export const backupService = {
     if (isFull || included.includes('funcionarios')) {
       backupData.employees = data.employees || [];
       totalCount += (data.employees || []).length;
+    }
+
+    if (isFull || included.includes('fornecedores')) {
+      backupData.suppliers = data.suppliers || [];
+      totalCount += (data.suppliers || []).length;
+    }
+
+    if (isFull || included.includes('entradas')) {
+      backupData.purchases = data.purchases || [];
+      totalCount += (data.purchases || []).length;
+    }
+
+    if (isFull || included.includes('parcelas')) {
+      backupData.installments = data.installments || [];
+      totalCount += (data.installments || []).length;
     }
 
     const pkg: UzeDoctorBackupPackage = {
@@ -183,6 +219,9 @@ export const backupService = {
         revenues: Array.isArray(d.revenues) ? d.revenues.length : 0,
         expenses: Array.isArray(d.expenses) ? d.expenses.length : 0,
         employees: Array.isArray(d.employees) ? d.employees.length : 0,
+        suppliers: Array.isArray(d.suppliers) ? d.suppliers.length : 0,
+        purchases: Array.isArray(d.purchases) ? d.purchases.length : 0,
+        installments: Array.isArray(d.installments) ? d.installments.length : 0,
       };
 
       return {
@@ -208,6 +247,9 @@ export const backupService = {
       revenues: 0,
       expenses: 0,
       employees: 0,
+      suppliers: 0,
+      purchases: 0,
+      installments: 0,
     };
   }
 };

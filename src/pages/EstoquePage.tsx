@@ -3,23 +3,24 @@ import { useERP } from '../context/ERPContext';
 import { useAuth } from '../context/AuthContext';
 import type { Column } from '../components/common/DataTable';
 import { DataTable } from '../components/common/DataTable';
-import type { ProductVariant } from '../types';
+import type { ProductVariant, StockMovement } from '../types';
 import { StatCard } from '../components/common/StatCard';
-import { StockStatusBadge } from '../components/common/Badge';
-import { Edit3, ArrowLeftRight } from 'lucide-react';
+import { Edit3, ArrowLeftRight, AlertTriangle, Boxes } from 'lucide-react';
 import { AjustarEstoqueModal } from '../components/modals/AjustarEstoqueModal';
 import { ProductImage } from '../components/common/ProductImage';
 import { ExportMenu } from '../components/common/ExportMenu';
 import { exportReportToPdf } from '../services/pdfExportService';
 import { excelService } from '../services/excelService';
+import { StockStatusBadge, MovementTypeBadge } from '../components/common/Badge';
 
 export const EstoquePage: React.FC = () => {
-  const { variants, models, setCurrentTab } = useERP();
+  const { variants, models, movements } = useERP();
   const { user, hasPermission } = useAuth();
 
   const canReadCosts = hasPermission('products.cost.read');
   const canAdjustInventory = hasPermission('inventory.adjust');
 
+  const [activeTab, setActiveTab] = useState<'saldo' | 'baixo' | 'movimentacoes'>('saldo');
   const [isAjustarOpen, setIsAjustarOpen] = useState(false);
   const [targetVariantId, setTargetVariantId] = useState<string | undefined>(undefined);
 
@@ -35,6 +36,7 @@ export const EstoquePage: React.FC = () => {
     return sum + (v.currentStock * (model?.basePrice || 0));
   }, 0);
 
+  const lowStockVariants = variants.filter(v => v.currentStock <= v.minStock);
   const lowStockCount = variants.filter(v => v.currentStock > 0 && v.currentStock <= v.minStock).length;
   const outOfStockCount = variants.filter(v => v.currentStock === 0).length;
 
@@ -43,9 +45,10 @@ export const EstoquePage: React.FC = () => {
     setIsAjustarOpen(true);
   };
 
-  const columns: Column<ProductVariant>[] = [
+  // Colunas do Saldo Atual
+  const saldoColumns: Column<ProductVariant>[] = [
     {
-      header: 'Produto / Modelo',
+      header: 'Produto',
       accessorKey: 'modelId',
       sortable: true,
       cell: (v) => {
@@ -54,11 +57,11 @@ export const EstoquePage: React.FC = () => {
           <div className="flex items-center gap-2.5">
             <ProductImage
               src={model?.imageUrl}
-              alt={model?.name || 'Modelo'}
+              alt={model?.name || 'Produto'}
               size="sm"
             />
             <div>
-              <p className="font-semibold text-[#101828]">{model?.name || 'Modelo'}</p>
+              <p className="font-semibold text-[#101828]">{model?.name || 'Produto'}</p>
               <span className="text-[10px] text-[#475467] font-medium">{model?.category}</span>
             </div>
           </div>
@@ -77,7 +80,7 @@ export const EstoquePage: React.FC = () => {
       sortable: true,
       cell: (v) => (
         <div className="flex items-center gap-2">
-          <span className="w-3.5 h-3.5 rounded-full border-2 border-[#D0D5DD] shadow-xs" style={{ backgroundColor: v.colorHex }} />
+          <span className="w-3.5 h-3.5 rounded-full border border-black/20 shadow-xs" style={{ backgroundColor: v.colorHex }} />
           <span className="text-xs font-medium text-[#101828]">{v.colorName}</span>
         </div>
       ),
@@ -116,6 +119,66 @@ export const EstoquePage: React.FC = () => {
     },
   ];
 
+  // Colunas de Movimentações
+  const movementColumns: Column<StockMovement>[] = [
+    {
+      header: 'Data / Hora',
+      accessorKey: 'date',
+      sortable: true,
+      cell: (m) => <span className="text-xs text-[#475467] font-mono font-medium">{m.date}</span>,
+    },
+    {
+      header: 'Produto',
+      accessorKey: 'productName',
+      sortable: true,
+      cell: (m) => (
+        <div>
+          <p className="font-semibold text-[#101828]">{m.productName}</p>
+          <span className="text-[10px] font-mono text-[#344054] font-semibold">{m.sku}</span>
+        </div>
+      ),
+    },
+    {
+      header: 'Variante',
+      accessorKey: 'colorName',
+      sortable: true,
+      cell: (m) => (
+        <span className="text-xs font-medium text-[#101828]">
+          {m.colorName} - {m.size}
+        </span>
+      ),
+    },
+    {
+      header: 'Tipo',
+      accessorKey: 'type',
+      sortable: true,
+      cell: (m) => <MovementTypeBadge type={m.type} />,
+    },
+    {
+      header: 'Quantidade',
+      accessorKey: 'quantity',
+      sortable: true,
+      align: 'right',
+      cell: (m) => (
+        <span className={`font-bold text-sm ${m.quantity > 0 ? 'text-[#027A48]' : 'text-[#B42318]'}`}>
+          {m.quantity > 0 ? `+${m.quantity}` : m.quantity} un
+        </span>
+      ),
+    },
+    {
+      header: 'Motivo / Origem',
+      accessorKey: 'reason',
+      sortable: true,
+      cell: (m) => <span className="text-xs text-[#475467] font-medium">{m.reason}</span>,
+    },
+    {
+      header: 'Operador',
+      accessorKey: 'user',
+      sortable: true,
+      cell: (m) => <span className="text-xs text-[#475467] font-medium">{m.user}</span>,
+    },
+  ];
+
   const handleExportPdf = async () => {
     const kpis = [
       { label: 'Total de Peças', value: `${totalUnits} un` },
@@ -124,23 +187,14 @@ export const EstoquePage: React.FC = () => {
       { label: 'Sem Estoque', value: `${outOfStockCount} SKUs` },
     ];
 
-    if (canReadCosts) {
-      kpis.splice(1, 0, {
-        label: 'Valor de Custo',
-        value: `R$ ${costValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-      });
-    }
-
     const pdfColumns = [
-      { header: 'Produto / Modelo', dataKey: 'modelName' },
-      { header: 'Categoria', dataKey: 'category', width: 28 },
+      { header: 'Produto', dataKey: 'modelName' },
       { header: 'SKU', dataKey: 'sku', width: 26 },
       { header: 'Cor', dataKey: 'colorName', width: 22 },
       { header: 'Tam.', dataKey: 'size', align: 'center' as const, width: 15 },
       { header: 'Estoque Atual', dataKey: 'currentStockStr', align: 'right' as const, width: 25 },
       { header: 'Estoque Mín.', dataKey: 'minStockStr', align: 'right' as const, width: 24 },
       { header: 'Preço Venda (R$)', dataKey: 'salePriceStr', align: 'right' as const, width: 28 },
-      ...(canReadCosts ? [{ header: 'Custo Unit. (R$)', dataKey: 'costPriceStr', align: 'right' as const, width: 28 }] : []),
       { header: 'Status', dataKey: 'statusStr', align: 'center' as const, width: 24 },
     ];
 
@@ -151,22 +205,19 @@ export const EstoquePage: React.FC = () => {
       const statusText = isZero ? 'Sem Estoque' : isLow ? 'Estoque Baixo' : 'Normal';
 
       return {
-        modelName: model?.name || 'Modelo',
-        category: model?.category || '-',
+        modelName: model?.name || 'Produto',
         sku: v.sku,
         colorName: v.colorName,
         size: v.size,
         currentStockStr: `${v.currentStock} un`,
         minStockStr: `${v.minStock} un`,
         salePriceStr: (model?.basePrice || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
-        ...(canReadCosts ? { costPriceStr: (model?.baseCost || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) } : {}),
         statusStr: statusText,
       };
     });
 
     await exportReportToPdf({
       title: 'Relatório Oficial de Estoque Físico & Inventário',
-      subtitle: 'Posição atual de saldos por SKU, cor, tamanho e limites operacionais',
       operatorName: user?.name,
       orientation: 'landscape',
       filename: `uze-doctor-estoque-${new Date().toISOString().slice(0, 10)}.pdf`,
@@ -178,15 +229,13 @@ export const EstoquePage: React.FC = () => {
 
   const handleExportExcel = async () => {
     const columns = [
-      { header: 'Produto / Modelo', dataKey: 'Modelo' },
-      { header: 'Categoria', dataKey: 'Categoria' },
+      { header: 'Produto', dataKey: 'Produto' },
       { header: 'SKU', dataKey: 'SKU' },
       { header: 'Cor', dataKey: 'Cor' },
       { header: 'Tamanho', dataKey: 'Tamanho' },
       { header: 'Estoque Atual (un)', dataKey: 'EstoqueAtual' },
       { header: 'Estoque Mínimo (un)', dataKey: 'EstoqueMinimo' },
       { header: 'Preço Venda (R$)', dataKey: 'PrecoVenda' },
-      ...(canReadCosts ? [{ header: 'Custo Base (R$)', dataKey: 'CustoBase' }] : []),
       { header: 'Status Estoque', dataKey: 'Status' },
     ];
 
@@ -197,15 +246,13 @@ export const EstoquePage: React.FC = () => {
       const statusText = isZero ? 'Sem Estoque' : isLow ? 'Estoque Baixo' : 'Normal';
 
       return {
-        'Modelo': model?.name || 'Modelo',
-        'Categoria': model?.category || '-',
+        'Produto': model?.name || 'Produto',
         'SKU': v.sku,
         'Cor': v.colorName,
         'Tamanho': v.size,
         'EstoqueAtual': v.currentStock,
         'EstoqueMinimo': v.minStock,
         'PrecoVenda': model?.basePrice || 0,
-        ...(canReadCosts ? { 'CustoBase': model?.baseCost || 0 } : {}),
         'Status': statusText,
       };
     });
@@ -215,39 +262,29 @@ export const EstoquePage: React.FC = () => {
       sheetName: 'Estoque_Fisico',
       data,
       columns,
-      metadata: {
-        title: 'Inventário Físico e Posição de Estoque',
-        operator: user?.name,
-      }
     });
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-5 max-w-7xl mx-auto">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-[#D0D5DD]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#D0D5DD]">
         <div>
-          <h2 className="text-base font-bold text-[#101828]">Central de Estoque Físico</h2>
+          <h2 className="text-base sm:text-lg font-bold text-[#101828]">Central de Estoque</h2>
           <p className="text-xs text-[#475467] font-medium">
-            Controle de inventário por SKU, cor, tamanho e regras de nivelamento
+            Saldos em tempo real, reposição e rastreamento completo de entradas e saídas.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <ExportMenu onExportPdf={handleExportPdf} onExportExcel={handleExportExcel} />
-          <button
-            onClick={() => setCurrentTab('movimentacoes')}
-            className="uze-btn-secondary text-xs cursor-pointer"
-          >
-            <ArrowLeftRight size={13} /> Movimentações
-          </button>
           {canAdjustInventory && (
             <button
               onClick={() => {
                 setTargetVariantId(undefined);
                 setIsAjustarOpen(true);
               }}
-              className="uze-btn-primary text-xs cursor-pointer"
+              className="uze-btn-primary text-xs cursor-pointer shadow-xs"
             >
               <Edit3 size={13} /> Ajustar Estoque
             </button>
@@ -255,96 +292,137 @@ export const EstoquePage: React.FC = () => {
         </div>
       </div>
 
-      {/* KPI Cards (4 cards para Vendedor sem custos vs 5 cards completos) */}
-      <div className={`grid grid-cols-1 sm:grid-cols-2 ${canReadCosts ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-3.5`}>
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <StatCard
-          title="Total de Peças"
+          title="Peças em Estoque"
           value={`${totalUnits} un`}
-          subtitle="Inventário físico"
+          subtitle="Saldo total somado"
         />
-
-        {canReadCosts && (
-          <StatCard
-            title="Valor de Custo"
-            value={`R$ ${costValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-            subtitle="Investimento em estoque"
-          />
-        )}
-
         <StatCard
-          title="Potencial de Venda"
-          value={`R$ ${saleValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-          subtitle="Faturamento potencial"
+          title={canReadCosts ? "Custo em Estoque" : "Potencial de Venda"}
+          value={canReadCosts ? `R$ ${costValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : `R$ ${saleValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+          subtitle={canReadCosts ? "Custo base de confecção" : "Preço de etiqueta"}
         />
-
         <StatCard
           title="Estoque Baixo"
           value={`${lowStockCount} SKUs`}
           subtitle="Abaixo do limite mínimo"
         />
-
         <StatCard
           title="Sem Estoque"
           value={`${outOfStockCount} SKUs`}
-          subtitle="Quantidade zerada"
+          subtitle="Zerados nas araras"
         />
       </div>
 
-      {/* Stock Table */}
-      <DataTable
-        columns={columns}
-        data={variants}
-        emptyText="Nenhum item de estoque cadastrado."
-        searchPlaceholder="Buscar por SKU, nome de cor ou tamanho..."
-        searchField={(v) => {
-          const model = models.find(m => m.id === v.modelId);
-          return `${model?.name} ${v.sku} ${v.colorName} ${v.size}`;
-        }}
-        filterOptions={[
-          {
-            label: 'Status',
-            key: 'status',
-            options: [
-              { value: 'OK', label: 'Disponível' },
-              { value: 'LOW', label: 'Estoque Baixo' },
-              { value: 'OUT', label: 'Sem Estoque' },
-            ],
-            filterFn: (v, val) => {
-              if (val === 'OUT') return v.currentStock === 0;
-              if (val === 'LOW') return v.currentStock > 0 && v.currentStock <= v.minStock;
-              if (val === 'OK') return v.currentStock > v.minStock;
-              return true;
-            },
-          },
-          {
-            label: 'Tamanho',
-            key: 'size',
-            options: [
-              { value: 'PP', label: 'PP' },
-              { value: 'P', label: 'P' },
-              { value: 'M', label: 'M' },
-              { value: 'G', label: 'G' },
-              { value: 'GG', label: 'GG' },
-            ],
-            filterFn: (v, val) => v.size === val,
-          },
-        ]}
-        actions={(v) => (
-          <button
-            onClick={() => handleOpenAjusteForVariant(v.id)}
-            className="p-1 text-xs font-bold text-[#173E75] hover:bg-[#F2F4F7] rounded transition-colors"
-          >
-            Ajustar
-          </button>
-        )}
-      />
+      {/* Navegação Interna do Estoque: Saldo / Baixo / Movimentações */}
+      <div className="flex border-b border-[#D0D5DD] gap-2 pt-1">
+        <button
+          type="button"
+          onClick={() => setActiveTab('saldo')}
+          className={`pb-2.5 px-3 font-bold text-xs transition-colors cursor-pointer border-b-2 flex items-center gap-1.5 ${
+            activeTab === 'saldo'
+              ? 'border-[#173E75] text-[#173E75]'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Boxes size={14} />
+          <span>Saldo Atual ({variants.length})</span>
+        </button>
 
-      {/* Modal Ajuste de Estoque */}
-      <AjustarEstoqueModal
-        isOpen={isAjustarOpen}
-        onClose={() => setIsAjustarOpen(false)}
-        variantId={targetVariantId}
-      />
+        <button
+          type="button"
+          onClick={() => setActiveTab('baixo')}
+          className={`pb-2.5 px-3 font-bold text-xs transition-colors cursor-pointer border-b-2 flex items-center gap-1.5 ${
+            activeTab === 'baixo'
+              ? 'border-amber-600 text-amber-700'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <AlertTriangle size={14} />
+          <span>Estoque Baixo & Zerados ({lowStockVariants.length})</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('movimentacoes')}
+          className={`pb-2.5 px-3 font-bold text-xs transition-colors cursor-pointer border-b-2 flex items-center gap-1.5 ${
+            activeTab === 'movimentacoes'
+              ? 'border-[#173E75] text-[#173E75]'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <ArrowLeftRight size={14} />
+          <span>Movimentações & Histórico ({movements.length})</span>
+        </button>
+      </div>
+
+      {/* TAB 1: SALDO ATUAL */}
+      {activeTab === 'saldo' && (
+        <DataTable
+          columns={saldoColumns}
+          data={variants}
+          searchPlaceholder="Buscar por produto, SKU, cor ou tamanho..."
+          searchField={(v) => {
+            const m = models.find(mod => mod.id === v.modelId);
+            return `${m?.name || ''} ${v.sku} ${v.colorName} ${v.size}`;
+          }}
+          actions={(v) => canAdjustInventory && (
+            <button
+              onClick={() => handleOpenAjusteForVariant(v.id)}
+              className="p-1.5 text-[#475467] hover:text-[#173E75] hover:bg-[#F2F4F7] rounded transition-colors cursor-pointer"
+              title="Ajustar saldo deste SKU"
+            >
+              <Edit3 size={14} />
+            </button>
+          )}
+        />
+      )}
+
+      {/* TAB 2: ESTOQUE BAIXO & ZERADOS */}
+      {activeTab === 'baixo' && (
+        <DataTable
+          columns={saldoColumns}
+          data={lowStockVariants}
+          searchPlaceholder="Buscar entre itens com estoque crítico..."
+          searchField={(v) => {
+            const m = models.find(mod => mod.id === v.modelId);
+            return `${m?.name || ''} ${v.sku} ${v.colorName} ${v.size}`;
+          }}
+          actions={(v) => canAdjustInventory && (
+            <button
+              onClick={() => handleOpenAjusteForVariant(v.id)}
+              className="p-1.5 text-amber-700 hover:bg-amber-50 rounded transition-colors cursor-pointer"
+              title="Ajustar ou repor este SKU"
+            >
+              <Edit3 size={14} />
+            </button>
+          )}
+        />
+      )}
+
+      {/* TAB 3: MOVIMENTAÇÕES */}
+      {activeTab === 'movimentacoes' && (
+        <DataTable
+          columns={movementColumns}
+          data={movements}
+          searchPlaceholder="Buscar histórico por produto, SKU, tipo ou motivo..."
+          searchField={(m) => `${m.productName} ${m.sku} ${m.colorName} ${m.size} ${m.type} ${m.reason} ${m.user}`}
+        />
+      )}
+
+      {/* Modal Ajustar Estoque */}
+      {isAjustarOpen && (
+        <AjustarEstoqueModal
+          isOpen={isAjustarOpen}
+          onClose={() => {
+            setIsAjustarOpen(false);
+            setTargetVariantId(undefined);
+          }}
+          variantId={targetVariantId}
+        />
+      )}
     </div>
   );
 };

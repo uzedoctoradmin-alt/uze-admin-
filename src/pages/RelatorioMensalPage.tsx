@@ -53,9 +53,8 @@ export const RelatorioMensalPage: React.FC = () => {
     ];
 
     const pdfColumns = [
-      { header: 'Modelo / Produto', dataKey: 'name' },
-      { header: 'Categoria', dataKey: 'category', width: 28 },
-      { header: 'Coleção', dataKey: 'collection', width: 28 },
+      { header: 'Produto', dataKey: 'name' },
+      { header: 'Categoria', dataKey: 'category', width: 32 },
       { header: 'Preço Venda (R$)', dataKey: 'priceStr', align: 'right' as const, width: 26 },
       ...(canReadFinance ? [{ header: 'Custo Base (R$)', dataKey: 'costStr', align: 'right' as const, width: 26 }] : []),
       { header: 'Estoque Físico', dataKey: 'stockStr', align: 'right' as const, width: 24 },
@@ -68,7 +67,6 @@ export const RelatorioMensalPage: React.FC = () => {
       return {
         name: m.name,
         category: m.category,
-        collection: m.collection || '-',
         priceStr: m.basePrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
         ...(canReadFinance ? { costStr: m.baseCost.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) } : {}),
         stockStr: `${totalStock} un`,
@@ -93,9 +91,8 @@ export const RelatorioMensalPage: React.FC = () => {
     const monthName = selectedMonth === '09' ? 'Setembro' : selectedMonth === '08' ? 'Agosto' : 'Julho';
 
     const excelColumns = [
-      { header: 'Modelo / Produto', key: 'name', width: 26 },
-      { header: 'Categoria', key: 'category', width: 16 },
-      { header: 'Coleção', key: 'collection', width: 18 },
+      { header: 'Produto', key: 'name', width: 28 },
+      { header: 'Categoria', key: 'category', width: 20 },
       { header: 'Preço Venda (R$)', key: 'price', width: 16 },
       ...(canReadFinance ? [{ header: 'Custo Base (R$)', key: 'cost', width: 16 }] : []),
       { header: 'Estoque Físico (un)', key: 'stock', width: 18 },
@@ -108,7 +105,6 @@ export const RelatorioMensalPage: React.FC = () => {
       return {
         name: m.name,
         category: m.category,
-        collection: m.collection || '-',
         price: m.basePrice,
         ...(canReadFinance ? { cost: m.baseCost } : {}),
         stock: totalStock,

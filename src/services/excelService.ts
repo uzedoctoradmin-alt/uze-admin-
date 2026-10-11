@@ -235,7 +235,6 @@ export const excelService = {
           validRows.push({
             name: nome,
             category: categoria,
-            collection: String(row.colecao || 'Coleção Regular').trim(),
             gender: String(row.genero || 'Feminino').trim(),
             basePrice: preco,
             baseCost: isNaN(custo) ? 0 : Math.max(0, custo),

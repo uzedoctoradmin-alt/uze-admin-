@@ -68,6 +68,15 @@ export const NovaVendaModal: React.FC<NovaVendaModalProps> = ({ isOpen, onClose,
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('PIX');
   const [saleStatus, setSaleStatus] = useState<SaleStatus>('Concluído');
 
+  // PIX Parcelado States
+  const [installmentCount, setInstallmentCount] = useState<number>(3);
+  const [downPayment, setDownPayment] = useState<number>(0);
+  const [firstDueDate, setFirstDueDate] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    return d.toISOString().split('T')[0];
+  });
+
   // Helper to find matching seller for logged in user
   const findLinkedSellerId = (): string => {
     if (!currentUser) return activeSellers[0]?.id || '';
@@ -287,6 +296,12 @@ export const NovaVendaModal: React.FC<NovaVendaModalProps> = ({ isOpen, onClose,
       estimatedProfit,
       paymentMethod,
       status: saleStatus,
+      installmentDetails: paymentMethod === 'PIX Parcelado' ? {
+        count: installmentCount,
+        downPayment,
+        firstDueDate,
+        periodicity: 'mensal' as const,
+      } : undefined,
     };
 
     if (saleToEdit) {
@@ -712,34 +727,120 @@ export const NovaVendaModal: React.FC<NovaVendaModalProps> = ({ isOpen, onClose,
           </div>
 
           {/* 4. Pagamento e Status */}
-          <div className="grid grid-cols-2 gap-3 p-3.5 bg-[#F9FAFB] rounded-lg border border-[#D0D5DD]">
-            <div>
-              <label className="text-[10px] font-semibold text-[#475467] uppercase block mb-1">Forma de Pagamento</label>
-              <select
-                className="uze-input text-xs cursor-pointer bg-white"
-                value={paymentMethod}
-                onChange={e => setPaymentMethod(e.target.value as PaymentMethod)}
-              >
-                <option value="PIX">PIX</option>
-                <option value="Cartão de Crédito">Cartão de Crédito</option>
-                <option value="Boleto">Boleto</option>
-                <option value="Transferência">Transferência Bancária</option>
-              </select>
+          <div className="p-3.5 bg-[#F9FAFB] rounded-lg border border-[#D0D5DD] space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] font-semibold text-[#475467] uppercase block mb-1">Forma de Pagamento</label>
+                <select
+                  className="uze-input text-xs cursor-pointer bg-white font-semibold text-[#101828]"
+                  value={paymentMethod}
+                  onChange={e => setPaymentMethod(e.target.value as PaymentMethod)}
+                >
+                  <option value="PIX">PIX (À Vista)</option>
+                  <option value="PIX Parcelado">PIX Parcelado (Carnê / Parcelas)</option>
+                  <option value="Cartão de Crédito">Cartão de Crédito</option>
+                  <option value="Cartão de Débito">Cartão de Débito</option>
+                  <option value="Dinheiro">Dinheiro</option>
+                  <option value="Boleto">Boleto</option>
+                  <option value="Transferência">Transferência Bancária</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] font-semibold text-[#475467] uppercase block mb-1">Status da Venda</label>
+                <select
+                  className="uze-input text-xs cursor-pointer bg-white font-semibold text-[#101828]"
+                  value={saleStatus}
+                  onChange={e => setSaleStatus(e.target.value as SaleStatus)}
+                >
+                  <option value="Concluído">Concluído (Baixa Automática no Estoque)</option>
+                  <option value="Pago">Pago</option>
+                  <option value="Em produção">Em produção</option>
+                  <option value="Pendente">Pendente</option>
+                  <option value="Orçamento">Orçamento</option>
+                </select>
+              </div>
             </div>
-            <div>
-              <label className="text-[10px] font-semibold text-[#475467] uppercase block mb-1">Status da Venda</label>
-              <select
-                className="uze-input text-xs cursor-pointer bg-white"
-                value={saleStatus}
-                onChange={e => setSaleStatus(e.target.value as SaleStatus)}
-              >
-                <option value="Concluído">Concluído (Baixa Automática no Estoque)</option>
-                <option value="Pago">Pago</option>
-                <option value="Em produção">Em produção</option>
-                <option value="Pendente">Pendente</option>
-                <option value="Orçamento">Orçamento</option>
-              </select>
-            </div>
+
+            {/* Painel de Configuração: PIX Parcelado */}
+            {paymentMethod === 'PIX Parcelado' && (
+              <div className="p-3 bg-blue-50/80 border border-blue-200 rounded-lg space-y-2.5 text-xs text-[#173E75]">
+                <div className="flex items-center justify-between border-b border-blue-200 pb-1.5">
+                  <span className="font-bold flex items-center gap-1.5">
+                    <Calendar size={14} /> Condições do PIX Parcelado
+                  </span>
+                  <span className="text-[11px] font-semibold text-blue-700">Controle interno de carnê</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-700 block mb-1">Qtd. de Parcelas</label>
+                    <select
+                      className="uze-input text-xs bg-white font-bold"
+                      value={installmentCount}
+                      onChange={e => setInstallmentCount(Number(e.target.value))}
+                    >
+                      {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 18, 24].map(n => (
+                        <option key={n} value={n}>{n}x parcelas</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-700 block mb-1">Entrada (R$) opcional</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      className="uze-input text-xs bg-white font-bold"
+                      value={downPayment || ''}
+                      placeholder="0.00"
+                      onChange={e => setDownPayment(Math.max(0, Number(e.target.value)))}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-700 block mb-1">1º Vencimento</label>
+                    <input
+                      type="date"
+                      className="uze-input text-xs bg-white font-bold"
+                      value={firstDueDate}
+                      onChange={e => setFirstDueDate(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Previsão das parcelas */}
+                <div className="p-2 bg-white rounded border border-blue-100 text-[11px] space-y-1">
+                  <span className="font-bold text-slate-700 block">Previsão das Parcelas:</span>
+                  {(() => {
+                    const remainingTotal = Math.max(0, total - downPayment);
+                    const baseInstallment = Number((remainingTotal / installmentCount).toFixed(2));
+                    const parts = [];
+                    if (downPayment > 0) {
+                      parts.push(`Entrada: R$ ${downPayment.toFixed(2)} (Registrado hoje no caixa)`);
+                    }
+                    for (let i = 1; i <= installmentCount; i++) {
+                      const amount = (i === installmentCount)
+                        ? (remainingTotal - baseInstallment * (installmentCount - 1)).toFixed(2)
+                        : baseInstallment.toFixed(2);
+                      const d = new Date(firstDueDate);
+                      d.setMonth(d.getMonth() + (i - 1));
+                      const dStr = d.toLocaleDateString('pt-BR');
+                      parts.push(`${i}/${installmentCount} - R$ ${amount} (venc. ${dStr})`);
+                    }
+                    return (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-slate-600 font-mono">
+                        {parts.map((p, idx) => (
+                          <div key={idx} className="bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
+                            {p}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

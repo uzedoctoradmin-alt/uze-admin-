@@ -118,7 +118,6 @@ export const restoreService = {
           id: m.id,
           name: m.name,
           category: m.category,
-          collection: m.collection || null,
           description: m.description || null,
           base_price: m.basePrice,
           base_cost: m.baseCost,

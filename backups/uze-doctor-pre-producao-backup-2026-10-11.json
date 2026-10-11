@@ -1,0 +1,1765 @@
+{
+  "metadata": {
+    "generatedAt": "2026-10-11T03:59:53.431Z",
+    "environment": "pre-production",
+    "description": "Backup completo do estado pré-reset de teste da UZE DOCTOR",
+    "supabaseProjectId": "xpjlixvifoytxgplesnq"
+  },
+  "tables": {
+    "profiles": [
+      {
+        "id": "6f4432d6-720a-4d54-ae25-2100c218911e",
+        "name": "TEST4EE",
+        "email": "jotajoao29@gmail.com",
+        "role": "ADMINISTRADOR",
+        "status": "Ativo",
+        "must_change_password": false,
+        "last_login_at": "2026-10-11T01:59:39.803+00:00",
+        "created_at": "2026-09-28T22:29:19.993+00:00",
+        "updated_at": "2026-10-11T01:59:39.224826+00:00",
+        "created_by": "79d8b64f-2f39-4992-8814-ca9a7cc1346c"
+      },
+      {
+        "id": "79d8b64f-2f39-4992-8814-ca9a7cc1346c",
+        "name": "JOAO TESTES 2",
+        "email": "vilelacontatojoao@gmail.com",
+        "role": "ADMINISTRADOR",
+        "status": "Ativo",
+        "must_change_password": false,
+        "last_login_at": "2026-09-28T22:11:01.384+00:00",
+        "created_at": "2026-09-28T20:57:18.929+00:00",
+        "updated_at": "2026-09-28T22:11:01.598762+00:00",
+        "created_by": null
+      },
+      {
+        "id": "ed31f74e-3de7-4c46-a823-22550e4e832d",
+        "name": "ADMINISTRAÇÃO",
+        "email": "uzedoctor@gmail.com",
+        "role": "ADMINISTRADOR",
+        "status": "Ativo",
+        "must_change_password": false,
+        "last_login_at": "2026-10-11T00:39:31.369+00:00",
+        "created_at": "2026-09-28T22:30:43.205+00:00",
+        "updated_at": "2026-10-11T00:39:31.707902+00:00",
+        "created_by": "6f4432d6-720a-4d54-ae25-2100c218911e"
+      }
+    ],
+    "users": [
+      {
+        "id": "usr-1790631153042-243",
+        "name": "UZE DOCTOR",
+        "email": "uzedoctor@gmail.com",
+        "password_hash": "48bd9a1cfc836df4917613ee6f32ca3e71a8f0fca2d5747dbacf99bf67685e71",
+        "salt": "e49f3760cfade4b1eaf0048d387a0e00",
+        "role": "ADMINISTRADOR",
+        "status": "Ativo",
+        "must_change_password": true,
+        "last_login_at": null,
+        "created_at": "2026-09-28T21:32:33.042+00:00",
+        "updated_at": "2026-09-28T21:32:33.042+00:00",
+        "created_by": "vilelacontatojoao@gmail.com"
+      },
+      {
+        "id": "usr-admin-bootstrap",
+        "name": "Administrador UZE DOCTOR",
+        "email": "jotajoao29@gmail.com",
+        "password_hash": "a6c48bce3d333ce1dfdc224323838341fe0150fa995dd6943ae890bf5be193fd",
+        "salt": "c7b79cf3ee31af5c74cf97fd1be8d360",
+        "role": "ADMINISTRADOR",
+        "status": "Inativo",
+        "must_change_password": false,
+        "last_login_at": null,
+        "created_at": "2026-09-28T20:57:32.705+00:00",
+        "updated_at": "2026-09-28T21:48:18.092263+00:00",
+        "created_by": "Sistema Bootstrap"
+      },
+      {
+        "id": "usr-1790629038929-26",
+        "name": "JOAO TESTES 2",
+        "email": "vilelacontatojoao@gmail.com",
+        "password_hash": "d9d2ad4ad7105c1bb0b103a594c5f5529a92d3537bdf7e48a8e645af8fff7761",
+        "salt": "30fb756aeb5f383e2f7c9c353c598ac7",
+        "role": "ADMINISTRADOR",
+        "status": "Ativo",
+        "must_change_password": false,
+        "last_login_at": "2026-09-28T21:56:06.952+00:00",
+        "created_at": "2026-09-28T20:57:18.929+00:00",
+        "updated_at": "2026-09-28T21:56:08.030106+00:00",
+        "created_by": "jotajoao29@gmail.com"
+      }
+    ],
+    "employees": [],
+    "customers": [
+      {
+        "id": "cust-002",
+        "name": "LANDSTEINER LEITE HREC",
+        "email": null,
+        "phone": "83996592375",
+        "document": null,
+        "city": "CEDRO",
+        "state": "PE",
+        "first_purchase_date": "2026-09-28",
+        "last_purchase_date": "2026-09-28",
+        "total_orders": 1,
+        "total_spent": 2200,
+        "created_at": "2026-09-28T20:25:29.902497+00:00",
+        "notes": null,
+        "is_active": false,
+        "updated_at": "2026-10-11T00:43:08.278348+00:00"
+      },
+      {
+        "id": "cust-003",
+        "name": "João Neto",
+        "email": null,
+        "phone": "87999171761",
+        "document": null,
+        "city": "IGUARACY",
+        "state": "SP",
+        "first_purchase_date": "2026-10-11",
+        "last_purchase_date": "2026-10-10",
+        "total_orders": 2,
+        "total_spent": 469.9,
+        "created_at": "2026-10-11T00:44:07.512759+00:00",
+        "notes": null,
+        "is_active": true,
+        "updated_at": "2026-10-11T02:06:10.854805+00:00"
+      }
+    ],
+    "models": [
+      {
+        "id": "mod-002",
+        "name": "ANDRÉ LINGERIE",
+        "category": "Jalecos Femininos",
+        "description": "",
+        "base_price": 1000,
+        "base_cost": 500,
+        "gender": "Feminino",
+        "status": "Arquivado",
+        "image_url": "",
+        "created_at": "2026-09-28T20:25:06.544653+00:00",
+        "fabric": null,
+        "composition": null,
+        "is_active": false,
+        "updated_at": "2026-09-30T22:44:50.813329+00:00",
+        "image_path": null,
+        "available_colors": [],
+        "available_sizes": []
+      },
+      {
+        "id": "mod-001",
+        "name": "teste ",
+        "category": "Jalecos Femininos",
+        "description": "fdsfsdf",
+        "base_price": 200,
+        "base_cost": 150,
+        "gender": "Masculino",
+        "status": "Arquivado",
+        "image_url": "",
+        "created_at": "2026-09-27T05:39:33.956804+00:00",
+        "fabric": null,
+        "composition": null,
+        "is_active": false,
+        "updated_at": "2026-09-30T22:44:52.363796+00:00",
+        "image_path": null,
+        "available_colors": [],
+        "available_sizes": []
+      }
+    ],
+    "variants": [
+      {
+        "id": "var-1790487575348-1",
+        "model_id": "mod-001",
+        "sku": "UZE-TES-BR-P",
+        "color_name": "Branco",
+        "color_hex": "#FFFFFF",
+        "size": "P",
+        "current_stock": 0,
+        "min_stock": 5,
+        "created_at": "2026-09-27T05:39:34.268512+00:00",
+        "cost_price": null,
+        "sale_price": null,
+        "is_active": true,
+        "updated_at": "2026-09-28T20:19:50.238612+00:00"
+      },
+      {
+        "id": "var-1790487575348-2",
+        "model_id": "mod-001",
+        "sku": "UZE-TES-BR-M",
+        "color_name": "Branco",
+        "color_hex": "#FFFFFF",
+        "size": "M",
+        "current_stock": 0,
+        "min_stock": 5,
+        "created_at": "2026-09-27T05:39:34.268512+00:00",
+        "cost_price": null,
+        "sale_price": null,
+        "is_active": true,
+        "updated_at": "2026-09-28T20:19:50.238612+00:00"
+      },
+      {
+        "id": "var-1790487575348-3",
+        "model_id": "mod-001",
+        "sku": "UZE-TES-BR-G",
+        "color_name": "Branco",
+        "color_hex": "#FFFFFF",
+        "size": "G",
+        "current_stock": 0,
+        "min_stock": 5,
+        "created_at": "2026-09-27T05:39:34.268512+00:00",
+        "cost_price": null,
+        "sale_price": null,
+        "is_active": true,
+        "updated_at": "2026-09-28T20:19:50.238612+00:00"
+      },
+      {
+        "id": "var-1790627110207-0",
+        "model_id": "mod-002",
+        "sku": "UZE-AND-BR-PP",
+        "color_name": "Branco",
+        "color_hex": "#FFFFFF",
+        "size": "PP",
+        "current_stock": 6,
+        "min_stock": 5,
+        "created_at": "2026-09-28T20:25:07.162191+00:00",
+        "cost_price": null,
+        "sale_price": null,
+        "is_active": true,
+        "updated_at": "2026-09-28T20:25:07.162191+00:00"
+      },
+      {
+        "id": "var-1790627110207-2",
+        "model_id": "mod-002",
+        "sku": "UZE-AND-BR-M",
+        "color_name": "Branco",
+        "color_hex": "#FFFFFF",
+        "size": "M",
+        "current_stock": 6,
+        "min_stock": 5,
+        "created_at": "2026-09-28T20:25:07.162191+00:00",
+        "cost_price": null,
+        "sale_price": null,
+        "is_active": true,
+        "updated_at": "2026-09-28T20:25:07.162191+00:00"
+      },
+      {
+        "id": "var-1790627110207-3",
+        "model_id": "mod-002",
+        "sku": "UZE-AND-BR-G",
+        "color_name": "Branco",
+        "color_hex": "#FFFFFF",
+        "size": "G",
+        "current_stock": 6,
+        "min_stock": 5,
+        "created_at": "2026-09-28T20:25:07.162191+00:00",
+        "cost_price": null,
+        "sale_price": null,
+        "is_active": true,
+        "updated_at": "2026-09-28T20:25:07.162191+00:00"
+      },
+      {
+        "id": "var-1790627110207-1",
+        "model_id": "mod-002",
+        "sku": "UZE-AND-BR-P",
+        "color_name": "Branco",
+        "color_hex": "#FFFFFF",
+        "size": "P",
+        "current_stock": 2,
+        "min_stock": 5,
+        "created_at": "2026-09-28T20:25:07.162191+00:00",
+        "cost_price": null,
+        "sale_price": null,
+        "is_active": true,
+        "updated_at": "2026-09-30T17:13:22.613997+00:00"
+      },
+      {
+        "id": "var-1790487575348-0",
+        "model_id": "mod-001",
+        "sku": "UZE-TES-BR-PP",
+        "color_name": "Branco",
+        "color_hex": "#FFFFFF",
+        "size": "PP",
+        "current_stock": 0,
+        "min_stock": 5,
+        "created_at": "2026-09-27T05:39:34.268512+00:00",
+        "cost_price": null,
+        "sale_price": null,
+        "is_active": true,
+        "updated_at": "2026-09-30T17:13:22.645679+00:00"
+      }
+    ],
+    "inventory": [
+      {
+        "variant_id": "var-1790487575348-1",
+        "current_stock": 0,
+        "minimum_stock": 5,
+        "location": "Depósito Central",
+        "updated_at": "2026-09-28T20:19:50.238612+00:00"
+      },
+      {
+        "variant_id": "var-1790487575348-2",
+        "current_stock": 0,
+        "minimum_stock": 5,
+        "location": "Depósito Central",
+        "updated_at": "2026-09-28T20:19:50.238612+00:00"
+      },
+      {
+        "variant_id": "var-1790487575348-3",
+        "current_stock": 0,
+        "minimum_stock": 5,
+        "location": "Depósito Central",
+        "updated_at": "2026-09-28T20:19:50.238612+00:00"
+      },
+      {
+        "variant_id": "var-1790627110207-0",
+        "current_stock": 6,
+        "minimum_stock": 5,
+        "location": "Depósito Central",
+        "updated_at": "2026-09-28T20:25:07.162191+00:00"
+      },
+      {
+        "variant_id": "var-1790627110207-2",
+        "current_stock": 6,
+        "minimum_stock": 5,
+        "location": "Depósito Central",
+        "updated_at": "2026-09-28T20:25:07.162191+00:00"
+      },
+      {
+        "variant_id": "var-1790627110207-3",
+        "current_stock": 6,
+        "minimum_stock": 5,
+        "location": "Depósito Central",
+        "updated_at": "2026-09-28T20:25:07.162191+00:00"
+      },
+      {
+        "variant_id": "var-1790627110207-1",
+        "current_stock": 2,
+        "minimum_stock": 5,
+        "location": "Depósito Central",
+        "updated_at": "2026-09-30T17:13:22.613997+00:00"
+      },
+      {
+        "variant_id": "var-1790487575348-0",
+        "current_stock": 0,
+        "minimum_stock": 5,
+        "location": "Depósito Central",
+        "updated_at": "2026-09-30T17:13:22.645679+00:00"
+      }
+    ],
+    "stock_movements": [],
+    "sales": [],
+    "sale_items": [],
+    "installments": [],
+    "installment_payments": [],
+    "payments": [],
+    "payment_allocations": [],
+    "revenues": [
+      {
+        "id": "rev-1791680015984",
+        "date": "2026-08-20",
+        "source": "Venda #00186",
+        "reference_id": "#00186",
+        "category": "Vendas Diretas",
+        "amount": 269.9,
+        "payment_method": "PIX",
+        "created_at": "2026-10-11T00:53:36.675479+00:00",
+        "sale_id": null,
+        "customer_id": null,
+        "status": "Pago",
+        "due_date": null,
+        "paid_at": null,
+        "updated_at": "2026-10-11T00:53:36.675479+00:00"
+      },
+      {
+        "id": "rev-1791684371307-down",
+        "date": "2026-10-10",
+        "source": "Entrada da Venda #00186",
+        "reference_id": "#00186",
+        "category": "Vendas Diretas",
+        "amount": 50,
+        "payment_method": "PIX",
+        "created_at": "2026-10-11T02:06:10.87793+00:00",
+        "sale_id": null,
+        "customer_id": null,
+        "status": "Pago",
+        "due_date": null,
+        "paid_at": null,
+        "updated_at": "2026-10-11T02:06:10.87793+00:00"
+      },
+      {
+        "id": "rev-pay-1791684471105",
+        "date": "2026-10-11",
+        "source": "Parcela 1/4 (#00186)",
+        "reference_id": "#00186",
+        "category": "Vendas Diretas",
+        "amount": 50,
+        "payment_method": "PIX",
+        "created_at": "2026-10-11T02:07:50.905125+00:00",
+        "sale_id": null,
+        "customer_id": null,
+        "status": "Pago",
+        "due_date": null,
+        "paid_at": null,
+        "updated_at": "2026-10-11T02:07:50.905125+00:00"
+      }
+    ],
+    "expenses": [
+      {
+        "id": "exp-1790629137936",
+        "date": "2026-09-28",
+        "description": "ANDRÉ ROUBOU TUDO",
+        "category": "Matéria-prima",
+        "amount": 500,
+        "payment_method": "Transferência",
+        "notes": "",
+        "created_at": "2026-09-28T20:58:53.642131+00:00",
+        "status": "Pago",
+        "due_date": null,
+        "paid_at": null,
+        "updated_at": "2026-09-28T20:58:53.642131+00:00"
+      }
+    ],
+    "suppliers": [],
+    "purchases": [],
+    "audit_logs": [
+      {
+        "id": "log-1790626822305-173",
+        "actor_id": "usr-admin-bootstrap",
+        "actor_name": "Administrador UZE DOCTOR",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "auth.login.failed",
+        "target_id": null,
+        "target_name": null,
+        "details": {
+          "reason": "invalid_password"
+        },
+        "created_at": "2026-09-28T20:20:22.305+00:00"
+      },
+      {
+        "id": "log-1790626834635-637",
+        "actor_id": "usr-admin-bootstrap",
+        "actor_name": "Administrador UZE DOCTOR",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "auth.login.failed",
+        "target_id": null,
+        "target_name": null,
+        "details": {
+          "reason": "invalid_password"
+        },
+        "created_at": "2026-09-28T20:20:34.635+00:00"
+      },
+      {
+        "id": "log-1790626917694-386",
+        "actor_id": "cea41d7d-2da3-4a06-ab7b-479b8328167d",
+        "actor_name": "Administrador UZE DOCTOR",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "auth.login.success",
+        "target_id": null,
+        "target_name": null,
+        "details": null,
+        "created_at": "2026-09-28T20:21:57.694+00:00"
+      },
+      {
+        "id": "log-1790626936254-795",
+        "actor_id": "cea41d7d-2da3-4a06-ab7b-479b8328167d",
+        "actor_name": "Administrador UZE DOCTOR",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "auth.logout",
+        "target_id": null,
+        "target_name": null,
+        "details": null,
+        "created_at": "2026-09-28T20:22:16.254+00:00"
+      },
+      {
+        "id": "log-1790626947756-667",
+        "actor_id": "cea41d7d-2da3-4a06-ab7b-479b8328167d",
+        "actor_name": "Administrador UZE DOCTOR",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "auth.login.success",
+        "target_id": null,
+        "target_name": null,
+        "details": null,
+        "created_at": "2026-09-28T20:22:27.756+00:00"
+      },
+      {
+        "id": "log-1790627032384-355",
+        "actor_id": "usr-admin-bootstrap",
+        "actor_name": "Administrador UZE DOCTOR",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "password.changed",
+        "target_id": "usr-admin-bootstrap",
+        "target_name": "Administrador UZE DOCTOR",
+        "details": null,
+        "created_at": "2026-09-28T20:23:52.384+00:00"
+      },
+      {
+        "id": "log-1790629039612-295",
+        "actor_id": "usr-admin-bootstrap",
+        "actor_name": "Administrador UZE DOCTOR",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "user.created",
+        "target_id": "usr-1790629038929-26",
+        "target_name": "JOAO TESTES 2",
+        "details": {
+          "role": "ADMINISTRADOR",
+          "status": "Ativo"
+        },
+        "created_at": "2026-09-28T20:57:19.612+00:00"
+      },
+      {
+        "id": "log-1790629053003-87",
+        "actor_id": "system",
+        "actor_name": "Bootstrap",
+        "actor_email": "system@uzedoctor.internal",
+        "action": "user.bootstrap.admin",
+        "target_id": "usr-admin-bootstrap",
+        "target_name": "Administrador UZE DOCTOR",
+        "details": null,
+        "created_at": "2026-09-28T20:57:33.003+00:00"
+      },
+      {
+        "id": "log-1790629070149-731",
+        "actor_id": "usr-1790629038929-26",
+        "actor_name": "JOAO TESTES 2",
+        "actor_email": "vilelacontatojoao@gmail.com",
+        "action": "auth.login.success",
+        "target_id": null,
+        "target_name": null,
+        "details": null,
+        "created_at": "2026-09-28T20:57:50.149+00:00"
+      },
+      {
+        "id": "log-1790629080647-671",
+        "actor_id": "usr-1790629038929-26",
+        "actor_name": "JOAO TESTES 2",
+        "actor_email": "vilelacontatojoao@gmail.com",
+        "action": "password.changed",
+        "target_id": "usr-1790629038929-26",
+        "target_name": "JOAO TESTES 2",
+        "details": null,
+        "created_at": "2026-09-28T20:58:00.647+00:00"
+      },
+      {
+        "id": "log-1790629093894-272",
+        "actor_id": "usr-1790629038929-26",
+        "actor_name": "JOAO TESTES 2",
+        "actor_email": "vilelacontatojoao@gmail.com",
+        "action": "EMPLOYEE_DELETED",
+        "target_id": "emp-002",
+        "target_name": "Carlos Eduardo",
+        "details": null,
+        "created_at": "2026-09-28T20:58:13.894+00:00"
+      },
+      {
+        "id": "log-1790629095990-287",
+        "actor_id": "usr-1790629038929-26",
+        "actor_name": "JOAO TESTES 2",
+        "actor_email": "vilelacontatojoao@gmail.com",
+        "action": "EMPLOYEE_DELETED",
+        "target_id": "emp-001",
+        "target_name": "Maria Silva",
+        "details": null,
+        "created_at": "2026-09-28T20:58:15.99+00:00"
+      },
+      {
+        "id": "log-1790629109384-213",
+        "actor_id": "usr-1790629038929-26",
+        "actor_name": "JOAO TESTES 2",
+        "actor_email": "vilelacontatojoao@gmail.com",
+        "action": "EMPLOYEE_CREATED",
+        "target_id": "emp-001",
+        "target_name": "ANDRÉ",
+        "details": {
+          "isSeller": true,
+          "jobTitle": "Vendedora"
+        },
+        "created_at": "2026-09-28T20:58:29.385+00:00"
+      },
+      {
+        "id": "log-1790630733762-525",
+        "actor_id": "usr-admin-bootstrap",
+        "actor_name": "Administrador UZE DOCTOR",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "password.changed",
+        "target_id": "usr-admin-bootstrap",
+        "target_name": "Administrador UZE DOCTOR",
+        "details": null,
+        "created_at": "2026-09-28T21:25:33.762+00:00"
+      },
+      {
+        "id": "log-1790630740389-167",
+        "actor_id": "usr-admin-bootstrap",
+        "actor_name": "Administrador UZE DOCTOR",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "auth.logout",
+        "target_id": null,
+        "target_name": null,
+        "details": null,
+        "created_at": "2026-09-28T21:25:40.389+00:00"
+      },
+      {
+        "id": "log-1790630888972-377",
+        "actor_id": "usr-admin-bootstrap",
+        "actor_name": "Administrador UZE DOCTOR",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "auth.login.failed",
+        "target_id": null,
+        "target_name": null,
+        "details": {
+          "reason": "invalid_password"
+        },
+        "created_at": "2026-09-28T21:28:08.972+00:00"
+      },
+      {
+        "id": "log-1790630898414-908",
+        "actor_id": "usr-admin-bootstrap",
+        "actor_name": "Administrador UZE DOCTOR",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "auth.login.failed",
+        "target_id": null,
+        "target_name": null,
+        "details": {
+          "reason": "invalid_password"
+        },
+        "created_at": "2026-09-28T21:28:18.414+00:00"
+      },
+      {
+        "id": "log-1790630911283-75",
+        "actor_id": "usr-admin-bootstrap",
+        "actor_name": "Administrador UZE DOCTOR",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "auth.login.failed",
+        "target_id": null,
+        "target_name": null,
+        "details": {
+          "reason": "invalid_password"
+        },
+        "created_at": "2026-09-28T21:28:31.283+00:00"
+      },
+      {
+        "id": "log-1790630959514-569",
+        "actor_id": "usr-admin-bootstrap",
+        "actor_name": "Administrador UZE DOCTOR",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "auth.login.failed",
+        "target_id": null,
+        "target_name": null,
+        "details": {
+          "reason": "invalid_password"
+        },
+        "created_at": "2026-09-28T21:29:19.514+00:00"
+      },
+      {
+        "id": "log-1790630965748-826",
+        "actor_id": "usr-admin-bootstrap",
+        "actor_name": "Administrador UZE DOCTOR",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "auth.login.failed",
+        "target_id": null,
+        "target_name": null,
+        "details": {
+          "reason": "invalid_password"
+        },
+        "created_at": "2026-09-28T21:29:25.748+00:00"
+      },
+      {
+        "id": "log-1790630972196-828",
+        "actor_id": "usr-admin-bootstrap",
+        "actor_name": "Administrador UZE DOCTOR",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "auth.login.failed",
+        "target_id": null,
+        "target_name": null,
+        "details": {
+          "reason": "invalid_password"
+        },
+        "created_at": "2026-09-28T21:29:32.196+00:00"
+      },
+      {
+        "id": "log-1790631019618-479",
+        "actor_id": "usr-1790629038929-26",
+        "actor_name": "JOAO TESTES 2",
+        "actor_email": "vilelacontatojoao@gmail.com",
+        "action": "auth.login.failed",
+        "target_id": null,
+        "target_name": null,
+        "details": {
+          "reason": "invalid_password"
+        },
+        "created_at": "2026-09-28T21:30:19.618+00:00"
+      },
+      {
+        "id": "log-1790631031215-114",
+        "actor_id": "usr-1790629038929-26",
+        "actor_name": "JOAO TESTES 2",
+        "actor_email": "vilelacontatojoao@gmail.com",
+        "action": "auth.login.success",
+        "target_id": null,
+        "target_name": null,
+        "details": null,
+        "created_at": "2026-09-28T21:30:31.215+00:00"
+      },
+      {
+        "id": "log-1790631154135-249",
+        "actor_id": "usr-1790629038929-26",
+        "actor_name": "JOAO TESTES 2",
+        "actor_email": "vilelacontatojoao@gmail.com",
+        "action": "user.created",
+        "target_id": "usr-1790631153042-243",
+        "target_name": "UZE DOCTOR",
+        "details": {
+          "role": "ADMINISTRADOR",
+          "status": "Ativo"
+        },
+        "created_at": "2026-09-28T21:32:34.135+00:00"
+      },
+      {
+        "id": "log-1790631346230-525",
+        "actor_id": "usr-admin-bootstrap",
+        "actor_name": "Administrador UZE DOCTOR",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "auth.login.failed",
+        "target_id": null,
+        "target_name": null,
+        "details": {
+          "reason": "invalid_password"
+        },
+        "created_at": "2026-09-28T21:35:46.23+00:00"
+      },
+      {
+        "id": "log-1790632032973-103",
+        "actor_id": "usr-admin-bootstrap",
+        "actor_name": "Administrador UZE DOCTOR",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "auth.login.failed",
+        "target_id": null,
+        "target_name": null,
+        "details": {
+          "reason": "invalid_password"
+        },
+        "created_at": "2026-09-28T21:47:12.973+00:00"
+      },
+      {
+        "id": "log-1790632046472-431",
+        "actor_id": "usr-admin-bootstrap",
+        "actor_name": "Administrador UZE DOCTOR",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "auth.login.failed",
+        "target_id": null,
+        "target_name": null,
+        "details": {
+          "reason": "invalid_password"
+        },
+        "created_at": "2026-09-28T21:47:26.472+00:00"
+      },
+      {
+        "id": "log-1790632052088-618",
+        "actor_id": "usr-admin-bootstrap",
+        "actor_name": "Administrador UZE DOCTOR",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "auth.login.failed",
+        "target_id": null,
+        "target_name": null,
+        "details": {
+          "reason": "invalid_password"
+        },
+        "created_at": "2026-09-28T21:47:32.088+00:00"
+      },
+      {
+        "id": "log-1790632066533-206",
+        "actor_id": "usr-1790629038929-26",
+        "actor_name": "JOAO TESTES 2",
+        "actor_email": "vilelacontatojoao@gmail.com",
+        "action": "auth.login.success",
+        "target_id": null,
+        "target_name": null,
+        "details": null,
+        "created_at": "2026-09-28T21:47:46.533+00:00"
+      },
+      {
+        "id": "log-1790632084887-69",
+        "actor_id": "usr-1790629038929-26",
+        "actor_name": "JOAO TESTES 2",
+        "actor_email": "vilelacontatojoao@gmail.com",
+        "action": "auth.login.success",
+        "target_id": null,
+        "target_name": null,
+        "details": null,
+        "created_at": "2026-09-28T21:48:04.887+00:00"
+      },
+      {
+        "id": "log-1790632098133-697",
+        "actor_id": "usr-1790629038929-26",
+        "actor_name": "JOAO TESTES 2",
+        "actor_email": "vilelacontatojoao@gmail.com",
+        "action": "user.updated",
+        "target_id": "usr-admin-bootstrap",
+        "target_name": "Administrador UZE DOCTOR",
+        "details": {
+          "newRole": "ADMINISTRADOR",
+          "newStatus": "Inativo"
+        },
+        "created_at": "2026-09-28T21:48:18.133+00:00"
+      },
+      {
+        "id": "log-1790632098180-654",
+        "actor_id": "usr-1790629038929-26",
+        "actor_name": "JOAO TESTES 2",
+        "actor_email": "vilelacontatojoao@gmail.com",
+        "action": "user.updated",
+        "target_id": "usr-admin-bootstrap",
+        "target_name": "Administrador UZE DOCTOR",
+        "details": {
+          "newRole": "ADMINISTRADOR",
+          "newStatus": "Inativo"
+        },
+        "created_at": "2026-09-28T21:48:18.18+00:00"
+      },
+      {
+        "id": "log-1790632567262-493",
+        "actor_id": "usr-1790629038929-26",
+        "actor_name": "JOAO TESTES 2",
+        "actor_email": "vilelacontatojoao@gmail.com",
+        "action": "auth.login.success",
+        "target_id": null,
+        "target_name": null,
+        "details": null,
+        "created_at": "2026-09-28T21:56:07.262+00:00"
+      },
+      {
+        "id": "log-1790632963082-799",
+        "actor_id": "cea41d7d-2da3-4a06-ab7b-479b8328167d",
+        "actor_name": "Administrador UZE DOCTOR",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "USER_CREATED",
+        "target_id": "d7d022ce-cef8-4b53-a154-762dfacc1b94",
+        "target_name": "Vendedor Teste API",
+        "details": {
+          "role": "VENDEDOR",
+          "email": "novo-vendedor-1790632961190@uzedoctor.com.br",
+          "status": "Ativo"
+        },
+        "created_at": "2026-09-28T22:02:43.082+00:00"
+      },
+      {
+        "id": "log-1790632964341-322",
+        "actor_id": "cea41d7d-2da3-4a06-ab7b-479b8328167d",
+        "actor_name": "Administrador UZE DOCTOR",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "USER_REMOVED",
+        "target_id": "d7d022ce-cef8-4b53-a154-762dfacc1b94",
+        "target_name": "Vendedor Teste API",
+        "details": {
+          "role": "VENDEDOR",
+          "email": "novo-vendedor-1790632961190@uzedoctor.com.br"
+        },
+        "created_at": "2026-09-28T22:02:44.341+00:00"
+      },
+      {
+        "id": "log-1790633049006-72",
+        "actor_id": "cea41d7d-2da3-4a06-ab7b-479b8328167d",
+        "actor_name": "Administrador UZE DOCTOR",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "auth.logout",
+        "target_id": null,
+        "target_name": null,
+        "details": null,
+        "created_at": "2026-09-28T22:04:09.006+00:00"
+      },
+      {
+        "id": "log-1790633057379-418",
+        "actor_id": "anonymous",
+        "actor_name": "Desconhecido",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "auth.login.failed",
+        "target_id": null,
+        "target_name": null,
+        "details": {
+          "error": "Invalid login credentials"
+        },
+        "created_at": "2026-09-28T22:04:17.379+00:00"
+      },
+      {
+        "id": "log-1790633072252-580",
+        "actor_id": "anonymous",
+        "actor_name": "Desconhecido",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "auth.login.failed",
+        "target_id": null,
+        "target_name": null,
+        "details": {
+          "error": "Invalid login credentials"
+        },
+        "created_at": "2026-09-28T22:04:32.252+00:00"
+      },
+      {
+        "id": "log-1790633085455-153",
+        "actor_id": "anonymous",
+        "actor_name": "Desconhecido",
+        "actor_email": "vilelacontatojoao@gmail.com",
+        "action": "auth.login.failed",
+        "target_id": null,
+        "target_name": null,
+        "details": {
+          "error": "Invalid login credentials"
+        },
+        "created_at": "2026-09-28T22:04:45.455+00:00"
+      },
+      {
+        "id": "log-1790633104450-32",
+        "actor_id": "anonymous",
+        "actor_name": "Desconhecido",
+        "actor_email": "vilelacontatojoao@gmail.com",
+        "action": "auth.login.failed",
+        "target_id": null,
+        "target_name": null,
+        "details": {
+          "error": "Invalid login credentials"
+        },
+        "created_at": "2026-09-28T22:05:04.45+00:00"
+      },
+      {
+        "id": "log-1790633109349-576",
+        "actor_id": "anonymous",
+        "actor_name": "Desconhecido",
+        "actor_email": "vilelacontatojoao@gmail.com",
+        "action": "auth.login.failed",
+        "target_id": null,
+        "target_name": null,
+        "details": {
+          "error": "Invalid login credentials"
+        },
+        "created_at": "2026-09-28T22:05:09.349+00:00"
+      },
+      {
+        "id": "log-1790633251791-799",
+        "actor_id": "anonymous",
+        "actor_name": "Desconhecido",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "auth.login.failed",
+        "target_id": null,
+        "target_name": null,
+        "details": {
+          "error": "Invalid login credentials"
+        },
+        "created_at": "2026-09-28T22:07:31.791+00:00"
+      },
+      {
+        "id": "log-1791680015984-293",
+        "actor_id": "ed31f74e-3de7-4c46-a823-22550e4e832d",
+        "actor_name": "ADMINISTRAÇÃO",
+        "actor_email": "uzedoctor@gmail.com",
+        "action": "SALE_CREATED",
+        "target_id": "#00186",
+        "target_name": "Venda #00186",
+        "details": {
+          "date": "2026-08-20 21:53",
+          "total": 269.9,
+          "discount": 0
+        },
+        "created_at": "2026-10-11T00:53:35.984+00:00"
+      },
+      {
+        "id": "log-1790633270568-343",
+        "actor_id": "cea41d7d-2da3-4a06-ab7b-479b8328167d",
+        "actor_name": "Administrador UZE DOCTOR",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "USER_CREATED",
+        "target_id": "1c2e65be-97a8-4016-858f-6d723f32c06c",
+        "target_name": "Admin E2E Teste",
+        "details": {
+          "role": "ADMINISTRADOR",
+          "email": "admin-e2e-1790633268751@uzedoctor.com.br",
+          "status": "Ativo"
+        },
+        "created_at": "2026-09-28T22:07:50.569+00:00"
+      },
+      {
+        "id": "log-1790633272587-458",
+        "actor_id": "cea41d7d-2da3-4a06-ab7b-479b8328167d",
+        "actor_name": "Administrador UZE DOCTOR",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "USER_CREATED",
+        "target_id": "899ac30b-b33b-4330-9708-c8b6f72ea2b5",
+        "target_name": "Vendedora E2E Teste",
+        "details": {
+          "role": "VENDEDOR",
+          "email": "vendedora-e2e-1790633268751@uzedoctor.com.br",
+          "status": "Ativo"
+        },
+        "created_at": "2026-09-28T22:07:52.587+00:00"
+      },
+      {
+        "id": "log-1790633274326-699",
+        "actor_id": "cea41d7d-2da3-4a06-ab7b-479b8328167d",
+        "actor_name": "Administrador UZE DOCTOR",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "USER_CREATED",
+        "target_id": "6f7a5963-3b41-48a1-b5e5-53d83a43d2ee",
+        "target_name": "Visualizador E2E Teste",
+        "details": {
+          "role": "VISUALIZACAO",
+          "email": "viewer-e2e-1790633268751@uzedoctor.com.br",
+          "status": "Ativo"
+        },
+        "created_at": "2026-09-28T22:07:54.326+00:00"
+      },
+      {
+        "id": "log-1790633276348-277",
+        "actor_id": "cea41d7d-2da3-4a06-ab7b-479b8328167d",
+        "actor_name": "Administrador UZE DOCTOR",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "USER_REMOVED",
+        "target_id": "1c2e65be-97a8-4016-858f-6d723f32c06c",
+        "target_name": "Admin E2E Teste",
+        "details": {
+          "role": "ADMINISTRADOR",
+          "email": "admin-e2e-1790633268751@uzedoctor.com.br"
+        },
+        "created_at": "2026-09-28T22:07:56.348+00:00"
+      },
+      {
+        "id": "log-1790633277861-777",
+        "actor_id": "cea41d7d-2da3-4a06-ab7b-479b8328167d",
+        "actor_name": "Administrador UZE DOCTOR",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "USER_REMOVED",
+        "target_id": "899ac30b-b33b-4330-9708-c8b6f72ea2b5",
+        "target_name": "Vendedora E2E Teste",
+        "details": {
+          "role": "VENDEDOR",
+          "email": "vendedora-e2e-1790633268751@uzedoctor.com.br"
+        },
+        "created_at": "2026-09-28T22:07:57.861+00:00"
+      },
+      {
+        "id": "log-1790633279259-728",
+        "actor_id": "cea41d7d-2da3-4a06-ab7b-479b8328167d",
+        "actor_name": "Administrador UZE DOCTOR",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "USER_REMOVED",
+        "target_id": "6f7a5963-3b41-48a1-b5e5-53d83a43d2ee",
+        "target_name": "Visualizador E2E Teste",
+        "details": {
+          "role": "VISUALIZACAO",
+          "email": "viewer-e2e-1790633268751@uzedoctor.com.br"
+        },
+        "created_at": "2026-09-28T22:07:59.259+00:00"
+      },
+      {
+        "id": "log-1790633407155-401",
+        "actor_id": "cea41d7d-2da3-4a06-ab7b-479b8328167d",
+        "actor_name": "Administrador UZE DOCTOR",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "auth.login.success",
+        "target_id": null,
+        "target_name": null,
+        "details": null,
+        "created_at": "2026-09-28T22:10:07.155+00:00"
+      },
+      {
+        "id": "log-1790633440102-564",
+        "actor_id": "cea41d7d-2da3-4a06-ab7b-479b8328167d",
+        "actor_name": "Administrador UZE DOCTOR",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "auth.logout",
+        "target_id": null,
+        "target_name": null,
+        "details": null,
+        "created_at": "2026-09-28T22:10:40.102+00:00"
+      },
+      {
+        "id": "log-1790633450891-929",
+        "actor_id": "anonymous",
+        "actor_name": "Desconhecido",
+        "actor_email": "vilelacontatojoao@gmail.com",
+        "action": "auth.login.failed",
+        "target_id": null,
+        "target_name": null,
+        "details": {
+          "error": "Invalid login credentials"
+        },
+        "created_at": "2026-09-28T22:10:50.891+00:00"
+      },
+      {
+        "id": "log-1790633461632-18",
+        "actor_id": "79d8b64f-2f39-4992-8814-ca9a7cc1346c",
+        "actor_name": "JOAO TESTES 2",
+        "actor_email": "vilelacontatojoao@gmail.com",
+        "action": "auth.login.success",
+        "target_id": null,
+        "target_name": null,
+        "details": null,
+        "created_at": "2026-09-28T22:11:01.632+00:00"
+      },
+      {
+        "id": "log-1790634530867-451",
+        "actor_id": "79d8b64f-2f39-4992-8814-ca9a7cc1346c",
+        "actor_name": "JOAO TESTES 2",
+        "actor_email": "vilelacontatojoao@gmail.com",
+        "action": "USER_REMOVED",
+        "target_id": "cea41d7d-2da3-4a06-ab7b-479b8328167d",
+        "target_name": "Administrador UZE DOCTOR",
+        "details": {
+          "role": "ADMINISTRADOR",
+          "email": "jotajoao29@gmail.com"
+        },
+        "created_at": "2026-09-28T22:28:50.867+00:00"
+      },
+      {
+        "id": "log-1790634560216-655",
+        "actor_id": "79d8b64f-2f39-4992-8814-ca9a7cc1346c",
+        "actor_name": "JOAO TESTES 2",
+        "actor_email": "vilelacontatojoao@gmail.com",
+        "action": "USER_CREATED",
+        "target_id": "6f4432d6-720a-4d54-ae25-2100c218911e",
+        "target_name": "TEST4EE",
+        "details": {
+          "role": "ADMINISTRADOR",
+          "email": "jotajoao29@gmail.com",
+          "status": "Ativo"
+        },
+        "created_at": "2026-09-28T22:29:20.216+00:00"
+      },
+      {
+        "id": "log-1790634564542-926",
+        "actor_id": "79d8b64f-2f39-4992-8814-ca9a7cc1346c",
+        "actor_name": "JOAO TESTES 2",
+        "actor_email": "vilelacontatojoao@gmail.com",
+        "action": "auth.logout",
+        "target_id": null,
+        "target_name": null,
+        "details": null,
+        "created_at": "2026-09-28T22:29:24.542+00:00"
+      },
+      {
+        "id": "log-1790634581348-610",
+        "actor_id": "6f4432d6-720a-4d54-ae25-2100c218911e",
+        "actor_name": "TEST4EE",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "auth.login.success",
+        "target_id": null,
+        "target_name": null,
+        "details": null,
+        "created_at": "2026-09-28T22:29:41.348+00:00"
+      },
+      {
+        "id": "log-1790634591349-808",
+        "actor_id": "6f4432d6-720a-4d54-ae25-2100c218911e",
+        "actor_name": "TEST4EE",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "PASSWORD_CHANGED",
+        "target_id": null,
+        "target_name": null,
+        "details": {
+          "method": "first_login_onboarding"
+        },
+        "created_at": "2026-09-28T22:29:51.349+00:00"
+      },
+      {
+        "id": "log-1790634612488-340",
+        "actor_id": "6f4432d6-720a-4d54-ae25-2100c218911e",
+        "actor_name": "TEST4EE",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "USER_REMOVED",
+        "target_id": "6d6ce76c-33e4-40d1-928f-3eb71c84b96b",
+        "target_name": "UZE DOCTOR",
+        "details": {
+          "role": "ADMINISTRADOR",
+          "email": "uzedoctor@gmail.com"
+        },
+        "created_at": "2026-09-28T22:30:12.489+00:00"
+      },
+      {
+        "id": "log-1790634643614-94",
+        "actor_id": "6f4432d6-720a-4d54-ae25-2100c218911e",
+        "actor_name": "TEST4EE",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "USER_CREATED",
+        "target_id": "ed31f74e-3de7-4c46-a823-22550e4e832d",
+        "target_name": "ADMINISTRAÇÃO",
+        "details": {
+          "role": "ADMINISTRADOR",
+          "email": "uzedoctor@gmail.com",
+          "status": "Ativo"
+        },
+        "created_at": "2026-09-28T22:30:43.614+00:00"
+      },
+      {
+        "id": "log-1790635829949-718",
+        "actor_id": "6f4432d6-720a-4d54-ae25-2100c218911e",
+        "actor_name": "TEST4EE",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "auth.login.success",
+        "target_id": null,
+        "target_name": null,
+        "details": null,
+        "created_at": "2026-09-28T22:50:29.949+00:00"
+      },
+      {
+        "id": "log-1790725597532-409",
+        "actor_id": "ed31f74e-3de7-4c46-a823-22550e4e832d",
+        "actor_name": "ADMINISTRAÇÃO",
+        "actor_email": "uzedoctor@gmail.com",
+        "action": "auth.login.success",
+        "target_id": null,
+        "target_name": null,
+        "details": null,
+        "created_at": "2026-09-29T23:46:37.532+00:00"
+      },
+      {
+        "id": "log-1790725633405-516",
+        "actor_id": "ed31f74e-3de7-4c46-a823-22550e4e832d",
+        "actor_name": "ADMINISTRAÇÃO",
+        "actor_email": "uzedoctor@gmail.com",
+        "action": "PASSWORD_CHANGED",
+        "target_id": null,
+        "target_name": null,
+        "details": {
+          "method": "first_login_onboarding"
+        },
+        "created_at": "2026-09-29T23:47:13.405+00:00"
+      },
+      {
+        "id": "log-1790733650766-727",
+        "actor_id": "anonymous",
+        "actor_name": "Desconhecido",
+        "actor_email": "uzedoctor@gmail.com",
+        "action": "auth.login.failed",
+        "target_id": null,
+        "target_name": null,
+        "details": {
+          "error": "Invalid login credentials"
+        },
+        "created_at": "2026-09-30T02:00:50.766+00:00"
+      },
+      {
+        "id": "log-1790733703595-48",
+        "actor_id": "anonymous",
+        "actor_name": "Desconhecido",
+        "actor_email": "uzedoctoradmin@gmail.com",
+        "action": "auth.login.failed",
+        "target_id": null,
+        "target_name": null,
+        "details": {
+          "error": "Invalid login credentials"
+        },
+        "created_at": "2026-09-30T02:01:43.595+00:00"
+      },
+      {
+        "id": "log-1790733753635-769",
+        "actor_id": "anonymous",
+        "actor_name": "Desconhecido",
+        "actor_email": "uzedoctoradmin@gmail.com",
+        "action": "auth.login.failed",
+        "target_id": null,
+        "target_name": null,
+        "details": {
+          "error": "Invalid login credentials"
+        },
+        "created_at": "2026-09-30T02:02:33.635+00:00"
+      },
+      {
+        "id": "log-1790733843069-26",
+        "actor_id": "anonymous",
+        "actor_name": "Desconhecido",
+        "actor_email": "uzedoctor@gmail.com",
+        "action": "auth.login.failed",
+        "target_id": null,
+        "target_name": null,
+        "details": {
+          "error": "Invalid login credentials"
+        },
+        "created_at": "2026-09-30T02:04:03.069+00:00"
+      },
+      {
+        "id": "log-1790737775278-351",
+        "actor_id": "anonymous",
+        "actor_name": "Desconhecido",
+        "actor_email": "uzedoctor@gmail.com",
+        "action": "auth.login.failed",
+        "target_id": null,
+        "target_name": null,
+        "details": {
+          "error": "Invalid login credentials"
+        },
+        "created_at": "2026-09-30T03:09:35.278+00:00"
+      },
+      {
+        "id": "log-1790738004420-793",
+        "actor_id": "6f4432d6-720a-4d54-ae25-2100c218911e",
+        "actor_name": "TEST4EE",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "auth.login.success",
+        "target_id": null,
+        "target_name": null,
+        "details": null,
+        "created_at": "2026-09-30T03:13:24.42+00:00"
+      },
+      {
+        "id": "log-1790788246562-746",
+        "actor_id": "ed31f74e-3de7-4c46-a823-22550e4e832d",
+        "actor_name": "ADMINISTRAÇÃO",
+        "actor_email": "uzedoctor@gmail.com",
+        "action": "auth.login.success",
+        "target_id": null,
+        "target_name": null,
+        "details": null,
+        "created_at": "2026-09-30T17:10:46.562+00:00"
+      },
+      {
+        "id": "log-1790788402187-469",
+        "actor_id": "ed31f74e-3de7-4c46-a823-22550e4e832d",
+        "actor_name": "ADMINISTRAÇÃO",
+        "actor_email": "uzedoctor@gmail.com",
+        "action": "SALE_CANCELLED",
+        "target_id": "#00185",
+        "target_name": "Venda #00185",
+        "details": {
+          "reason": "Cancelada pelo operador"
+        },
+        "created_at": "2026-09-30T17:13:22.187+00:00"
+      },
+      {
+        "id": "log-1790799120167-15",
+        "actor_id": "ed31f74e-3de7-4c46-a823-22550e4e832d",
+        "actor_name": "ADMINISTRAÇÃO",
+        "actor_email": "uzedoctor@gmail.com",
+        "action": "CUSTOMER_DELETED",
+        "target_id": "cust-001",
+        "target_name": "cust-001",
+        "details": null,
+        "created_at": "2026-09-30T20:12:00.167+00:00"
+      },
+      {
+        "id": "log-1790799150064-123",
+        "actor_id": "ed31f74e-3de7-4c46-a823-22550e4e832d",
+        "actor_name": "ADMINISTRAÇÃO",
+        "actor_email": "uzedoctor@gmail.com",
+        "action": "EMPLOYEE_DELETED",
+        "target_id": "emp-001",
+        "target_name": "ANDRÉ",
+        "details": null,
+        "created_at": "2026-09-30T20:12:30.064+00:00"
+      },
+      {
+        "id": "log-1790808290665-280",
+        "actor_id": "ed31f74e-3de7-4c46-a823-22550e4e832d",
+        "actor_name": "ADMINISTRAÇÃO",
+        "actor_email": "uzedoctor@gmail.com",
+        "action": "PRODUCT_ARCHIVED",
+        "target_id": "mod-002",
+        "target_name": "ANDRÉ LINGERIE",
+        "details": null,
+        "created_at": "2026-09-30T22:44:50.665+00:00"
+      },
+      {
+        "id": "log-1790808292212-171",
+        "actor_id": "ed31f74e-3de7-4c46-a823-22550e4e832d",
+        "actor_name": "ADMINISTRAÇÃO",
+        "actor_email": "uzedoctor@gmail.com",
+        "action": "PRODUCT_ARCHIVED",
+        "target_id": "mod-001",
+        "target_name": "teste ",
+        "details": null,
+        "created_at": "2026-09-30T22:44:52.212+00:00"
+      },
+      {
+        "id": "log-1790808301878-274",
+        "actor_id": "ed31f74e-3de7-4c46-a823-22550e4e832d",
+        "actor_name": "ADMINISTRAÇÃO",
+        "actor_email": "uzedoctor@gmail.com",
+        "action": "CUSTOMER_ARCHIVED",
+        "target_id": "cust-002",
+        "target_name": "ANDRÉ CALCINHAS",
+        "details": null,
+        "created_at": "2026-09-30T22:45:01.878+00:00"
+      },
+      {
+        "id": "log-1790820722052-946",
+        "actor_id": "ed31f74e-3de7-4c46-a823-22550e4e832d",
+        "actor_name": "ADMINISTRAÇÃO",
+        "actor_email": "uzedoctor@gmail.com",
+        "action": "PRODUCT_CREATED",
+        "target_id": "mod-003",
+        "target_name": "SCRUB EVER",
+        "details": null,
+        "created_at": "2026-10-01T02:12:02.052+00:00"
+      },
+      {
+        "id": "log-1790820743305-357",
+        "actor_id": "ed31f74e-3de7-4c46-a823-22550e4e832d",
+        "actor_name": "ADMINISTRAÇÃO",
+        "actor_email": "uzedoctor@gmail.com",
+        "action": "PRODUCT_DELETED",
+        "target_id": "mod-003",
+        "target_name": "mod-003",
+        "details": null,
+        "created_at": "2026-10-01T02:12:23.305+00:00"
+      },
+      {
+        "id": "log-1790820800524-398",
+        "actor_id": "ed31f74e-3de7-4c46-a823-22550e4e832d",
+        "actor_name": "ADMINISTRAÇÃO",
+        "actor_email": "uzedoctor@gmail.com",
+        "action": "PRODUCT_CREATED",
+        "target_id": "mod-003",
+        "target_name": "SCRUB EVER",
+        "details": null,
+        "created_at": "2026-10-01T02:13:20.524+00:00"
+      },
+      {
+        "id": "log-1791679171710-32",
+        "actor_id": "ed31f74e-3de7-4c46-a823-22550e4e832d",
+        "actor_name": "ADMINISTRAÇÃO",
+        "actor_email": "uzedoctor@gmail.com",
+        "action": "auth.login.success",
+        "target_id": null,
+        "target_name": null,
+        "details": null,
+        "created_at": "2026-10-11T00:39:31.71+00:00"
+      },
+      {
+        "id": "log-1791679209820-942",
+        "actor_id": "ed31f74e-3de7-4c46-a823-22550e4e832d",
+        "actor_name": "ADMINISTRAÇÃO",
+        "actor_email": "uzedoctor@gmail.com",
+        "action": "PRODUCT_DELETED",
+        "target_id": "mod-003",
+        "target_name": "mod-003",
+        "details": null,
+        "created_at": "2026-10-11T00:40:09.82+00:00"
+      },
+      {
+        "id": "log-1791679369080-695",
+        "actor_id": "ed31f74e-3de7-4c46-a823-22550e4e832d",
+        "actor_name": "ADMINISTRAÇÃO",
+        "actor_email": "uzedoctor@gmail.com",
+        "action": "CUSTOMER_CREATED",
+        "target_id": "cust-002",
+        "target_name": "LANDSTEINER LEITE HREC",
+        "details": null,
+        "created_at": "2026-10-11T00:42:49.08+00:00"
+      },
+      {
+        "id": "log-1791679388025-406",
+        "actor_id": "ed31f74e-3de7-4c46-a823-22550e4e832d",
+        "actor_name": "ADMINISTRAÇÃO",
+        "actor_email": "uzedoctor@gmail.com",
+        "action": "CUSTOMER_UPDATED",
+        "target_id": "cust-002",
+        "target_name": "LANDSTEINER LEITE HREC",
+        "details": {
+          "city": "CEDRO",
+          "name": "LANDSTEINER LEITE HREC",
+          "phone": "83996592375",
+          "state": "PE"
+        },
+        "created_at": "2026-10-11T00:43:08.025+00:00"
+      },
+      {
+        "id": "log-1791679446996-80",
+        "actor_id": "ed31f74e-3de7-4c46-a823-22550e4e832d",
+        "actor_name": "ADMINISTRAÇÃO",
+        "actor_email": "uzedoctor@gmail.com",
+        "action": "CUSTOMER_CREATED",
+        "target_id": "cust-003",
+        "target_name": "FILIPE ROCHA ENFERMEIRO HREC",
+        "details": null,
+        "created_at": "2026-10-11T00:44:06.997+00:00"
+      },
+      {
+        "id": "log-1791679689243-964",
+        "actor_id": "ed31f74e-3de7-4c46-a823-22550e4e832d",
+        "actor_name": "ADMINISTRAÇÃO",
+        "actor_email": "uzedoctor@gmail.com",
+        "action": "PRODUCT_CREATED",
+        "target_id": "mod-003",
+        "target_name": "SCRUB SMART",
+        "details": null,
+        "created_at": "2026-10-11T00:48:09.243+00:00"
+      },
+      {
+        "id": "log-1791679786686-397",
+        "actor_id": "ed31f74e-3de7-4c46-a823-22550e4e832d",
+        "actor_name": "ADMINISTRAÇÃO",
+        "actor_email": "uzedoctor@gmail.com",
+        "action": "PRODUCT_UPDATED",
+        "target_id": "mod-003",
+        "target_name": "SCRUB SMART",
+        "details": {
+          "name": "SCRUB SMART",
+          "gender": "Masculino",
+          "status": "Ativo",
+          "baseCost": 199,
+          "category": "Scrubs Cirúrgicos",
+          "imageUrl": "",
+          "basePrice": 269.9,
+          "imagePath": "",
+          "collection": "",
+          "description": ""
+        },
+        "created_at": "2026-10-11T00:49:46.686+00:00"
+      },
+      {
+        "id": "log-1791681905990-876",
+        "actor_id": "anonymous",
+        "actor_name": "Desconhecido",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "auth.login.failed",
+        "target_id": null,
+        "target_name": null,
+        "details": {
+          "error": "Invalid login credentials"
+        },
+        "created_at": "2026-10-11T01:25:05.99+00:00"
+      },
+      {
+        "id": "log-1791681921569-559",
+        "actor_id": "anonymous",
+        "actor_name": "Desconhecido",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "auth.login.failed",
+        "target_id": null,
+        "target_name": null,
+        "details": {
+          "error": "Invalid login credentials"
+        },
+        "created_at": "2026-10-11T01:25:21.569+00:00"
+      },
+      {
+        "id": "log-1791681928584-628",
+        "actor_id": "6f4432d6-720a-4d54-ae25-2100c218911e",
+        "actor_name": "TEST4EE",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "auth.login.success",
+        "target_id": null,
+        "target_name": null,
+        "details": null,
+        "created_at": "2026-10-11T01:25:28.584+00:00"
+      },
+      {
+        "id": "log-1791683965987-512",
+        "actor_id": "anonymous",
+        "actor_name": "Desconhecido",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "auth.login.failed",
+        "target_id": null,
+        "target_name": null,
+        "details": {
+          "error": "Invalid login credentials"
+        },
+        "created_at": "2026-10-11T01:59:25.987+00:00"
+      },
+      {
+        "id": "log-1791683980078-713",
+        "actor_id": "6f4432d6-720a-4d54-ae25-2100c218911e",
+        "actor_name": "TEST4EE",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "auth.login.success",
+        "target_id": null,
+        "target_name": null,
+        "details": null,
+        "created_at": "2026-10-11T01:59:40.078+00:00"
+      },
+      {
+        "id": "log-1791684099830-277",
+        "actor_id": "6f4432d6-720a-4d54-ae25-2100c218911e",
+        "actor_name": "TEST4EE",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "CUSTOMER_CREATED",
+        "target_id": "cust-003",
+        "target_name": "João Neto",
+        "details": null,
+        "created_at": "2026-10-11T02:01:39.83+00:00"
+      },
+      {
+        "id": "log-1791684280508-419",
+        "actor_id": "6f4432d6-720a-4d54-ae25-2100c218911e",
+        "actor_name": "TEST4EE",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "CUSTOMER_UPDATED",
+        "target_id": "cust-003",
+        "target_name": "João Neto",
+        "details": {
+          "name": "João Neto",
+          "state": "SP"
+        },
+        "created_at": "2026-10-11T02:04:40.508+00:00"
+      },
+      {
+        "id": "log-1791684371308-834",
+        "actor_id": "6f4432d6-720a-4d54-ae25-2100c218911e",
+        "actor_name": "TEST4EE",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "SALE_CREATED",
+        "target_id": "#00186",
+        "target_name": "Venda #00186",
+        "details": {
+          "date": "2026-10-10 23:06",
+          "total": 200,
+          "discount": 10
+        },
+        "created_at": "2026-10-11T02:06:11.308+00:00"
+      },
+      {
+        "id": "log-1791684471106-482",
+        "actor_id": "6f4432d6-720a-4d54-ae25-2100c218911e",
+        "actor_name": "TEST4EE",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "INSTALLMENT_PAYMENT_REGISTERED",
+        "target_id": "inst-00186-1-1791684371307",
+        "target_name": "Parcela 1/4",
+        "details": {
+          "amount": 50,
+          "saleId": "#00186",
+          "customerId": "cust-003"
+        },
+        "created_at": "2026-10-11T02:07:51.106+00:00"
+      },
+      {
+        "id": "log-1791690918604-231",
+        "actor_id": "6f4432d6-720a-4d54-ae25-2100c218911e",
+        "actor_name": "TEST4EE",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "PRODUCT_DELETED",
+        "target_id": "mod-003",
+        "target_name": "SCRUB SMART",
+        "details": {
+          "force": true,
+          "reason": "Exclusão definitiva de produto"
+        },
+        "created_at": "2026-10-11T03:55:18.604+00:00"
+      },
+      {
+        "id": "log-1791690930908-400",
+        "actor_id": "6f4432d6-720a-4d54-ae25-2100c218911e",
+        "actor_name": "TEST4EE",
+        "actor_email": "jotajoao29@gmail.com",
+        "action": "SALE_DELETED_PERMANENTLY",
+        "target_id": "#00185",
+        "target_name": "Venda #00185",
+        "details": {
+          "total": 2200,
+          "reason": "Exclusão de pedido de teste/incorreto",
+          "customerName": "ANDRÉ CALCINHAS"
+        },
+        "created_at": "2026-10-11T03:55:30.908+00:00"
+      }
+    ],
+    "financial_categories": [
+      {
+        "id": "6647d996-9527-4a48-8d6c-b09688290895",
+        "name": "Vendas Diretas",
+        "type": "RECEITA",
+        "is_active": true,
+        "created_at": "2026-09-28T20:19:50.238612+00:00"
+      },
+      {
+        "id": "0cab17d2-f849-4050-b2e2-1806fe9c3389",
+        "name": "Vendas Atacado",
+        "type": "RECEITA",
+        "is_active": true,
+        "created_at": "2026-09-28T20:19:50.238612+00:00"
+      },
+      {
+        "id": "29281c47-aafd-4c50-91ec-955eb2c0a9dc",
+        "name": "Personalização/Bordado",
+        "type": "RECEITA",
+        "is_active": true,
+        "created_at": "2026-09-28T20:19:50.238612+00:00"
+      },
+      {
+        "id": "73ecc268-a36e-45e0-aabe-8f54fae9875a",
+        "name": "Outras Receitas",
+        "type": "RECEITA",
+        "is_active": true,
+        "created_at": "2026-09-28T20:19:50.238612+00:00"
+      },
+      {
+        "id": "deb4ab25-f6cf-40e0-9010-98d7beb2fab6",
+        "name": "Fornecedores",
+        "type": "DESPESA",
+        "is_active": true,
+        "created_at": "2026-09-28T20:19:50.238612+00:00"
+      },
+      {
+        "id": "5cd974bc-bba6-4684-a2e9-cc680c15f2de",
+        "name": "Matéria-prima",
+        "type": "DESPESA",
+        "is_active": true,
+        "created_at": "2026-09-28T20:19:50.238612+00:00"
+      },
+      {
+        "id": "a009d82e-44e2-41e3-bb02-5356ffe4456e",
+        "name": "Confecção",
+        "type": "DESPESA",
+        "is_active": true,
+        "created_at": "2026-09-28T20:19:50.238612+00:00"
+      },
+      {
+        "id": "0d0cb06d-eaa0-4fcf-9068-dc5a4b8b6540",
+        "name": "Embalagens",
+        "type": "DESPESA",
+        "is_active": true,
+        "created_at": "2026-09-28T20:19:50.238612+00:00"
+      },
+      {
+        "id": "1e6eed80-5141-4c2e-afc9-d748b5081860",
+        "name": "Transporte",
+        "type": "DESPESA",
+        "is_active": true,
+        "created_at": "2026-09-28T20:19:50.238612+00:00"
+      },
+      {
+        "id": "0bddb0f6-f04c-454c-af01-cbe9f3caff6c",
+        "name": "Marketing",
+        "type": "DESPESA",
+        "is_active": true,
+        "created_at": "2026-09-28T20:19:50.238612+00:00"
+      },
+      {
+        "id": "fdec4f88-30c0-48a4-84fa-590da11bbeb1",
+        "name": "Aluguel",
+        "type": "DESPESA",
+        "is_active": true,
+        "created_at": "2026-09-28T20:19:50.238612+00:00"
+      },
+      {
+        "id": "47bbe467-8731-4aab-8943-f515c0a58d33",
+        "name": "Serviços",
+        "type": "DESPESA",
+        "is_active": true,
+        "created_at": "2026-09-28T20:19:50.238612+00:00"
+      },
+      {
+        "id": "0c9fd46a-8a42-4004-a468-cc9207bf27c1",
+        "name": "Impostos",
+        "type": "DESPESA",
+        "is_active": true,
+        "created_at": "2026-09-28T20:19:50.238612+00:00"
+      },
+      {
+        "id": "5d7547e3-2697-4e8c-a9f7-820a4c7626c0",
+        "name": "Outras",
+        "type": "DESPESA",
+        "is_active": true,
+        "created_at": "2026-09-28T20:19:50.238612+00:00"
+      }
+    ],
+    "company_settings": [
+      {
+        "id": "default",
+        "trade_name": "UZE DOCTOR",
+        "legal_name": null,
+        "tax_id": null,
+        "commercial_address": null,
+        "corporate_email": null,
+        "default_min_stock": 5,
+        "enable_low_stock_alert": true,
+        "created_at": "2026-09-28T22:26:40.69592+00:00",
+        "updated_at": "2026-09-28T22:26:40.69592+00:00",
+        "updated_by": null
+      }
+    ]
+  }
+}

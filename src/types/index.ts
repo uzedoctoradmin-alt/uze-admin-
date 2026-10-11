@@ -2,13 +2,17 @@ export type PeriodFilter = 'Hoje' | '7d' | '30d' | 'Este mês' | 'Mês anterior'
 
 export type ProductStatus = 'Ativo' | 'Inativo' | 'Arquivado';
 export type GenderCategory = 'Feminino' | 'Masculino' | 'Unissex';
-export type VariantSize = 'PP' | 'P' | 'M' | 'G' | 'GG' | 'XGG';
+export type VariantSize = 'PP' | 'P' | 'M' | 'G' | 'GG' | 'XGG' | 'Único';
+
+export interface ProductColor {
+  name: string;
+  hex: string;
+}
 
 export interface ProductModel {
   id: string;
   name: string;
   category: string;
-  collection: string;
   description: string;
   basePrice: number;
   baseCost: number;
@@ -16,6 +20,8 @@ export interface ProductModel {
   status: ProductStatus;
   imageUrl: string;
   imagePath?: string;
+  availableColors?: ProductColor[];
+  availableSizes?: VariantSize[];
   createdAt: string;
 }
 
@@ -28,10 +34,12 @@ export interface ProductVariant {
   size: VariantSize;
   currentStock: number;
   minStock: number;
+  costPrice?: number;
+  salePrice?: number;
   status?: string;
 }
 
-export type MovementType = 'Entrada' | 'Venda' | 'Ajuste' | 'Devolução' | 'Perda' | 'Troca';
+export type MovementType = 'Entrada' | 'Venda' | 'Ajuste' | 'Devolução' | 'Perda' | 'Troca' | 'Correção';
 
 export interface StockMovement {
   id: string;
@@ -43,6 +51,7 @@ export interface StockMovement {
   size: string;
   type: MovementType;
   quantity: number;
+  direction?: 'ENTRADA' | 'SAIDA';
   reason: string;
   user: string;
 }
@@ -107,7 +116,10 @@ export type SaleStatus =
 
 export type PaymentMethod = 
   | 'PIX' 
+  | 'PIX Parcelado'
+  | 'Dinheiro'
   | 'Cartão de Crédito' 
+  | 'Cartão de Débito'
   | 'Boleto' 
   | 'Transferência';
 
@@ -139,8 +151,134 @@ export interface Sale {
   totalCost: number;
   estimatedProfit: number;
   paymentMethod: PaymentMethod;
+  installments?: number;
+  installmentDetails?: {
+    count: number;
+    downPayment?: number;
+    firstDueDate: string;
+    periodicity?: 'mensal';
+  };
   status: SaleStatus;
   notes?: string;
+}
+
+// ==========================================
+// PARCELAMENTO / CARNÊ / RECEBÍVEIS
+// ==========================================
+
+export type InstallmentStatus = 'Pendente' | 'Pago' | 'Atrasado' | 'Cancelado' | 'Parcial';
+
+export interface InstallmentPayment {
+  id: string;
+  installmentId: string;
+  amount: number;
+  paymentDate: string;
+  paymentMethod: PaymentMethod;
+  notes?: string;
+  createdBy?: string;
+  createdAt: string;
+}
+
+export interface Installment {
+  id: string;
+  receivableId?: string;
+  saleId: string;
+  customerId: string;
+  customerName?: string;
+  installmentNumber: number;
+  totalInstallments: number;
+  amount: number;
+  dueDate: string;
+  status: InstallmentStatus;
+  paidAmount: number;
+  remainingAmount: number;
+  paymentDate?: string;
+  paymentMethod?: PaymentMethod;
+  payments?: InstallmentPayment[];
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PaymentAllocation {
+  id: string;
+  paymentId: string;
+  installmentId: string;
+  installmentNumber?: number;
+  amount: number;
+  createdAt: string;
+}
+
+export interface PaymentRecord {
+  id: string;
+  saleId: string;
+  customerId: string;
+  customerName?: string;
+  amount: number;
+  paymentDate: string;
+  paymentMethod: PaymentMethod;
+  notes?: string;
+  createdBy?: string;
+  createdAt: string;
+  allocations: PaymentAllocation[];
+}
+
+export interface Receivable {
+  id: string;
+  saleId: string;
+  customerId: string;
+  customerName: string;
+  totalAmount: number;
+  installmentsCount: number;
+  status: 'Pendente' | 'Parcial' | 'Pago' | 'Cancelado';
+  createdAt: string;
+  updatedAt?: string;
+}
+
+// ==========================================
+// FORNECEDORES & ENTRADAS / COMPRAS
+// ==========================================
+
+export interface Supplier {
+  id: string;
+  name: string;
+  phone?: string;
+  email?: string;
+  notes?: string;
+  status: 'Ativo' | 'Inativo';
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PurchaseItem {
+  id: string;
+  purchaseId?: string;
+  variantId: string;
+  productName: string;
+  colorName?: string;
+  size?: string;
+  sku?: string;
+  unitCost: number;
+  quantity: number;
+  totalCost: number;
+}
+
+export interface PurchaseEntry {
+  id: string;
+  entryNumber: string; // ex: ENT-00001
+  supplierId?: string;
+  supplierName: string;
+  date: string;
+  items: PurchaseItem[];
+  subtotal: number;
+  discount: number;
+  shipping: number;
+  total: number;
+  notes?: string;
+  status: 'Concluído' | 'Cancelado';
+  createdBy?: string;
+  createdAt: string;
+  updatedAt?: string;
 }
 
 export type RevenueCategory = 
@@ -186,18 +324,21 @@ export type ViewTab =
   | 'dashboard'
   | 'vendas'
   | 'clientes'
-  | 'funcionarios'
   | 'produtos'
   | 'modelos'
   | 'estoque'
+  | 'entradas'
   | 'movimentacoes'
+  | 'financeiro'
   | 'financeiro-visao'
   | 'financeiro-receitas'
   | 'financeiro-despesas'
+  | 'financeiro-receber'
   | 'relatorio-mensal'
   | 'desempenho'
   | 'configuracoes'
-  | 'administracao';
+  | 'administracao'
+  | 'funcionarios';
 
 // ==========================================
 // AUTENTICAÇÃO E CONTROLE DE ACESSO (RBAC)
@@ -231,6 +372,7 @@ export type Permission =
   | 'sales.create'
   | 'sales.edit'
   | 'sales.cancel'
+  | 'sales.delete'
   | 'customers.read'
   | 'customers.create'
   | 'customers.edit'
@@ -246,6 +388,11 @@ export type Permission =
   | 'products.cost.read'
   | 'inventory.read'
   | 'inventory.adjust'
+  | 'purchases.read'
+  | 'purchases.create'
+  | 'purchases.edit'
+  | 'purchases.delete'
+  | 'installments.manage'
   | 'movements.read'
   | 'finance.read'
   | 'finance.manage'

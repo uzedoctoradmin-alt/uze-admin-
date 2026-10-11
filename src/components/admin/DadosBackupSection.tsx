@@ -238,7 +238,6 @@ export const DadosBackupSection: React.FC = () => {
             id: modelId,
             name: item.name,
             category: item.category,
-            collection: item.collection,
             gender: item.gender,
             base_price: item.basePrice,
             base_cost: item.baseCost,

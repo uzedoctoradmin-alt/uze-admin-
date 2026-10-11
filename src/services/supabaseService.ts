@@ -8,6 +8,10 @@ import type {
   StockMovement,
   Revenue,
   Expense,
+  Supplier,
+  PurchaseEntry,
+  Installment,
+  PaymentRecord,
 } from '../types';
 
 export const supabaseService = {
@@ -30,7 +34,6 @@ export const supabaseService = {
         id: row.id,
         name: row.name,
         category: row.category,
-        collection: row.collection || '',
         description: row.description || '',
         basePrice: Number(row.base_price) || 0,
         baseCost: Number(row.base_cost) || 0,
@@ -38,6 +41,8 @@ export const supabaseService = {
         status: row.status,
         imageUrl: row.image_url || '',
         imagePath: row.image_path || '',
+        availableColors: row.available_colors || undefined,
+        availableSizes: row.available_sizes || undefined,
         createdAt: row.created_at ? row.created_at.split('T')[0] : '',
       }));
     } catch (err) {
@@ -48,11 +53,10 @@ export const supabaseService = {
 
   async insertModel(model: ProductModel, variants: ProductVariant[]): Promise<boolean> {
     try {
-      const { error: modelError } = await supabase.from('models').insert({
+      const modelPayload: Record<string, any> = {
         id: model.id,
         name: model.name,
         category: model.category,
-        collection: model.collection,
         description: model.description,
         base_price: model.basePrice,
         base_cost: model.baseCost,
@@ -60,7 +64,12 @@ export const supabaseService = {
         status: model.status,
         image_url: model.imageUrl || null,
         image_path: model.imagePath || null,
-      });
+      };
+
+      if (model.availableColors) modelPayload.available_colors = model.availableColors;
+      if (model.availableSizes) modelPayload.available_sizes = model.availableSizes;
+
+      const { error: modelError } = await supabase.from('models').insert(modelPayload);
 
       if (modelError) {
         console.error('[Supabase] insertModel error:', modelError);
@@ -121,7 +130,6 @@ export const supabaseService = {
       const payload: Record<string, any> = {};
       if (updates.name !== undefined) payload.name = updates.name;
       if (updates.category !== undefined) payload.category = updates.category;
-      if (updates.collection !== undefined) payload.collection = updates.collection;
       if (updates.description !== undefined) payload.description = updates.description;
       if (updates.gender !== undefined) payload.gender = updates.gender;
       if (updates.basePrice !== undefined) payload.base_price = updates.basePrice;
@@ -148,6 +156,18 @@ export const supabaseService = {
 
   async deleteModel(id: string): Promise<boolean> {
     try {
+      // 1. Fetch variant IDs for this model
+      const { data: vars } = await supabase.from('variants').select('id').eq('model_id', id);
+      const varIds = (vars || []).map((v: any) => v.id);
+
+      if (varIds.length > 0) {
+        // Safe cleanup of child records linked to these variants
+        await supabase.from('stock_movements').delete().in('variant_id', varIds);
+        await supabase.from('inventory').delete().in('variant_id', varIds);
+        await supabase.from('sale_items').delete().in('variant_id', varIds);
+        await supabase.from('variants').delete().eq('model_id', id);
+      }
+
       const { error } = await supabase.from('models').delete().eq('id', id);
       if (error) {
         console.error('[Supabase] deleteModel error:', error);
@@ -156,6 +176,30 @@ export const supabaseService = {
       return true;
     } catch (err) {
       console.error('[Supabase] deleteModel exception:', err);
+      return false;
+    }
+  },
+
+  async insertVariant(variant: ProductVariant): Promise<boolean> {
+    try {
+      const { error } = await supabase.from('variants').insert({
+        id: variant.id,
+        model_id: variant.modelId,
+        sku: variant.sku,
+        color_name: variant.colorName,
+        color_hex: variant.colorHex,
+        size: variant.size,
+        current_stock: variant.currentStock,
+        min_stock: variant.minStock,
+      });
+
+      if (error) {
+        console.error('[Supabase] insertVariant error:', error);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.error('[Supabase] insertVariant exception:', err);
       return false;
     }
   },
@@ -188,6 +232,10 @@ export const supabaseService = {
 
   async deleteVariant(id: string): Promise<boolean> {
     try {
+      // Safe cleanup of dependent rows before deleting variant
+      await supabase.from('stock_movements').delete().eq('variant_id', id);
+      await supabase.from('inventory').delete().eq('variant_id', id);
+      await supabase.from('sale_items').delete().eq('variant_id', id);
       const { error } = await supabase.from('variants').delete().eq('id', id);
       if (error) {
         console.error('[Supabase] deleteVariant error:', error);
@@ -853,6 +901,488 @@ export const supabaseService = {
     } catch (err) {
       console.error('[Supabase] saveCompanySettings exception:', err);
       return false;
+    }
+  },
+
+  // ==========================================
+  // EXCLUSÃO TOTAL E REVERSÃO DE VENDAS
+  // ==========================================
+  async deleteSaleCompletely(saleId: string): Promise<boolean> {
+    try {
+      // 1. Tentar chamar RPC caso exista no banco
+      const { error: rpcError } = await supabase.rpc('fn_delete_sale_completely', {
+        p_sale_id: saleId,
+        p_actor_id: 'admin',
+        p_actor_name: 'Administrador',
+        p_reason: 'Exclusão definitiva solicitada'
+      });
+
+      if (!rpcError) {
+        return true;
+      }
+
+      // Se RPC não existir ainda, realizar exclusão em cadeia das tabelas
+      // 1. Remover pagamentos de parcelas
+      const { data: insts } = await supabase.from('installments').select('id').eq('sale_id', saleId);
+      if (insts && insts.length > 0) {
+        const instIds = insts.map((i: any) => i.id);
+        await supabase.from('installment_payments').delete().in('installment_id', instIds);
+      }
+      await supabase.from('installments').delete().eq('sale_id', saleId);
+      await supabase.from('receivables').delete().eq('sale_id', saleId);
+
+      // 2. Remover receitas vinculadas
+      await supabase.from('revenues').delete().or(`sale_id.eq.${saleId},reference_id.eq.${saleId}`);
+
+      // 3. Remover movimentações de estoque vinculadas
+      await supabase.from('stock_movements').delete().or(`sale_id.eq.${saleId},reason.ilike.%${saleId}%`);
+
+      // 4. Remover itens da venda e a venda
+      await supabase.from('sale_items').delete().eq('sale_id', saleId);
+      const { error: saleErr } = await supabase.from('sales').delete().eq('id', saleId);
+
+      if (saleErr) {
+        console.error('[Supabase] deleteSale error:', saleErr);
+        return false;
+      }
+
+      return true;
+    } catch (err) {
+      console.error('[Supabase] deleteSale exception:', err);
+      return false;
+    }
+  },
+
+  // ==========================================
+  // FORNECEDORES (SUPPLIERS)
+  // ==========================================
+  async fetchSuppliers(): Promise<Supplier[] | null> {
+    try {
+      const { data, error } = await supabase
+        .from('suppliers')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        // Fallback local se a tabela ainda não tiver sido criada no Supabase
+        const local = localStorage.getItem('uze_suppliers');
+        return local ? JSON.parse(local) : [];
+      }
+
+      const list: Supplier[] = (data || []).map((row: any) => ({
+        id: row.id,
+        name: row.name,
+        phone: row.phone || '',
+        email: row.email || '',
+        notes: row.notes || '',
+        status: row.status || 'Ativo',
+        createdAt: row.created_at ? row.created_at.split('T')[0] : '',
+        updatedAt: row.updated_at,
+      }));
+
+      localStorage.setItem('uze_suppliers', JSON.stringify(list));
+      return list;
+    } catch {
+      const local = localStorage.getItem('uze_suppliers');
+      return local ? JSON.parse(local) : [];
+    }
+  },
+
+  async insertSupplier(supplier: Supplier): Promise<boolean> {
+    try {
+      // Grava no localStorage imediatamente
+      const local = localStorage.getItem('uze_suppliers');
+      const list: Supplier[] = local ? JSON.parse(local) : [];
+      list.unshift(supplier);
+      localStorage.setItem('uze_suppliers', JSON.stringify(list));
+
+      const { error } = await supabase.from('suppliers').insert({
+        id: supplier.id,
+        name: supplier.name,
+        phone: supplier.phone || null,
+        email: supplier.email || null,
+        notes: supplier.notes || null,
+        status: supplier.status || 'Ativo',
+      });
+
+      if (error) {
+        console.warn('[Supabase] insertSupplier (usando cache local):', error.message);
+      }
+      return true;
+    } catch {
+      return true;
+    }
+  },
+
+  async updateSupplier(id: string, updates: Partial<Supplier>): Promise<boolean> {
+    try {
+      const local = localStorage.getItem('uze_suppliers');
+      if (local) {
+        const list: Supplier[] = JSON.parse(local);
+        const updated = list.map(s => s.id === id ? { ...s, ...updates } : s);
+        localStorage.setItem('uze_suppliers', JSON.stringify(updated));
+      }
+
+      await supabase.from('suppliers').update({
+        ...updates,
+        updated_at: new Date().toISOString()
+      }).eq('id', id);
+
+      return true;
+    } catch {
+      return true;
+    }
+  },
+
+  async deleteSupplier(id: string): Promise<boolean> {
+    try {
+      const local = localStorage.getItem('uze_suppliers');
+      if (local) {
+        const list: Supplier[] = JSON.parse(local);
+        localStorage.setItem('uze_suppliers', JSON.stringify(list.filter(s => s.id !== id)));
+      }
+
+      await supabase.from('suppliers').delete().eq('id', id);
+      return true;
+    } catch {
+      return true;
+    }
+  },
+
+  // ==========================================
+  // ENTRADAS / COMPRAS (PURCHASES)
+  // ==========================================
+  async fetchPurchases(): Promise<PurchaseEntry[] | null> {
+    try {
+      const { data, error } = await supabase
+        .from('purchases')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        const local = localStorage.getItem('uze_purchases');
+        return local ? JSON.parse(local) : [];
+      }
+
+      const list: PurchaseEntry[] = (data || []).map((row: any) => ({
+        id: row.id,
+        entryNumber: row.entry_number || row.id,
+        supplierId: row.supplier_id || undefined,
+        supplierName: row.supplier_name || 'Fábrica / Fornecedor Geral',
+        date: row.date || (row.created_at ? row.created_at.split('T')[0] : ''),
+        items: row.items || [],
+        subtotal: Number(row.subtotal) || 0,
+        discount: Number(row.discount) || 0,
+        shipping: Number(row.shipping) || 0,
+        total: Number(row.total) || 0,
+        notes: row.notes || '',
+        status: row.status || 'Concluído',
+        createdBy: row.created_by,
+        createdAt: row.created_at ? row.created_at.replace('T', ' ').slice(0, 16) : '',
+        updatedAt: row.updated_at,
+      }));
+
+      localStorage.setItem('uze_purchases', JSON.stringify(list));
+      return list;
+    } catch {
+      const local = localStorage.getItem('uze_purchases');
+      return local ? JSON.parse(local) : [];
+    }
+  },
+
+  async insertPurchase(purchase: PurchaseEntry): Promise<boolean> {
+    try {
+      const local = localStorage.getItem('uze_purchases');
+      const list: PurchaseEntry[] = local ? JSON.parse(local) : [];
+      list.unshift(purchase);
+      localStorage.setItem('uze_purchases', JSON.stringify(list));
+
+      const { error } = await supabase.from('purchases').insert({
+        id: purchase.id,
+        entry_number: purchase.entryNumber,
+        supplier_id: purchase.supplierId || null,
+        supplier_name: purchase.supplierName,
+        date: purchase.date,
+        subtotal: purchase.subtotal,
+        discount: purchase.discount,
+        shipping: purchase.shipping,
+        total: purchase.total,
+        notes: purchase.notes || null,
+        status: purchase.status,
+        items: purchase.items,
+        created_by: purchase.createdBy || null,
+      });
+
+      if (error) {
+        console.warn('[Supabase] insertPurchase (usando cache local):', error.message);
+      }
+      return true;
+    } catch {
+      return true;
+    }
+  },
+
+  async updatePurchase(purchase: PurchaseEntry): Promise<boolean> {
+    try {
+      const local = localStorage.getItem('uze_purchases');
+      if (local) {
+        const list: PurchaseEntry[] = JSON.parse(local);
+        const updated = list.map(p => p.id === purchase.id ? purchase : p);
+        localStorage.setItem('uze_purchases', JSON.stringify(updated));
+      }
+
+      await supabase.from('purchases').update({
+        supplier_id: purchase.supplierId || null,
+        supplier_name: purchase.supplierName,
+        date: purchase.date,
+        subtotal: purchase.subtotal,
+        discount: purchase.discount,
+        shipping: purchase.shipping,
+        total: purchase.total,
+        notes: purchase.notes || null,
+        items: purchase.items,
+        status: purchase.status,
+        updated_at: new Date().toISOString(),
+      }).eq('id', purchase.id);
+
+      return true;
+    } catch {
+      return true;
+    }
+  },
+
+  async deletePurchase(id: string): Promise<boolean> {
+    try {
+      const local = localStorage.getItem('uze_purchases');
+      if (local) {
+        const list: PurchaseEntry[] = JSON.parse(local);
+        localStorage.setItem('uze_purchases', JSON.stringify(list.filter(p => p.id !== id)));
+      }
+
+      await supabase.from('purchases').delete().eq('id', id);
+      return true;
+    } catch {
+      return true;
+    }
+  },
+
+  // ==========================================
+  // PARCELAS / CARNÊ / RECEBÍVEIS (INSTALLMENTS)
+  // ==========================================
+  async fetchInstallments(): Promise<Installment[] | null> {
+    try {
+      const { data, error } = await supabase
+        .from('installments')
+        .select('*')
+        .order('due_date', { ascending: true });
+
+      if (error) {
+        const local = localStorage.getItem('uze_installments');
+        return local ? JSON.parse(local) : [];
+      }
+
+      const list: Installment[] = (data || []).map((row: any) => ({
+        id: row.id,
+        receivableId: row.receivable_id || undefined,
+        saleId: row.sale_id,
+        customerId: row.customer_id,
+        customerName: row.customer_name || '',
+        installmentNumber: Number(row.installment_number) || 1,
+        totalInstallments: Number(row.total_installments) || 1,
+        amount: Number(row.amount) || 0,
+        dueDate: row.due_date,
+        status: row.status,
+        paidAmount: Number(row.paid_amount) || 0,
+        remainingAmount: Number(row.amount) - (Number(row.paid_amount) || 0),
+        paymentDate: row.payment_date || undefined,
+        paymentMethod: row.payment_method || 'PIX',
+        payments: row.payments || [],
+        notes: row.notes || '',
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      }));
+
+      localStorage.setItem('uze_installments', JSON.stringify(list));
+      return list;
+    } catch {
+      const local = localStorage.getItem('uze_installments');
+      return local ? JSON.parse(local) : [];
+    }
+  },
+
+  async insertInstallments(installments: Installment[]): Promise<boolean> {
+    try {
+      const local = localStorage.getItem('uze_installments');
+      const list: Installment[] = local ? JSON.parse(local) : [];
+      list.push(...installments);
+      localStorage.setItem('uze_installments', JSON.stringify(list));
+
+      const rows = installments.map(i => ({
+        id: i.id,
+        receivable_id: i.receivableId || null,
+        sale_id: i.saleId,
+        customer_id: i.customerId,
+        customer_name: i.customerName || null,
+        installment_number: i.installmentNumber,
+        total_installments: i.totalInstallments,
+        amount: i.amount,
+        due_date: i.dueDate,
+        status: i.status,
+        paid_amount: i.paidAmount,
+        payment_date: i.paymentDate || null,
+        payment_method: i.paymentMethod || 'PIX',
+        notes: i.notes || null,
+      }));
+
+      const { error } = await supabase.from('installments').insert(rows);
+      if (error) {
+        console.warn('[Supabase] insertInstallments (usando cache local):', error.message);
+      }
+      return true;
+    } catch {
+      return true;
+    }
+  },
+
+  async updateInstallment(id: string, updates: Partial<Installment>): Promise<boolean> {
+    try {
+      const local = localStorage.getItem('uze_installments');
+      if (local) {
+        const list: Installment[] = JSON.parse(local);
+        const updated = list.map(i => i.id === id ? { ...i, ...updates } : i);
+        localStorage.setItem('uze_installments', JSON.stringify(updated));
+      }
+
+      await supabase.from('installments').update({
+        ...updates,
+        updated_at: new Date().toISOString(),
+      }).eq('id', id);
+
+      return true;
+    } catch {
+      return true;
+    }
+  },
+
+  async deleteInstallmentsBySale(saleId: string): Promise<boolean> {
+    try {
+      const local = localStorage.getItem('uze_installments');
+      if (local) {
+        const list: Installment[] = JSON.parse(local);
+        localStorage.setItem('uze_installments', JSON.stringify(list.filter(i => i.saleId !== saleId)));
+      }
+
+      await supabase.from('installments').delete().eq('sale_id', saleId);
+      return true;
+    } catch {
+      return true;
+    }
+  },
+
+  // ==========================================
+  // PAYMENTS & ALLOCATIONS (RECEBIMENTOS & RATEIO)
+  // ==========================================
+  async fetchPayments(): Promise<PaymentRecord[] | null> {
+    try {
+      const local = localStorage.getItem('uze_payments');
+      if (local) {
+        return JSON.parse(local);
+      }
+      const { data, error } = await supabase.from('payments').select('*');
+      if (error || !data) return null;
+      return data.map((r: any) => ({
+        id: r.id,
+        saleId: r.sale_id,
+        customerId: r.customer_id,
+        amount: Number(r.amount),
+        paymentDate: r.payment_date,
+        paymentMethod: r.payment_method,
+        notes: r.notes || '',
+        createdBy: r.created_by,
+        createdAt: r.created_at,
+        allocations: r.allocations || [],
+      }));
+    } catch {
+      return null;
+    }
+  },
+
+  async insertPayment(payment: PaymentRecord): Promise<boolean> {
+    try {
+      // Atualizar cache local
+      const local = localStorage.getItem('uze_payments');
+      const list: PaymentRecord[] = local ? JSON.parse(local) : [];
+      localStorage.setItem('uze_payments', JSON.stringify([payment, ...list]));
+
+      // Salvar payment no Supabase
+      await supabase.from('payments').insert({
+        id: payment.id,
+        sale_id: payment.saleId,
+        customer_id: payment.customerId,
+        amount: payment.amount,
+        payment_date: payment.paymentDate,
+        payment_method: payment.paymentMethod,
+        notes: payment.notes,
+        created_by: payment.createdBy,
+        created_at: payment.createdAt,
+      });
+
+      // Salvar allocations
+      if (payment.allocations && payment.allocations.length > 0) {
+        const allocRows = payment.allocations.map(a => ({
+          id: a.id,
+          payment_id: payment.id,
+          installment_id: a.installmentId,
+          amount: a.amount,
+          created_at: a.createdAt,
+        }));
+        await supabase.from('payment_allocations').insert(allocRows);
+      }
+
+      return true;
+    } catch {
+      return true;
+    }
+  },
+
+  async deletePayment(paymentId: string): Promise<boolean> {
+    try {
+      const local = localStorage.getItem('uze_payments');
+      if (local) {
+        const list: PaymentRecord[] = JSON.parse(local);
+        localStorage.setItem('uze_payments', JSON.stringify(list.filter(p => p.id !== paymentId)));
+      }
+
+      await supabase.from('payment_allocations').delete().eq('payment_id', paymentId);
+      await supabase.from('payments').delete().eq('id', paymentId);
+      return true;
+    } catch {
+      return true;
+    }
+  },
+
+  async updatePayment(paymentId: string, updates: Partial<PaymentRecord>): Promise<boolean> {
+    try {
+      const local = localStorage.getItem('uze_payments');
+      if (local) {
+        const list: PaymentRecord[] = JSON.parse(local);
+        const updated = list.map(p => p.id === paymentId ? { ...p, ...updates } : p);
+        localStorage.setItem('uze_payments', JSON.stringify(updated));
+      }
+
+      const dbUpdates: any = {};
+      if (updates.amount !== undefined) dbUpdates.amount = updates.amount;
+      if (updates.paymentDate !== undefined) dbUpdates.payment_date = updates.paymentDate;
+      if (updates.paymentMethod !== undefined) dbUpdates.payment_method = updates.paymentMethod;
+      if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+
+      if (Object.keys(dbUpdates).length > 0) {
+        await supabase.from('payments').update(dbUpdates).eq('id', paymentId);
+      }
+
+      return true;
+    } catch {
+      return true;
     }
   },
 };

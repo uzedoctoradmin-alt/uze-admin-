@@ -9,9 +9,8 @@ import { VendasPage } from './pages/VendasPage';
 import { ClientesPage } from './pages/ClientesPage';
 import { FuncionariosPage } from './pages/FuncionariosPage';
 import { ProdutosPage } from './pages/ProdutosPage';
-import { ModelosPage } from './pages/ModelosPage';
 import { EstoquePage } from './pages/EstoquePage';
-import { MovimentacoesPage } from './pages/MovimentacoesPage';
+import { EntradasPage } from './pages/EntradasPage';
 import { FinanceiroPage } from './pages/FinanceiroPage';
 import { RelatorioMensalPage } from './pages/RelatorioMensalPage';
 import { DesempenhoPage } from './pages/DesempenhoPage';
@@ -41,13 +40,17 @@ const ERPMainContent: React.FC = () => {
       case 'funcionarios':
         return <FuncionariosPage />;
       case 'produtos':
-        return <ProdutosPage />;
       case 'modelos':
-        return <ModelosPage />;
+        return <ProdutosPage />;
       case 'estoque':
-        return <EstoquePage />;
       case 'movimentacoes':
-        return <MovimentacoesPage />;
+        return <EstoquePage />;
+      case 'entradas':
+        if (!hasPermission('purchases.read' as any)) {
+          return <AccessDenied areaName="as Entradas de Mercadorias" />;
+        }
+        return <EntradasPage />;
+      case 'financeiro':
       case 'financeiro-visao':
         if (!hasPermission('finance.read')) {
           return <AccessDenied areaName="o Módulo Financeiro" />;

@@ -58,7 +58,6 @@ export const ModelosPage: React.FC = () => {
     const pdfColumns = [
       { header: 'Modelo', dataKey: 'name' },
       { header: 'Categoria', dataKey: 'category', width: 28 },
-      { header: 'Coleção', dataKey: 'collection', width: 28 },
       { header: 'Gênero', dataKey: 'gender', align: 'center' as const, width: 22 },
       { header: 'Preço Venda (R$)', dataKey: 'priceStr', align: 'right' as const, width: 28 },
       ...(canReadCosts ? [{ header: 'Custo Base (R$)', dataKey: 'costStr', align: 'right' as const, width: 28 }] : []),
@@ -71,7 +70,6 @@ export const ModelosPage: React.FC = () => {
       return {
         name: m.name,
         category: m.category,
-        collection: m.collection || '-',
         gender: m.gender,
         priceStr: m.basePrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
         ...(canReadCosts ? { costStr: m.baseCost.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) } : {}),
@@ -96,7 +94,6 @@ export const ModelosPage: React.FC = () => {
     const columns = [
       { header: 'Modelo', dataKey: 'Modelo' },
       { header: 'Categoria', dataKey: 'Categoria' },
-      { header: 'Coleção', dataKey: 'Colecao' },
       { header: 'Gênero', dataKey: 'Genero' },
       { header: 'Preço Venda (R$)', dataKey: 'PrecoVenda' },
       ...(canReadCosts ? [{ header: 'Custo Base (R$)', dataKey: 'CustoBase' }] : []),
@@ -110,7 +107,6 @@ export const ModelosPage: React.FC = () => {
       return {
         'Modelo': m.name,
         'Categoria': m.category,
-        'Colecao': m.collection || '-',
         'Genero': m.gender,
         'PrecoVenda': m.basePrice,
         ...(canReadCosts ? { 'CustoBase': m.baseCost } : {}),
@@ -211,7 +207,7 @@ export const ModelosPage: React.FC = () => {
                 <div className="p-4 space-y-2.5">
                   <div>
                     <span className="text-[10px] font-bold text-[#93370D] uppercase tracking-wider block">
-                      {model.collection}
+                      {model.category}
                     </span>
                     <h3 className="text-sm font-bold text-[#101828] group-hover:text-[#173E75] transition-colors">
                       {model.name}
@@ -315,7 +311,7 @@ export const ModelosPage: React.FC = () => {
                   <div className="md:col-span-2 space-y-2.5">
                     <div>
                       <span className="text-[10px] font-bold text-[#93370D] uppercase tracking-wider block">
-                        {selectedModel.collection} • {selectedModel.category}
+                        {selectedModel.category}
                       </span>
                       <h3 className="text-base font-bold text-[#101828]">{selectedModel.name}</h3>
                     </div>

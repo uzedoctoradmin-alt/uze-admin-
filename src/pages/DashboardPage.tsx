@@ -116,6 +116,41 @@ export const DashboardPage: React.FC = () => {
         )}
       </div>
 
+      {/* Indicadores Discretos: Efetivamente Recebido, A Receber e Em Atraso */}
+      <div className="p-3 bg-white border border-[#D0D5DD] rounded-lg shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-[#173E75]" />
+          <span className="font-bold text-slate-800">Controle de Caixa & Recebíveis:</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-4 sm:gap-6 text-slate-600 font-medium">
+          <div>
+            <span className="text-[10px] text-slate-400 uppercase font-bold block">Caixa Recebido</span>
+            <span className="font-bold text-emerald-700">
+              R$ {dashboardMetrics.totalRecebido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </span>
+          </div>
+          <div>
+            <span className="text-[10px] text-slate-400 uppercase font-bold block">A Receber (Carnês)</span>
+            <span className="font-bold text-[#173E75]">
+              R$ {dashboardMetrics.totalReceber.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </span>
+          </div>
+          {dashboardMetrics.totalEmAtraso > 0 ? (
+            <div>
+              <span className="text-[10px] text-rose-500 uppercase font-bold block">Em Atraso</span>
+              <span className="font-bold text-rose-700">
+                R$ {dashboardMetrics.totalEmAtraso.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+          ) : (
+            <div>
+              <span className="text-[10px] text-slate-400 uppercase font-bold block">Inadimplência</span>
+              <span className="font-bold text-emerald-700">0 em atraso</span>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Grid: Gráfico (8 colunas) + Situação do Estoque (4 colunas) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 items-start">
         {/* Gráfico Principal (col-span-8) */}

@@ -8,14 +8,10 @@ import {
   Users, 
   UserCheck,
   Package, 
-  Shirt, 
   Boxes, 
-  History, 
+  Truck,
   DollarSign, 
-  ArrowUpRight, 
-  ArrowDownLeft, 
   FileSpreadsheet, 
-  BarChart3, 
   Settings,
   X,
   ChevronLeft,
@@ -49,7 +45,7 @@ export const Sidebar: React.FC = () => {
   const allNavGroups: NavGroup[] = [
     {
       items: [
-        { tab: 'dashboard', label: 'Visão Geral', icon: LayoutDashboard },
+        { tab: 'dashboard', label: 'Início', icon: LayoutDashboard },
       ],
     },
     {
@@ -57,36 +53,32 @@ export const Sidebar: React.FC = () => {
       items: [
         { tab: 'vendas', label: 'Vendas', icon: ShoppingBag },
         { tab: 'clientes', label: 'Clientes', icon: Users },
-        { tab: 'funcionarios', label: 'Funcionários', icon: UserCheck, requiredPermission: 'employees.read' },
       ],
     },
     {
       groupLabel: 'Catálogo & Estoque',
       items: [
         { tab: 'produtos', label: 'Produtos', icon: Package },
-        { tab: 'modelos', label: 'Modelos', icon: Shirt },
-        { tab: 'estoque', label: 'Estoque Físico', icon: Boxes },
-        { tab: 'movimentacoes', label: 'Movimentações', icon: History },
+        { tab: 'estoque', label: 'Estoque', icon: Boxes },
+        { tab: 'entradas', label: 'Entradas', icon: Truck, requiredPermission: 'purchases.read' },
       ],
     },
     {
       groupLabel: 'Financeiro',
       items: [
-        { tab: 'financeiro-visao', label: 'Visão Financeira', icon: DollarSign, requiredPermission: 'finance.read' },
-        { tab: 'financeiro-receitas', label: 'Receitas', icon: ArrowUpRight, requiredPermission: 'finance.read' },
-        { tab: 'financeiro-despesas', label: 'Despesas', icon: ArrowDownLeft, requiredPermission: 'finance.read' },
+        { tab: 'financeiro-visao', label: 'Financeiro', icon: DollarSign, requiredPermission: 'finance.read' },
       ],
     },
     {
       groupLabel: 'Análises',
       items: [
-        { tab: 'relatorio-mensal', label: 'Relatório Mensal', icon: FileSpreadsheet },
-        { tab: 'desempenho', label: 'Desempenho', icon: BarChart3 },
+        { tab: 'relatorio-mensal', label: 'Relatórios', icon: FileSpreadsheet },
       ],
     },
     {
-      groupLabel: 'Administração',
+      groupLabel: 'Sistema',
       items: [
+        { tab: 'funcionarios', label: 'Funcionários', icon: UserCheck, requiredPermission: 'employees.read' },
         { tab: 'administracao', label: 'Administração', icon: ShieldCheck, requiredPermission: 'admin.users.manage' },
         { tab: 'configuracoes', label: 'Configurações', icon: Settings, requiredPermission: 'settings.manage' },
       ],

@@ -11,7 +11,14 @@ import type {
   PeriodFilter, 
   ViewTab,
   MovementType,
-  SaleStatus
+  SaleStatus,
+  Supplier,
+  PurchaseEntry,
+  Installment,
+  InstallmentStatus,
+  PaymentMethod,
+  PaymentRecord,
+  PaymentAllocation,
 } from '../types';
 
 import { 
@@ -40,6 +47,9 @@ interface DashboardMetrics {
   produtosVendidos: number;
   custoTotalVendas: number;
   isCommercialOnly?: boolean;
+  totalRecebido: number;
+  totalReceber: number;
+  totalEmAtraso: number;
 }
 
 export type SupabaseStatus = 'connecting' | 'connected' | 'needs_tables' | 'error' | 'disconnected';
@@ -54,6 +64,9 @@ interface ERPContextType {
   movements: StockMovement[];
   revenues: Revenue[];
   expenses: Expense[];
+  suppliers: Supplier[];
+  purchases: PurchaseEntry[];
+  installments: Installment[];
   periodFilter: PeriodFilter;
   currentTab: ViewTab;
   searchQuery: string;
@@ -77,6 +90,7 @@ interface ERPContextType {
   updateSale: (updatedSale: Sale) => void;
   updateSaleStatus: (saleId: string, newStatus: SaleStatus) => void;
   cancelSale: (saleId: string, reason?: string) => void;
+  deleteSale: (saleId: string, options?: { force?: boolean; reason?: string }) => { success: boolean; reason?: string };
   
   addModel: (
     modelData: Omit<ProductModel, 'id' | 'createdAt'>, 
@@ -85,10 +99,11 @@ interface ERPContextType {
   updateModel: (id: string, modelData: Partial<ProductModel>) => void;
   archiveModel: (id: string) => void;
   reactivateModel: (id: string) => void;
-  deleteModel: (id: string) => { success: boolean; reason?: string };
+  deleteModel: (id: string, options?: { force?: boolean; reason?: string }) => { success: boolean; reason?: string };
 
+  addVariant: (variantData: Omit<ProductVariant, 'id'>) => ProductVariant;
   updateVariant: (id: string, variantData: Partial<ProductVariant>) => void;
-  deleteVariant: (id: string) => { success: boolean; reason?: string };
+  deleteVariant: (id: string, options?: { force?: boolean; reason?: string }) => { success: boolean; reason?: string };
   
   updateVariantStock: (variantId: string, newQty: number, type: MovementType, reason: string) => void;
   addStockMovement: (variantId: string, type: MovementType, qty: number, reason: string) => void;
@@ -104,6 +119,32 @@ interface ERPContextType {
   archiveEmployee: (id: string) => void;
   reactivateEmployee: (id: string) => void;
   deleteEmployee: (id: string) => { success: boolean; reason?: string };
+
+  addSupplier: (supplierData: Omit<Supplier, 'id' | 'createdAt'>) => Supplier;
+  updateSupplier: (id: string, updates: Partial<Supplier>) => void;
+  deleteSupplier: (id: string) => { success: boolean; reason?: string };
+
+  addPurchase: (purchaseData: Omit<PurchaseEntry, 'id' | 'entryNumber' | 'createdAt'>) => PurchaseEntry;
+  updatePurchase: (purchase: PurchaseEntry) => { success: boolean; reason?: string };
+  deletePurchase: (purchaseId: string) => { success: boolean; reason?: string };
+
+  payments: PaymentRecord[];
+  registerPayment: (
+    saleId: string, 
+    paymentData: { amount: number; paymentDate: string; paymentMethod: PaymentMethod; notes?: string }
+  ) => { success: boolean; error?: string };
+  undoPayment: (paymentId: string) => { success: boolean; error?: string };
+  updatePayment: (
+    paymentId: string, 
+    updatedData: { amount: number; paymentDate: string; paymentMethod: PaymentMethod; notes?: string }
+  ) => { success: boolean; error?: string };
+
+  registerInstallmentPayment: (
+    installmentId: string, 
+    paymentData: { amount: number; paymentDate: string; paymentMethod: PaymentMethod; notes?: string }
+  ) => void;
+  undoInstallmentPayment: (installmentId: string, paymentId: string) => void;
+  updateInstallmentDueDate: (installmentId: string, newDueDate: string) => { success: boolean; error?: string };
 
   addRevenue: (revenueData: Omit<Revenue, 'id'>) => Revenue;
   addExpense: (expenseData: Omit<Expense, 'id'>) => Expense;
@@ -128,6 +169,38 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [rawMovements, setRawMovements] = useState<StockMovement[]>(INITIAL_MOVEMENTS);
   const [rawRevenues, setRawRevenues] = useState<Revenue[]>(INITIAL_REVENUES);
   const [rawExpenses, setRawExpenses] = useState<Expense[]>(INITIAL_EXPENSES);
+  const [rawSuppliers, setRawSuppliers] = useState<Supplier[]>(() => {
+    try {
+      const saved = localStorage.getItem('uze_suppliers');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [rawPurchases, setRawPurchases] = useState<PurchaseEntry[]>(() => {
+    try {
+      const saved = localStorage.getItem('uze_purchases');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [rawInstallments, setRawInstallments] = useState<Installment[]>(() => {
+    try {
+      const saved = localStorage.getItem('uze_installments');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [rawPayments, setRawPayments] = useState<PaymentRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem('uze_payments');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('Este mês');
   const [currentTab, setCurrentTab] = useState<ViewTab>('dashboard');
@@ -179,6 +252,10 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           remoteMovements,
           remoteRevenues,
           remoteExpenses,
+          remoteSuppliers,
+          remotePurchases,
+          remoteInstallments,
+          remotePayments,
         ] = await Promise.all([
           supabaseService.fetchModels(),
           supabaseService.fetchVariants(),
@@ -188,6 +265,10 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           supabaseService.fetchMovements(),
           supabaseService.fetchRevenues(),
           supabaseService.fetchExpenses(),
+          supabaseService.fetchSuppliers(),
+          supabaseService.fetchPurchases(),
+          supabaseService.fetchInstallments(),
+          supabaseService.fetchPayments(),
         ]);
 
         if (remoteModels !== null) setRawModels(remoteModels);
@@ -198,6 +279,22 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (remoteMovements !== null) setRawMovements(remoteMovements);
         if (remoteRevenues !== null) setRawRevenues(remoteRevenues);
         if (remoteExpenses !== null) setRawExpenses(remoteExpenses);
+        if (remoteSuppliers !== null) {
+          setRawSuppliers(remoteSuppliers);
+          try { localStorage.setItem('uze_suppliers', JSON.stringify(remoteSuppliers)); } catch {}
+        }
+        if (remotePurchases !== null) {
+          setRawPurchases(remotePurchases);
+          try { localStorage.setItem('uze_purchases', JSON.stringify(remotePurchases)); } catch {}
+        }
+        if (remoteInstallments !== null) {
+          setRawInstallments(remoteInstallments);
+          try { localStorage.setItem('uze_installments', JSON.stringify(remoteInstallments)); } catch {}
+        }
+        if (remotePayments !== null) {
+          setRawPayments(remotePayments);
+          try { localStorage.setItem('uze_payments', JSON.stringify(remotePayments)); } catch {}
+        }
       }
     } catch (err) {
       console.warn('[ERPContext] Error syncing with Supabase:', err);
@@ -240,6 +337,26 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return rawEmployees;
   }, [rawEmployees]);
 
+  const suppliers = useMemo<Supplier[]>(() => {
+    return rawSuppliers;
+  }, [rawSuppliers]);
+
+  const purchases = useMemo<PurchaseEntry[]>(() => {
+    if (!canReadCosts) {
+      return rawPurchases.map(p => ({
+        ...p,
+        total: 0,
+        subtotal: 0,
+        items: p.items.map(i => ({ ...i, unitCost: 0, totalCost: 0 })),
+      }));
+    }
+    return rawPurchases;
+  }, [rawPurchases, canReadCosts]);
+
+  const installments = useMemo<Installment[]>(() => {
+    return rawInstallments;
+  }, [rawInstallments]);
+
   const sales = useMemo<Sale[]>(() => {
     if (isSeller) {
       return rawSales.map(s => ({
@@ -278,7 +395,7 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       throw new Error('403 Forbidden: Usuário não tem permissão para cadastrar vendas.');
     }
 
-    const saleId = `#${String(rawSales.length + 185).padStart(5, '0')}`;
+    const saleId = `#${String(rawSales.length + 1).padStart(6, '0')}`;
     const nowStr = new Date().toISOString().replace('T', ' ').slice(0, 16);
     const commercialDate = saleData.date?.trim() || nowStr;
     
@@ -328,19 +445,82 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       supabaseService.updateVariantStock(item.variantId, updatedStock);
     });
 
-    // Create automated revenue record with commercial date
+    // Create automated revenue record or installments with commercial date
     if (newSale.status !== 'Cancelado' && newSale.status !== 'Orçamento') {
-      const newRevenue: Revenue = {
-        id: `rev-${Date.now()}`,
-        date: commercialDate.split(' ')[0],
-        source: `Venda ${saleId}`,
-        referenceId: saleId,
-        category: 'Vendas Diretas',
-        amount: newSale.total,
-        paymentMethod: newSale.paymentMethod,
-      };
-      setRawRevenues(prev => [newRevenue, ...prev]);
-      supabaseService.insertRevenue(newRevenue);
+      if (newSale.paymentMethod === 'PIX Parcelado') {
+        const count = newSale.installmentDetails?.count || newSale.installments || 1;
+        const downPayment = Number(newSale.installmentDetails?.downPayment) || 0;
+        const remainingTotal = Math.max(0, newSale.total - downPayment);
+        const baseAmount = count > 0 ? Number((remainingTotal / count).toFixed(2)) : 0;
+        
+        const generatedInstallments: Installment[] = [];
+        const firstDueDateStr = newSale.installmentDetails?.firstDueDate || commercialDate.split(' ')[0];
+        const firstDueDate = new Date(firstDueDateStr + 'T12:00:00');
+
+        // Se houver entrada à vista, registra receita imediata em caixa
+        if (downPayment > 0) {
+          const downRevenue: Revenue = {
+            id: `rev-${Date.now()}-down`,
+            date: commercialDate.split(' ')[0],
+            source: `Entrada da Venda ${saleId}`,
+            referenceId: saleId,
+            category: 'Vendas Diretas',
+            amount: downPayment,
+            paymentMethod: 'PIX',
+            status: 'Pago',
+          };
+          setRawRevenues(prev => [downRevenue, ...prev]);
+          supabaseService.insertRevenue(downRevenue);
+        }
+
+        for (let i = 1; i <= count; i++) {
+          const dueDate = new Date(firstDueDate);
+          dueDate.setMonth(dueDate.getMonth() + (i - 1));
+          const dueDateFormatted = dueDate.toISOString().split('T')[0];
+          
+          // Ajusta centavos na última parcela
+          const installmentAmount = (i === count)
+            ? Number((remainingTotal - baseAmount * (count - 1)).toFixed(2))
+            : baseAmount;
+
+          const isOverdue = dueDateFormatted < new Date().toISOString().split('T')[0];
+
+          generatedInstallments.push({
+            id: `inst-${saleId.replace('#', '')}-${i}-${Date.now()}`,
+            saleId: saleId,
+            customerId: newSale.customerId,
+            customerName: newSale.customerName,
+            installmentNumber: i,
+            totalInstallments: count,
+            amount: installmentAmount,
+            dueDate: dueDateFormatted,
+            status: isOverdue ? 'Atrasado' : 'Pendente',
+            paidAmount: 0,
+            remainingAmount: installmentAmount,
+            paymentMethod: 'PIX',
+            payments: [],
+            notes: `Parcela ${i}/${count} da venda ${saleId}`,
+            createdAt: new Date().toISOString(),
+          });
+        }
+
+        setRawInstallments(prev => [...prev, ...generatedInstallments]);
+        supabaseService.insertInstallments(generatedInstallments);
+      } else {
+        // Venda comum: receita integral imediata
+        const newRevenue: Revenue = {
+          id: `rev-${Date.now()}`,
+          date: commercialDate.split(' ')[0],
+          source: `Venda ${saleId}`,
+          referenceId: saleId,
+          category: 'Vendas Diretas',
+          amount: newSale.total,
+          paymentMethod: newSale.paymentMethod,
+          status: 'Pago',
+        };
+        setRawRevenues(prev => [newRevenue, ...prev]);
+        supabaseService.insertRevenue(newRevenue);
+      }
     }
 
     // Update customer stats
@@ -562,6 +742,92 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   };
 
+  const deleteSale = (saleId: string, options?: { force?: boolean; reason?: string }): { success: boolean; reason?: string } => {
+    if (!hasPermission('sales.delete' as any)) {
+      throw new Error('403 Forbidden: Usuário não tem permissão para excluir vendas.');
+    }
+
+    const sale = rawSales.find(s => s.id === saleId);
+    if (!sale) {
+      return { success: false, reason: 'Venda não encontrada.' };
+    }
+
+    const nowStr = new Date().toISOString().replace('T', ' ').slice(0, 16);
+
+    // 1. Devolver estoque físico se a venda não estava cancelada e não era orçamento
+    if (sale.status !== 'Cancelado' && sale.status !== 'Orçamento') {
+      sale.items.forEach(item => {
+        if (!item.isCustom && item.variantId) {
+          let restoredStock = 0;
+          setRawVariants(prevVariants =>
+            prevVariants.map(v => {
+              if (v.id === item.variantId) {
+                restoredStock = v.currentStock + item.quantity;
+                return { ...v, currentStock: restoredStock };
+              }
+              return v;
+            })
+          );
+
+          const movement: StockMovement = {
+            id: `mov-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+            date: nowStr,
+            variantId: item.variantId,
+            productName: item.productName,
+            sku: item.sku || 'SKU',
+            colorName: item.colorName || '-',
+            size: item.size || '-',
+            type: 'Devolução',
+            quantity: item.quantity,
+            direction: 'ENTRADA',
+            reason: `Exclusão definitiva da venda ${saleId}: Restauração de estoque (+${item.quantity})`,
+            user: user?.name || 'Administrador ERP',
+          };
+
+          setRawMovements(prev => [movement, ...prev]);
+          supabaseService.insertMovement(movement);
+          supabaseService.updateVariantStock(item.variantId, restoredStock);
+        }
+      });
+
+      // Atualizar total gasto e pedidos do cliente
+      setRawCustomers(prev =>
+        prev.map(c => c.id === sale.customerId ? {
+          ...c,
+          totalSpent: Math.max(0, c.totalSpent - sale.total),
+          totalOrders: Math.max(0, c.totalOrders - 1),
+        } : c)
+      );
+    }
+
+    // 2. Remover receitas vinculadas à venda
+    setRawRevenues(prev => prev.filter(r => r.referenceId !== saleId && r.source !== `Venda ${saleId}`));
+
+    // 3. Remover parcelas vinculadas à venda
+    setRawInstallments(prev => prev.filter(i => i.saleId !== saleId));
+    supabaseService.deleteInstallmentsBySale(saleId);
+
+    // 4. Remover venda do estado local
+    setRawSales(prev => prev.filter(s => s.id !== saleId));
+
+    // 5. Excluir do Supabase em cadeia
+    supabaseService.deleteSaleCompletely(saleId);
+
+    // 6. Auditoria administrativa
+    authService.logAudit(
+      user ? { id: user.id, name: user.name, email: user.email } : { id: 'admin', name: 'Administrador', email: 'admin' },
+      'SALE_DELETED_PERMANENTLY',
+      { id: saleId, name: `Venda ${saleId}` },
+      { 
+        customerName: sale.customerName,
+        total: sale.total,
+        reason: options?.reason || 'Exclusão definitiva realizada pelo administrador'
+      }
+    );
+
+    return { success: true };
+  };
+
   const updateSaleStatus = (saleId: string, newStatus: SaleStatus) => {
     if (!hasPermission('sales.edit')) {
       throw new Error('403 Forbidden: Usuário não tem permissão para alterar vendas.');
@@ -640,32 +906,53 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     supabaseService.updateModel(id, { status: 'Ativo' });
   };
 
-  const deleteModel = (id: string): { success: boolean; reason?: string } => {
+  const deleteModel = (id: string, options?: { force?: boolean; reason?: string }): { success: boolean; reason?: string } => {
     if (!hasPermission('products.edit')) {
       throw new Error('403 Forbidden: Usuário não tem permissão para excluir produtos.');
     }
-    const hasHistory = rawSales.some(s => s.items.some(i => i.modelId === id)) ||
-      rawMovements.some(m => {
-        const v = rawVariants.find(vr => vr.id === m.variantId);
-        return v?.modelId === id;
-      });
 
-    if (hasHistory) {
+    const hasSalesHistory = rawSales.some(s => s.items.some(i => i.modelId === id));
+
+    if (hasSalesHistory && !options?.force) {
       return {
         success: false,
-        reason: 'Este modelo possui histórico de vendas ou movimentações registrado. Não pode ser excluído fisicamente para manter a integridade dos relatórios e rastreabilidade. Utilize a opção "Arquivar modelo".',
+        reason: 'Este produto possui vendas registradas no histórico. Para preservar a consistência dos relatórios, utilize "Arquivar Produto" ou confirme a exclusão avançada de Administrador.',
       };
     }
 
-    setRawModels(prev => prev.filter(m => m.id !== id));
+    const modelTarget = rawModels.find(m => m.id === id);
+    const modelVariantIds = rawVariants.filter(v => v.modelId === id).map(v => v.id);
+
+    // Remover variantes do modelo e movimentações dependentes
     setRawVariants(prev => prev.filter(v => v.modelId !== id));
+    setRawMovements(prev => prev.filter(m => !modelVariantIds.includes(m.variantId)));
+    setRawModels(prev => prev.filter(m => m.id !== id));
+
     supabaseService.deleteModel(id);
+
     authService.logAudit(
       user ? { id: user.id, name: user.name, email: user.email } : { id: 'system', name: 'Sistema', email: 'system' },
       'PRODUCT_DELETED',
-      { id, name: id }
+      { id, name: modelTarget?.name || id },
+      { force: Boolean(options?.force), reason: options?.reason || 'Exclusão definitiva de produto' }
     );
+
     return { success: true };
+  };
+
+  const addVariant = (variantData: Omit<ProductVariant, 'id'>): ProductVariant => {
+    if (!hasPermission('products.create' as any) && !hasPermission('products.edit')) {
+      throw new Error('403 Forbidden: Usuário não tem permissão para cadastrar variantes.');
+    }
+
+    const newVariant: ProductVariant = {
+      ...variantData,
+      id: `var-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    };
+
+    setRawVariants(prev => [...prev, newVariant]);
+    supabaseService.insertVariant(newVariant);
+    return newVariant;
   };
 
   const updateVariant = (id: string, variantData: Partial<ProductVariant>) => {
@@ -676,22 +963,506 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     supabaseService.updateVariant(id, variantData);
   };
 
-  const deleteVariant = (id: string): { success: boolean; reason?: string } => {
+  const deleteVariant = (id: string, options?: { force?: boolean; reason?: string }): { success: boolean; reason?: string } => {
     if (!hasPermission('products.edit')) {
       throw new Error('403 Forbidden: Usuário não tem permissão para excluir variantes.');
     }
-    const hasHistory = rawSales.some(s => s.items.some(i => i.variantId === id)) ||
-      rawMovements.some(m => m.variantId === id);
 
-    if (hasHistory) {
+    const hasSales = rawSales.some(s => s.items.some(i => i.variantId === id));
+    if (hasSales && !options?.force) {
       return {
         success: false,
-        reason: 'Esta variante possui histórico de vendas ou movimentação de estoque e não pode ser excluída fisicamente.',
+        reason: 'Esta variante possui histórico de vendas. Desative-a ou confirme a exclusão avançada.',
       };
     }
+
     setRawVariants(prev => prev.filter(v => v.id !== id));
+    setRawMovements(prev => prev.filter(m => m.variantId !== id));
     supabaseService.deleteVariant(id);
+
     return { success: true };
+  };
+
+  // ============================================================================
+  // FORNECEDORES (SUPPLIERS)
+  // ============================================================================
+  const addSupplier = (supplierData: Omit<Supplier, 'id' | 'createdAt'>): Supplier => {
+    const id = `sup-${Date.now()}`;
+    const newSupplier: Supplier = {
+      ...supplierData,
+      id,
+      createdAt: new Date().toISOString().split('T')[0],
+    };
+    setRawSuppliers(prev => [newSupplier, ...prev]);
+    supabaseService.insertSupplier(newSupplier);
+    return newSupplier;
+  };
+
+  const updateSupplier = (id: string, updates: Partial<Supplier>) => {
+    setRawSuppliers(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+    supabaseService.updateSupplier(id, updates);
+  };
+
+  const deleteSupplier = (id: string): { success: boolean; reason?: string } => {
+    setRawSuppliers(prev => prev.filter(s => s.id !== id));
+    supabaseService.deleteSupplier(id);
+    return { success: true };
+  };
+
+  // ============================================================================
+  // ENTRADAS / COMPRAS DE MERCADORIAS (PURCHASES)
+  // ============================================================================
+  const addPurchase = (purchaseData: Omit<PurchaseEntry, 'id' | 'entryNumber' | 'createdAt'>): PurchaseEntry => {
+    if (!hasPermission('purchases.create' as any)) {
+      throw new Error('403 Forbidden: Usuário não tem permissão para registrar compras/entradas.');
+    }
+
+    const entryNum = `ENT-${String(rawPurchases.length + 1).padStart(5, '0')}`;
+    const id = `pur-${Date.now()}`;
+    const nowStr = new Date().toISOString().replace('T', ' ').slice(0, 16);
+
+    const newPurchase: PurchaseEntry = {
+      ...purchaseData,
+      id,
+      entryNumber: entryNum,
+      createdAt: nowStr,
+      createdBy: user?.name || 'Administrador ERP',
+    };
+
+    setRawPurchases(prev => [newPurchase, ...prev]);
+
+    // Aumentar o estoque de cada variante e gerar stock_movements com motivo auditável
+    newPurchase.items.forEach(item => {
+      let updatedStock = 0;
+      setRawVariants(prev =>
+        prev.map(v => {
+          if (v.id === item.variantId) {
+            updatedStock = v.currentStock + item.quantity;
+            return {
+              ...v,
+              currentStock: updatedStock,
+              costPrice: item.unitCost > 0 ? item.unitCost : v.costPrice,
+            };
+          }
+          return v;
+        })
+      );
+
+      const movement: StockMovement = {
+        id: `mov-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        date: newPurchase.date,
+        variantId: item.variantId,
+        productName: item.productName,
+        sku: item.sku || 'SKU',
+        colorName: item.colorName || '-',
+        size: item.size || '-',
+        type: 'Entrada',
+        quantity: item.quantity,
+        direction: 'ENTRADA',
+        reason: `Entrada da compra ${entryNum} (${newPurchase.supplierName})`,
+        user: user?.name || 'Operador ERP',
+      };
+
+      setRawMovements(prev => [movement, ...prev]);
+      supabaseService.insertMovement(movement);
+      supabaseService.updateVariantStock(item.variantId, updatedStock);
+    });
+
+    supabaseService.insertPurchase(newPurchase);
+
+    authService.logAudit(
+      user ? { id: user.id, name: user.name, email: user.email } : { id: 'admin', name: 'Administrador', email: 'admin' },
+      'PURCHASE_ENTRY_CREATED',
+      { id, name: entryNum },
+      { supplierName: newPurchase.supplierName, total: newPurchase.total, itemsCount: newPurchase.items.length }
+    );
+
+    return newPurchase;
+  };
+
+  const updatePurchase = (updated: PurchaseEntry): { success: boolean; reason?: string } => {
+    if (!hasPermission('purchases.edit' as any)) {
+      throw new Error('403 Forbidden: Sem permissão para editar compras.');
+    }
+
+    const oldPurchase = rawPurchases.find(p => p.id === updated.id);
+    if (!oldPurchase) return { success: false, reason: 'Entrada não encontrada.' };
+
+    // Calcular diferença de estoque para cada variante
+    for (const newItem of updated.items) {
+      const oldItem = oldPurchase.items.find(i => i.variantId === newItem.variantId);
+      const oldQty = oldItem ? oldItem.quantity : 0;
+      const diff = newItem.quantity - oldQty;
+
+      if (diff !== 0) {
+        let newStock = 0;
+        setRawVariants(prev =>
+          prev.map(v => {
+            if (v.id === newItem.variantId) {
+              newStock = Math.max(0, v.currentStock + diff);
+              return { ...v, currentStock: newStock };
+            }
+            return v;
+          })
+        );
+
+        const movement: StockMovement = {
+          id: `mov-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          date: updated.date,
+          variantId: newItem.variantId,
+          productName: newItem.productName,
+          sku: newItem.sku || 'SKU',
+          colorName: newItem.colorName || '-',
+          size: newItem.size || '-',
+          type: 'Ajuste',
+          quantity: diff,
+          direction: diff > 0 ? 'ENTRADA' : 'SAIDA',
+          reason: `Ajuste da compra ${updated.entryNumber}: alteração de ${oldQty} para ${newItem.quantity}`,
+          user: user?.name || 'Operador ERP',
+        };
+
+        setRawMovements(prev => [movement, ...prev]);
+        supabaseService.insertMovement(movement);
+        supabaseService.updateVariantStock(newItem.variantId, newStock);
+      }
+    }
+
+    setRawPurchases(prev => prev.map(p => p.id === updated.id ? updated : p));
+    supabaseService.updatePurchase(updated);
+
+    authService.logAudit(
+      user ? { id: user.id, name: user.name, email: user.email } : { id: 'admin', name: 'Administrador', email: 'admin' },
+      'PURCHASE_ENTRY_UPDATED',
+      { id: updated.id, name: updated.entryNumber }
+    );
+
+    return { success: true };
+  };
+
+  const deletePurchase = (purchaseId: string): { success: boolean; reason?: string } => {
+    if (!hasPermission('purchases.delete' as any)) {
+      throw new Error('403 Forbidden: Sem permissão para excluir compras.');
+    }
+
+    const purchase = rawPurchases.find(p => p.id === purchaseId);
+    if (!purchase) return { success: false, reason: 'Entrada não encontrada.' };
+
+    // Verificar se há estoque suficiente para reverter sem gerar estoque negativo
+    for (const item of purchase.items) {
+      const variant = rawVariants.find(v => v.id === item.variantId);
+      if (variant && variant.currentStock < item.quantity) {
+        return {
+          success: false,
+          reason: `Não é possível estornar esta entrada: a variante "${variant.sku}" possui apenas ${variant.currentStock} unidades em estoque, mas esta compra continha ${item.quantity} unidades (produtos já foram vendidos).`,
+        };
+      }
+    }
+
+    // Reverter estoque físico
+    purchase.items.forEach(item => {
+      let newStock = 0;
+      setRawVariants(prev =>
+        prev.map(v => {
+          if (v.id === item.variantId) {
+            newStock = Math.max(0, v.currentStock - item.quantity);
+            return { ...v, currentStock: newStock };
+          }
+          return v;
+        })
+      );
+
+      const movement: StockMovement = {
+        id: `mov-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        date: new Date().toISOString().split('T')[0],
+        variantId: item.variantId,
+        productName: item.productName,
+        sku: item.sku || 'SKU',
+        colorName: item.colorName || '-',
+        size: item.size || '-',
+        type: 'Ajuste',
+        quantity: -item.quantity,
+        direction: 'SAIDA',
+        reason: `Estorno por exclusão da compra ${purchase.entryNumber}`,
+        user: user?.name || 'Operador ERP',
+      };
+
+      setRawMovements(prev => [movement, ...prev]);
+      supabaseService.insertMovement(movement);
+      supabaseService.updateVariantStock(item.variantId, newStock);
+    });
+
+    setRawPurchases(prev => prev.filter(p => p.id !== purchaseId));
+    supabaseService.deletePurchase(purchaseId);
+
+    authService.logAudit(
+      user ? { id: user.id, name: user.name, email: user.email } : { id: 'admin', name: 'Administrador', email: 'admin' },
+      'PURCHASE_ENTRY_DELETED',
+      { id: purchaseId, name: purchase.entryNumber }
+    );
+
+    return { success: true };
+  };
+
+  // ============================================================================
+  // PARCELAS / CARNÊ / RECEBIMENTOS & RATEIO AUTOMÁTICO
+  // ============================================================================
+  const registerPayment = (
+    saleId: string, 
+    paymentData: { amount: number; paymentDate: string; paymentMethod: PaymentMethod; notes?: string }
+  ): { success: boolean; error?: string } => {
+    if (paymentData.amount <= 0) {
+      return { success: false, error: 'O valor do pagamento deve ser superior a zero.' };
+    }
+
+    const targetSale = rawSales.find(s => s.id === saleId);
+    if (!targetSale) {
+      return { success: false, error: 'Venda de referência não localizada.' };
+    }
+
+    // Identificar pagamentos prévios da venda
+    const currentPaidOnSale = rawPayments
+      .filter(p => p.saleId === saleId)
+      .reduce((sum, p) => sum + p.amount, 0);
+
+    const saleTotal = targetSale.total;
+    const currentRemaining = Math.max(0, Number((saleTotal - currentPaidOnSale).toFixed(2)));
+
+    // Validação rígida contra saldo negativo / excedente de recebimento
+    if (paymentData.amount > currentRemaining + 0.001) {
+      const excess = Number((paymentData.amount - currentRemaining).toFixed(2));
+      return { 
+        success: false, 
+        error: `O pagamento informado (R$ ${paymentData.amount.toFixed(2)}) excede o saldo devedor em R$ ${excess.toFixed(2)}.` 
+      };
+    }
+
+    const paymentId = `pay-${Date.now()}`;
+    const nowIso = new Date().toISOString();
+    let unallocated = paymentData.amount;
+    const newAllocations: PaymentAllocation[] = [];
+    const updatedInstallments = [...rawInstallments];
+
+    // Rateio automático sequencial por ordem cronológica das parcelas da venda
+    const saleInstIndexes = updatedInstallments
+      .map((inst, idx) => ({ inst, idx }))
+      .filter(x => x.inst.saleId === saleId && x.inst.status !== 'Cancelado')
+      .sort((a, b) => a.inst.installmentNumber - b.inst.installmentNumber);
+
+    for (const { inst, idx } of saleInstIndexes) {
+      if (unallocated <= 0.0001) break;
+
+      const instRemaining = Math.max(0, Number((inst.amount - (inst.paidAmount || 0)).toFixed(2)));
+      if (instRemaining <= 0.0001) continue;
+
+      const alloc = Math.min(unallocated, instRemaining);
+      newAllocations.push({
+        id: `alloc-${Date.now()}-${newAllocations.length + 1}`,
+        paymentId,
+        installmentId: inst.id,
+        installmentNumber: inst.installmentNumber,
+        amount: Number(alloc.toFixed(2)),
+        createdAt: nowIso,
+      });
+
+      const newPaid = Number(((inst.paidAmount || 0) + alloc).toFixed(2));
+      const newRem = Math.max(0, Number((inst.amount - newPaid).toFixed(2)));
+
+      const todayStr = new Date().toISOString().split('T')[0];
+      let newStatus: InstallmentStatus = 'Pendente';
+      if (newRem <= 0.001) {
+        newStatus = 'Pago';
+      } else if (newPaid > 0) {
+        newStatus = 'Parcial';
+      } else if (inst.dueDate < todayStr) {
+        newStatus = 'Atrasado';
+      }
+
+      updatedInstallments[idx] = {
+        ...inst,
+        paidAmount: newPaid,
+        remainingAmount: newRem,
+        status: newStatus,
+        paymentDate: newRem <= 0.001 ? paymentData.paymentDate : inst.paymentDate,
+        paymentMethod: paymentData.paymentMethod,
+      };
+
+      unallocated = Number((unallocated - alloc).toFixed(2));
+    }
+
+    const newPaymentRecord: PaymentRecord = {
+      id: paymentId,
+      saleId,
+      customerId: targetSale.customerId,
+      customerName: targetSale.customerName,
+      amount: paymentData.amount,
+      paymentDate: paymentData.paymentDate,
+      paymentMethod: paymentData.paymentMethod,
+      notes: paymentData.notes || '',
+      createdBy: user?.name || 'Operador ERP',
+      createdAt: nowIso,
+      allocations: newAllocations,
+    };
+
+    setRawPayments(prev => [newPaymentRecord, ...prev]);
+    setRawInstallments(updatedInstallments);
+
+    // Registra receita de caixa confirmada
+    const revenue: Revenue = {
+      id: `rev-${paymentId}`,
+      date: paymentData.paymentDate,
+      source: `Recebimento Venda ${saleId}`,
+      referenceId: saleId,
+      category: 'Vendas Diretas',
+      amount: paymentData.amount,
+      paymentMethod: paymentData.paymentMethod,
+      status: 'Pago',
+    };
+    setRawRevenues(prev => [revenue, ...prev]);
+
+    supabaseService.insertPayment(newPaymentRecord);
+    supabaseService.insertRevenue(revenue);
+    updatedInstallments
+      .filter(i => i.saleId === saleId)
+      .forEach(inst => supabaseService.updateInstallment(inst.id, inst));
+
+    authService.logAudit(
+      user ? { id: user.id, name: user.name, email: user.email } : { id: 'admin', name: 'Administrador', email: 'admin' },
+      'PAYMENT_CREATED',
+      { id: paymentId, name: `Pagamento Venda ${saleId}` },
+      { amount: paymentData.amount, saleId, allocationsCount: newAllocations.length }
+    );
+
+    return { success: true };
+  };
+
+  const undoPayment = (paymentId: string): { success: boolean; error?: string } => {
+    const targetPayment = rawPayments.find(p => p.id === paymentId);
+    if (!targetPayment) return { success: false, error: 'Pagamento não localizado.' };
+
+    const updatedInstallments = rawInstallments.map(inst => {
+      const alloc = (targetPayment.allocations || []).find(a => a.installmentId === inst.id);
+      if (!alloc) return inst;
+
+      const newPaid = Math.max(0, Number(((inst.paidAmount || 0) - alloc.amount).toFixed(2)));
+      const newRem = Math.max(0, Number((inst.amount - newPaid).toFixed(2)));
+
+      const todayStr = new Date().toISOString().split('T')[0];
+      let newStatus: InstallmentStatus = 'Pendente';
+      if (newRem <= 0.001 && newPaid > 0) {
+        newStatus = 'Pago';
+      } else if (newPaid > 0) {
+        newStatus = 'Parcial';
+      } else if (inst.dueDate < todayStr) {
+        newStatus = 'Atrasado';
+      }
+
+      return {
+        ...inst,
+        paidAmount: newPaid,
+        remainingAmount: newRem,
+        status: newStatus,
+      };
+    });
+
+    setRawInstallments(updatedInstallments);
+    setRawPayments(prev => prev.filter(p => p.id !== paymentId));
+    setRawRevenues(prev => prev.filter(r => r.id !== `rev-${paymentId}`));
+
+    supabaseService.deletePayment(paymentId);
+    updatedInstallments
+      .filter(i => i.saleId === targetPayment.saleId)
+      .forEach(inst => supabaseService.updateInstallment(inst.id, inst));
+
+    authService.logAudit(
+      user ? { id: user.id, name: user.name, email: user.email } : { id: 'admin', name: 'Administrador', email: 'admin' },
+      'PAYMENT_REVERSED',
+      { id: paymentId, name: `Estorno Pagamento ${paymentId}` },
+      { amount: targetPayment.amount, saleId: targetPayment.saleId }
+    );
+
+    return { success: true };
+  };
+
+  const updatePayment = (
+    paymentId: string, 
+    updatedData: { amount: number; paymentDate: string; paymentMethod: PaymentMethod; notes?: string }
+  ): { success: boolean; error?: string } => {
+    const targetPayment = rawPayments.find(p => p.id === paymentId);
+    if (!targetPayment) return { success: false, error: 'Pagamento não localizado.' };
+
+    if (updatedData.amount !== targetPayment.amount) {
+      const saleId = targetPayment.saleId;
+      const undoRes = undoPayment(paymentId);
+      if (!undoRes.success) return undoRes;
+      return registerPayment(saleId, updatedData);
+    }
+
+    setRawPayments(prev => prev.map(p => p.id === paymentId ? {
+      ...p,
+      paymentDate: updatedData.paymentDate,
+      paymentMethod: updatedData.paymentMethod,
+      notes: updatedData.notes || '',
+    } : p));
+
+    supabaseService.updatePayment(paymentId, updatedData);
+
+    authService.logAudit(
+      user ? { id: user.id, name: user.name, email: user.email } : { id: 'admin', name: 'Administrador', email: 'admin' },
+      'PAYMENT_EDITED',
+      { id: paymentId, name: `Edição Pagamento ${paymentId}` },
+      { amount: updatedData.amount, paymentMethod: updatedData.paymentMethod }
+    );
+
+    return { success: true };
+  };
+
+  const updateInstallmentDueDate = (installmentId: string, newDueDate: string): { success: boolean; error?: string } => {
+    const inst = rawInstallments.find(i => i.id === installmentId);
+    if (!inst) return { success: false, error: 'Parcela não localizada.' };
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    let newStatus: InstallmentStatus = inst.status;
+    if (inst.status !== 'Pago') {
+      if ((inst.paidAmount || 0) > 0) {
+        newStatus = 'Parcial';
+      } else if (newDueDate < todayStr) {
+        newStatus = 'Atrasado';
+      } else {
+        newStatus = 'Pendente';
+      }
+    }
+
+    const updatedInst: Installment = {
+      ...inst,
+      dueDate: newDueDate,
+      status: newStatus,
+    };
+
+    setRawInstallments(prev => prev.map(i => i.id === installmentId ? updatedInst : i));
+    supabaseService.updateInstallment(installmentId, updatedInst);
+
+    authService.logAudit(
+      user ? { id: user.id, name: user.name, email: user.email } : { id: 'admin', name: 'Administrador', email: 'admin' },
+      'INSTALLMENT_DUE_DATE_CHANGED',
+      { id: installmentId, name: `Parcela ${inst.installmentNumber}/${inst.totalInstallments}` },
+      { oldDueDate: inst.dueDate, newDueDate }
+    );
+
+    return { success: true };
+  };
+
+  // Compatibilidade retroativa para chamadas diretas por parcela
+  const registerInstallmentPayment = (
+    installmentId: string, 
+    paymentData: { amount: number; paymentDate: string; paymentMethod: PaymentMethod; notes?: string }
+  ) => {
+    const inst = rawInstallments.find(i => i.id === installmentId);
+    if (!inst) return;
+    registerPayment(inst.saleId, paymentData);
+  };
+
+  const undoInstallmentPayment = (_installmentId: string, paymentId: string) => {
+    undoPayment(paymentId);
   };
 
   const updateVariantStock = (variantId: string, newQty: number, type: MovementType, reason: string) => {
@@ -1008,6 +1779,20 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const faturamentoPrevious = faturamento * 0.88;
     const vendasPreviousCount = Math.round(vendasCount * 0.9);
 
+    // Indicadores Financeiros Derivados (Faturamento Comercial vs Caixa Real vs Contas a Receber)
+    const totalRecebido = revenues
+      .filter(r => r.status === 'Pago')
+      .reduce((sum, r) => sum + r.amount, 0);
+
+    const todayDateStr = new Date().toISOString().split('T')[0];
+
+    const activeInstallments = installments.filter(i => i.status !== 'Cancelado' && i.status !== 'Pago');
+    const totalReceber = activeInstallments.reduce((sum, i) => sum + i.remainingAmount, 0);
+
+    const totalEmAtraso = activeInstallments
+      .filter(i => i.status === 'Atrasado' || (i.dueDate < todayDateStr && i.remainingAmount > 0))
+      .reduce((sum, i) => sum + i.remainingAmount, 0);
+
     if (isSeller) {
       return {
         faturamento,
@@ -1020,6 +1805,9 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         produtosVendidos,
         custoTotalVendas: 0,
         isCommercialOnly: true,
+        totalRecebido,
+        totalReceber,
+        totalEmAtraso,
       };
     }
 
@@ -1038,8 +1826,11 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       produtosVendidos,
       custoTotalVendas,
       isCommercialOnly: false,
+      totalRecebido,
+      totalReceber,
+      totalEmAtraso,
     };
-  }, [filteredSales, isSeller]);
+  }, [filteredSales, revenues, installments, isSeller]);
 
   return (
     <ERPContext.Provider value={{
@@ -1051,6 +1842,9 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       movements,
       revenues,
       expenses,
+      suppliers,
+      purchases,
+      installments,
       periodFilter,
       currentTab,
       searchQuery,
@@ -1069,11 +1863,13 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updateSale,
       updateSaleStatus,
       cancelSale,
+      deleteSale,
       addModel,
       updateModel,
       archiveModel,
       reactivateModel,
       deleteModel,
+      addVariant,
       updateVariant,
       deleteVariant,
       updateVariantStock,
@@ -1088,6 +1884,19 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       archiveEmployee,
       reactivateEmployee,
       deleteEmployee,
+      addSupplier,
+      updateSupplier,
+      deleteSupplier,
+      addPurchase,
+      updatePurchase,
+      deletePurchase,
+      payments: rawPayments,
+      registerPayment,
+      undoPayment,
+      updatePayment,
+      registerInstallmentPayment,
+      undoInstallmentPayment,
+      updateInstallmentDueDate,
       addRevenue,
       addExpense,
       dashboardMetrics,
