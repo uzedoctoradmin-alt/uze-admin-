@@ -5,8 +5,20 @@ export type GenderCategory = 'Feminino' | 'Masculino' | 'Unissex';
 export type VariantSize = 'PP' | 'P' | 'M' | 'G' | 'GG' | 'XGG' | 'Único';
 
 export interface ProductColor {
+  id?: string;
   name: string;
   hex: string;
+  isFavorite?: boolean;
+}
+
+export interface ColorItem {
+  id: string;
+  name: string;
+  hexCode: string;
+  isFavorite: boolean;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ProductModel {
@@ -29,6 +41,7 @@ export interface ProductVariant {
   id: string;
   modelId: string;
   sku: string;
+  colorId?: string;
   colorName: string;
   colorHex: string;
   size: VariantSize;

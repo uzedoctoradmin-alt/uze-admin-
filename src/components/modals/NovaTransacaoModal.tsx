@@ -22,35 +22,47 @@ export const NovaTransacaoModal: React.FC<NovaTransacaoModalProps> = ({
   const [revenueCategory, setRevenueCategory] = useState<RevenueCategory>('Personalização/Bordado');
   const [paymentMethod, setPaymentMethod] = useState('PIX');
   const [notes, setNotes] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!description.trim() || amount <= 0) return;
+    if (!description.trim() || amount <= 0 || isSaving) return;
+
+    setIsSaving(true);
+    setErrorMessage(null);
 
     const todayStr = new Date().toISOString().split('T')[0];
 
-    if (type === 'despesa') {
-      addExpense({
-        date: todayStr,
-        description,
-        category: expenseCategory,
-        amount,
-        paymentMethod,
-        notes,
-      });
-    } else {
-      addRevenue({
-        date: todayStr,
-        source: description,
-        category: revenueCategory,
-        amount,
-        paymentMethod,
-      });
-    }
+    try {
+      if (type === 'despesa') {
+        await addExpense({
+          date: todayStr,
+          description,
+          category: expenseCategory,
+          amount,
+          paymentMethod,
+          notes,
+        });
+      } else {
+        await addRevenue({
+          date: todayStr,
+          source: description,
+          category: revenueCategory,
+          amount,
+          paymentMethod,
+        });
+      }
 
-    setDescription('');
-    setAmount(0);
-    onClose();
+      setDescription('');
+      setAmount(0);
+      onClose();
+    } catch (err: any) {
+      console.error('[NovaTransacaoModal] Erro ao salvar transação:', err);
+      setErrorMessage(err.message || 'Erro ao persistir transação no banco de dados.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -62,6 +74,11 @@ export const NovaTransacaoModal: React.FC<NovaTransacaoModalProps> = ({
       maxWidth="md"
     >
       <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+        {errorMessage && (
+          <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-md text-xs font-semibold">
+            {errorMessage}
+          </div>
+        )}
         <div>
           <label className="uze-label">{type === 'despesa' ? 'Descrição da Despesa *' : 'Origem da Receita *'}</label>
           <input
@@ -155,16 +172,18 @@ export const NovaTransacaoModal: React.FC<NovaTransacaoModalProps> = ({
           <button 
             type="button" 
             onClick={onClose} 
+            disabled={isSaving}
             className="uze-btn-secondary text-xs"
           >
             Cancelar
           </button>
           <button 
             type="submit" 
-            disabled={!description.trim() || amount <= 0}
-            className="uze-btn-primary text-xs shadow-xs"
+            disabled={!description.trim() || amount <= 0 || isSaving}
+            className="uze-btn-primary text-xs shadow-xs flex items-center gap-2"
           >
-            {type === 'despesa' ? 'Salvar Despesa' : 'Salvar Receita'}
+            {isSaving && <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+            {type === 'despesa' ? (isSaving ? 'Salvando...' : 'Salvar Despesa') : (isSaving ? 'Salvando...' : 'Salvar Receita')}
           </button>
         </div>
       </form>

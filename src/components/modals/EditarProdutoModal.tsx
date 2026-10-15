@@ -177,7 +177,7 @@ export const EditarProdutoModal: React.FC<EditarProdutoModalProps> = ({ isOpen, 
       setIsUploadingImage(false);
     }
 
-    updateModel(model.id, {
+    const res = await updateModel(model.id, {
       name: name.trim(),
       category: category.trim(),
       description: description.trim(),
@@ -189,74 +189,106 @@ export const EditarProdutoModal: React.FC<EditarProdutoModalProps> = ({ isOpen, 
       imagePath: finalImagePath,
     });
 
-    setFeedbackMsg({ type: 'success', text: 'Produto atualizado com sucesso!' });
+    if (!res.success) {
+      setFeedbackMsg({ type: 'error', text: res.error || 'Falha ao salvar alterações do produto no Supabase.' });
+      return;
+    }
+
+    setFeedbackMsg({ type: 'success', text: 'Produto atualizado com sucesso no Supabase!' });
     setIsDirty(false);
     setTimeout(() => {
       onClose();
     }, 700);
   };
 
-  // Add a new size across existing colors
-  const handleAddNewSize = () => {
+  // Gerador de SKU único para novas variantes
+  const generateCleanUniqueSku = (
+    modelName: string, 
+    colorName: string, 
+    size: string
+  ): string => {
+    const cleanModel = modelName.trim().slice(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, 'UZE');
+    const cleanColor = colorName.trim().slice(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, 'COR');
+    const baseSku = `${cleanModel}-${cleanColor}-${size}`;
+
+    let candidate = baseSku;
+    let counter = 2;
+
+    const allSkus = new Set(variants.map(v => v.sku.toUpperCase()));
+
+    while (allSkus.has(candidate.toUpperCase())) {
+      candidate = `${baseSku}-${counter}`;
+      counter++;
+    }
+
+    return candidate;
+  };
+
+  // Add a new size across existing colors (assíncrono com garantia de persistência)
+  const handleAddNewSize = async () => {
     if (!model) return;
     const colorsToUse = existingColors.length > 0 ? existingColors : [{ name: 'Padrão', hex: '#173E75' }];
     
     let createdCount = 0;
-    colorsToUse.forEach(c => {
+    for (const c of colorsToUse) {
       const exists = modelVariants.some(v => v.size === selectedNewSize && v.colorName.toLowerCase() === c.name.toLowerCase());
       if (!exists) {
-        const cleanSku = `${model.name.slice(0, 3).toUpperCase()}-${c.name.slice(0, 3).toUpperCase()}-${selectedNewSize}`;
-        addVariant({
+        const cleanSku = generateCleanUniqueSku(model.name, c.name, selectedNewSize);
+        const res = await addVariant({
           modelId: model.id,
           sku: cleanSku,
           colorName: c.name,
           colorHex: c.hex,
           size: selectedNewSize,
           currentStock: 0,
-          minStock: 5,
+          minStock: 3,
         });
-        createdCount++;
+        if (res.success) {
+          createdCount++;
+        }
       }
-    });
+    }
 
     setShowAddSizeModal(false);
     setFeedbackMsg({ 
       type: 'success', 
       text: createdCount > 0 
-        ? `${createdCount} nova(s) variante(s) adicionada(s) com tamanho ${selectedNewSize}.` 
+        ? `${createdCount} nova(s) variante(s) adicionada(s) e persistidas com tamanho ${selectedNewSize}.` 
         : `Tamanho ${selectedNewSize} já existia para todas as cores.` 
     });
   };
 
-  // Add a new color across existing sizes
-  const handleAddNewColor = () => {
+  // Add a new color across existing sizes (assíncrono com garantia de persistência)
+  const handleAddNewColor = async () => {
     if (!model || !newColorName.trim()) return;
     const sizesToUse = existingSizes.length > 0 ? existingSizes : ['M'];
 
     let createdCount = 0;
-    sizesToUse.forEach(sz => {
+    for (const sz of sizesToUse) {
       const exists = modelVariants.some(v => v.size === sz && v.colorName.toLowerCase() === newColorName.trim().toLowerCase());
       if (!exists) {
-        const cleanSku = `${model.name.slice(0, 3).toUpperCase()}-${newColorName.trim().slice(0, 3).toUpperCase()}-${sz}`;
-        addVariant({
+        const cleanSku = generateCleanUniqueSku(model.name, newColorName.trim(), sz);
+        const res = await addVariant({
           modelId: model.id,
           sku: cleanSku,
           colorName: newColorName.trim(),
           colorHex: newColorHex,
           size: sz as VariantSize,
           currentStock: 0,
-          minStock: 5,
+          minStock: 3,
         });
-        createdCount++;
+        if (res.success) {
+          createdCount++;
+        }
       }
-    });
+    }
 
     setNewColorName('');
     setShowAddColorModal(false);
     setFeedbackMsg({
       type: 'success',
       text: createdCount > 0
-        ? `Cor ${newColorName} adicionada com sucesso!`
+        ? `Cor ${newColorName} cadastrada e variantes persistidas no Supabase!`
         : `Cor já cadastrada para estes tamanhos.`
     });
   };

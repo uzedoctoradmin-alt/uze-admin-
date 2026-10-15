@@ -19,10 +19,12 @@ import {
 import { ProductImage } from '../components/common/ProductImage';
 import { NovoProdutoModal } from '../components/modals/NovoProdutoModal';
 import { EditarProdutoModal } from '../components/modals/EditarProdutoModal';
+import { VarianteDetalhesModal } from '../components/modals/VarianteDetalhesModal';
 import { Modal } from '../components/common/Modal';
 import { ExportMenu } from '../components/common/ExportMenu';
 import { exportReportToPdf } from '../services/pdfExportService';
 import { excelService } from '../services/excelService';
+import type { ProductVariant } from '../types';
 
 export const ProdutosPage: React.FC = () => {
   const { models, variants, sales, movements, archiveModel, reactivateModel, deleteModel } = useERP();
@@ -33,6 +35,7 @@ export const ProdutosPage: React.FC = () => {
 
   const [isNovoProdutoOpen, setIsNovoProdutoOpen] = useState(false);
   const [selectedModel, setSelectedModel] = useState<ProductModel | null>(null);
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const [modelToEdit, setModelToEdit] = useState<ProductModel | null>(null);
   const [modelToArchive, setModelToArchive] = useState<ProductModel | null>(null);
   const [modelToDelete, setModelToDelete] = useState<ProductModel | null>(null);
@@ -840,43 +843,60 @@ export const ProdutosPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Variants table */}
+            {/* Seção: Variantes Físicas Interativas (Itens 9, 10, 11 do Requisito) */}
             <div>
-              <h4 className="font-bold text-[#101828] uppercase text-[11px] mb-2 flex items-center gap-1.5">
-                <Layers size={13} className="text-[#173E75]" /> 
-                Variantes Físicas ({getModelStats(selectedModel.id).variantCount})
-              </h4>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-2">
+                <h4 className="font-bold text-[#101828] uppercase text-[11px] flex items-center gap-1.5">
+                  <Layers size={13} className="text-[#173E75]" /> 
+                  Variantes Físicas ({getModelStats(selectedModel.id).variantCount})
+                </h4>
+                <span className="text-[10px] text-[#475467] font-medium">
+                  💡 Clique em qualquer linha para abrir detalhes, movimentações e ajuste de estoque
+                </span>
+              </div>
+
               <div className="uze-table-container">
                 <table className="uze-table text-xs">
                   <thead>
                     <tr>
-                      <th>SKU</th>
                       <th>Cor</th>
-                      <th>Tamanho</th>
-                      <th className="text-right">Estoque</th>
-                      <th className="text-right">Mínimo</th>
+                      <th className="text-center">Tamanho</th>
+                      <th>SKU</th>
+                      <th className="text-right">Estoque Atual</th>
+                      <th className="text-right">Estoque Mínimo</th>
                       <th>Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {getModelStats(selectedModel.id).variantsList.map(v => (
-                      <tr key={v.id}>
-                        <td className="font-mono text-[#344054] font-semibold">{v.sku}</td>
-                        <td className="flex items-center gap-2">
-                          <span
-                            className="w-3.5 h-3.5 rounded-full border border-black/20 shadow-xs"
-                            style={{ backgroundColor: v.colorHex }}
-                          />
-                          <span className="font-medium text-[#101828]">{v.colorName}</span>
+                      <tr 
+                        key={v.id}
+                        onClick={() => setSelectedVariant(v)}
+                        className="cursor-pointer hover:bg-[#EFF4FF] transition-colors group"
+                        title="Clique para abrir detalhes da variante"
+                      >
+                        <td>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="w-3.5 h-3.5 rounded-full border border-black/20 shadow-xs shrink-0"
+                              style={{ backgroundColor: v.colorHex }}
+                            />
+                            <span className="font-semibold text-[#101828] group-hover:text-[#173E75]">{v.colorName}</span>
+                          </div>
                         </td>
-                        <td className="font-bold text-[#101828]">{v.size}</td>
-                        <td className="text-right font-bold text-[#101828]">{v.currentStock} un</td>
+                        <td className="text-center">
+                          <span className="px-2 py-0.5 bg-[#F2F4F7] text-[#101828] rounded font-bold border border-[#D0D5DD]">
+                            {v.size}
+                          </span>
+                        </td>
+                        <td className="font-mono text-[#344054] font-semibold">{v.sku}</td>
+                        <td className="text-right font-black text-[#101828]">{v.currentStock} un</td>
                         <td className="text-right text-[#475467] font-medium">{v.minStock} un</td>
                         <td>
                           {v.currentStock === 0 ? (
-                            <span className="uze-badge uze-badge-danger">Sem Estoque</span>
+                            <span className="uze-badge uze-badge-danger">Sem estoque</span>
                           ) : v.currentStock <= v.minStock ? (
-                            <span className="uze-badge uze-badge-warning">Estoque Baixo</span>
+                            <span className="uze-badge uze-badge-warning">Estoque baixo</span>
                           ) : (
                             <span className="uze-badge uze-badge-success">Disponível</span>
                           )}
@@ -889,6 +909,21 @@ export const ProdutosPage: React.FC = () => {
             </div>
           </div>
         </Modal>
+      )}
+
+      {/* Modal Detalhes Interativos da Variante Física (Item 11) */}
+      {selectedVariant && (
+        <VarianteDetalhesModal
+          isOpen={!!selectedVariant}
+          onClose={() => setSelectedVariant(null)}
+          variant={selectedVariant}
+          model={selectedModel || models.find(m => m.id === selectedVariant.modelId) || null}
+          onVariantUpdated={() => {
+            // Recarrega variante atualizada para manter o modal em sincronia
+            const updated = variants.find(v => v.id === selectedVariant.id);
+            if (updated) setSelectedVariant(updated);
+          }}
+        />
       )}
     </div>
   );

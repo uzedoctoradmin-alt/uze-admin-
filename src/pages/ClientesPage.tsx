@@ -1387,8 +1387,8 @@ export const ClientesPage: React.FC = () => {
               <button onClick={() => setCustomerToDelete(null)} className="uze-btn-secondary text-xs">Fechar</button>
               {!deleteErrorMessage && (
                 <button
-                  onClick={() => {
-                    const res = deleteCustomer(customerToDelete.id);
+                  onClick={async () => {
+                    const res = await deleteCustomer(customerToDelete.id);
                     if (res.success) {
                       setCustomerToDelete(null);
                     } else {

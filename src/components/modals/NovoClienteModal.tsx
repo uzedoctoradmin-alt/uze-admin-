@@ -26,6 +26,8 @@ export const NovoClienteModal: React.FC<NovoClienteModalProps> = ({
   const [notes, setNotes] = useState('');
   const [isDirty, setIsDirty] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (customerToEdit) {
@@ -37,6 +39,7 @@ export const NovoClienteModal: React.FC<NovoClienteModalProps> = ({
       setState(customerToEdit.state || 'SP');
       setNotes(customerToEdit.notes || '');
       setIsDirty(false);
+      setErrorMessage(null);
     } else {
       setName('');
       setEmail('');
@@ -46,6 +49,7 @@ export const NovoClienteModal: React.FC<NovoClienteModalProps> = ({
       setState('SP');
       setNotes('');
       setIsDirty(false);
+      setErrorMessage(null);
     }
   }, [customerToEdit, isOpen]);
 
@@ -63,38 +67,48 @@ export const NovoClienteModal: React.FC<NovoClienteModalProps> = ({
     onClose();
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || isSaving) return;
 
-    if (customerToEdit) {
-      updateCustomer(customerToEdit.id, {
-        name: name.trim(),
-        email: email.trim() || undefined,
-        phone: phone.trim() || undefined,
-        document: document.trim() || undefined,
-        city: city.trim() || undefined,
-        state,
-        notes: notes.trim() || undefined,
-      });
-    } else {
-      addCustomer({
-        name: name.trim(),
-        email: email.trim() || undefined,
-        phone: phone.trim() || undefined,
-        document: document.trim() || undefined,
-        city: city.trim() || undefined,
-        state,
-        notes: notes.trim() || undefined,
-      });
+    setIsSaving(true);
+    setErrorMessage(null);
+
+    try {
+      if (customerToEdit) {
+        await updateCustomer(customerToEdit.id, {
+          name: name.trim(),
+          email: email.trim() || undefined,
+          phone: phone.trim() || undefined,
+          document: document.trim() || undefined,
+          city: city.trim() || undefined,
+          state,
+          notes: notes.trim() || undefined,
+        });
+      } else {
+        await addCustomer({
+          name: name.trim(),
+          email: email.trim() || undefined,
+          phone: phone.trim() || undefined,
+          document: document.trim() || undefined,
+          city: city.trim() || undefined,
+          state,
+          notes: notes.trim() || undefined,
+        });
+      }
+
+      setSavedSuccess(true);
+      setIsDirty(false);
+      setTimeout(() => {
+        setSavedSuccess(false);
+        onClose();
+      }, 700);
+    } catch (err: any) {
+      console.error('[NovoClienteModal] Erro ao salvar cliente:', err);
+      setErrorMessage(err.message || 'Erro ao persistir cliente no banco de dados Supabase.');
+    } finally {
+      setIsSaving(false);
     }
-
-    setSavedSuccess(true);
-    setIsDirty(false);
-    setTimeout(() => {
-      setSavedSuccess(false);
-      onClose();
-    }, 600);
   };
 
   return (
@@ -106,9 +120,16 @@ export const NovoClienteModal: React.FC<NovoClienteModalProps> = ({
       maxWidth="md"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
+        {errorMessage && (
+          <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-md text-xs font-semibold flex items-center gap-2">
+            <AlertCircle size={16} className="shrink-0 text-rose-600" />
+            <span>{errorMessage}</span>
+          </div>
+        )}
+
         {savedSuccess && (
           <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-md text-xs font-bold flex items-center gap-2">
-            <CheckCircle2 size={16} /> Alterações salvas com sucesso!
+            <CheckCircle2 size={16} /> Alterações salvas com sucesso no banco de dados!
           </div>
         )}
 
@@ -228,11 +249,12 @@ export const NovoClienteModal: React.FC<NovoClienteModalProps> = ({
         </div>
 
         <div className="flex justify-end gap-2 pt-3 border-t border-[#D0D5DD]">
-          <button type="button" onClick={handleClose} className="uze-btn uze-btn-secondary">
+          <button type="button" onClick={handleClose} disabled={isSaving} className="uze-btn uze-btn-secondary">
             Cancelar
           </button>
-          <button type="submit" className="uze-btn uze-btn-primary">
-            {customerToEdit ? 'Salvar Alterações' : 'Cadastrar Cliente'}
+          <button type="submit" disabled={isSaving} className="uze-btn uze-btn-primary flex items-center gap-2">
+            {isSaving && <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+            {customerToEdit ? (isSaving ? 'Salvando...' : 'Salvar Alterações') : (isSaving ? 'Cadastrando...' : 'Cadastrar Cliente')}
           </button>
         </div>
       </form>

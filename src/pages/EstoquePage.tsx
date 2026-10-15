@@ -5,8 +5,9 @@ import type { Column } from '../components/common/DataTable';
 import { DataTable } from '../components/common/DataTable';
 import type { ProductVariant, StockMovement } from '../types';
 import { StatCard } from '../components/common/StatCard';
-import { Edit3, ArrowLeftRight, AlertTriangle, Boxes } from 'lucide-react';
+import { Edit3, ArrowLeftRight, AlertTriangle, Boxes, Eye } from 'lucide-react';
 import { AjustarEstoqueModal } from '../components/modals/AjustarEstoqueModal';
+import { VarianteDetalhesModal } from '../components/modals/VarianteDetalhesModal';
 import { ProductImage } from '../components/common/ProductImage';
 import { ExportMenu } from '../components/common/ExportMenu';
 import { exportReportToPdf } from '../services/pdfExportService';
@@ -23,6 +24,7 @@ export const EstoquePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'saldo' | 'baixo' | 'movimentacoes'>('saldo');
   const [isAjustarOpen, setIsAjustarOpen] = useState(false);
   const [targetVariantId, setTargetVariantId] = useState<string | undefined>(undefined);
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
 
   const totalUnits = variants.reduce((sum, v) => sum + v.currentStock, 0);
 
@@ -368,14 +370,25 @@ export const EstoquePage: React.FC = () => {
             const m = models.find(mod => mod.id === v.modelId);
             return `${m?.name || ''} ${v.sku} ${v.colorName} ${v.size}`;
           }}
-          actions={(v) => canAdjustInventory && (
-            <button
-              onClick={() => handleOpenAjusteForVariant(v.id)}
-              className="p-1.5 text-[#475467] hover:text-[#173E75] hover:bg-[#F2F4F7] rounded transition-colors cursor-pointer"
-              title="Ajustar saldo deste SKU"
-            >
-              <Edit3 size={14} />
-            </button>
+          actions={(v) => (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setSelectedVariant(v)}
+                className="p-1.5 text-[#475467] hover:text-[#173E75] hover:bg-[#F2F4F7] rounded transition-colors cursor-pointer"
+                title="Ver detalhes físicos, histórico e dados da variante"
+              >
+                <Eye size={14} />
+              </button>
+              {canAdjustInventory && (
+                <button
+                  onClick={() => handleOpenAjusteForVariant(v.id)}
+                  className="p-1.5 text-[#475467] hover:text-[#173E75] hover:bg-[#F2F4F7] rounded transition-colors cursor-pointer"
+                  title="Ajustar saldo deste SKU"
+                >
+                  <Edit3 size={14} />
+                </button>
+              )}
+            </div>
           )}
         />
       )}
@@ -390,14 +403,25 @@ export const EstoquePage: React.FC = () => {
             const m = models.find(mod => mod.id === v.modelId);
             return `${m?.name || ''} ${v.sku} ${v.colorName} ${v.size}`;
           }}
-          actions={(v) => canAdjustInventory && (
-            <button
-              onClick={() => handleOpenAjusteForVariant(v.id)}
-              className="p-1.5 text-amber-700 hover:bg-amber-50 rounded transition-colors cursor-pointer"
-              title="Ajustar ou repor este SKU"
-            >
-              <Edit3 size={14} />
-            </button>
+          actions={(v) => (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setSelectedVariant(v)}
+                className="p-1.5 text-[#475467] hover:text-[#173E75] hover:bg-[#F2F4F7] rounded transition-colors cursor-pointer"
+                title="Ver detalhes físicos, histórico e dados da variante"
+              >
+                <Eye size={14} />
+              </button>
+              {canAdjustInventory && (
+                <button
+                  onClick={() => handleOpenAjusteForVariant(v.id)}
+                  className="p-1.5 text-amber-700 hover:bg-amber-50 rounded transition-colors cursor-pointer"
+                  title="Ajustar ou repor este SKU"
+                >
+                  <Edit3 size={14} />
+                </button>
+              )}
+            </div>
           )}
         />
       )}
@@ -421,6 +445,20 @@ export const EstoquePage: React.FC = () => {
             setTargetVariantId(undefined);
           }}
           variantId={targetVariantId}
+        />
+      )}
+
+      {/* Modal Detalhes Interativos da Variante (Item 11) */}
+      {selectedVariant && (
+        <VarianteDetalhesModal
+          isOpen={!!selectedVariant}
+          onClose={() => setSelectedVariant(null)}
+          variant={selectedVariant}
+          model={models.find(m => m.id === selectedVariant.modelId) || null}
+          onVariantUpdated={() => {
+            const updated = variants.find(v => v.id === selectedVariant.id);
+            if (updated) setSelectedVariant(updated);
+          }}
         />
       )}
     </div>

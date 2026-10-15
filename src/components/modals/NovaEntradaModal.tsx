@@ -175,12 +175,19 @@ export const NovaEntradaModal: React.FC<NovaEntradaModalProps> = ({ isOpen, onCl
   const subtotal = items.reduce((acc, i) => acc + i.totalCost, 0);
   const total = Math.max(0, subtotal - discount + shipping);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [isSaving, setIsSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving) return;
     if (items.length === 0) {
-      alert('Adicione pelo menos um produto à entrada de estoque.');
+      setErrorMessage('Adicione pelo menos um produto à entrada de estoque.');
       return;
     }
+
+    setIsSaving(true);
+    setErrorMessage(null);
 
     let finalSupplierId = selectedSupplierId;
     let finalSupplierName = supplierName.trim();
@@ -189,49 +196,56 @@ export const NovaEntradaModal: React.FC<NovaEntradaModalProps> = ({ isOpen, onCl
       finalSupplierName = 'Fábrica / Fornecedor Geral';
     }
 
-    // Se criou fornecedor novo livre, podemos também salvá-lo no cadastro
-    if (isNewSupplierCustom && finalSupplierName) {
-      const createdSup = addSupplier({
-        name: finalSupplierName,
-        status: 'Ativo',
-      });
-      finalSupplierId = createdSup.id;
-    }
-
-    if (entryToEdit) {
-      const updatedEntry: PurchaseEntry = {
-        ...entryToEdit,
-        supplierId: finalSupplierId || undefined,
-        supplierName: finalSupplierName,
-        date,
-        items,
-        subtotal,
-        discount,
-        shipping,
-        total,
-        notes: notes.trim(),
-      };
-      const res = updatePurchase(updatedEntry);
-      if (!res.success) {
-        alert(res.reason || 'Erro ao atualizar compra.');
-        return;
+    try {
+      // Se criou fornecedor novo livre, podemos também salvá-lo no cadastro
+      if (isNewSupplierCustom && finalSupplierName) {
+        const createdSup = await addSupplier({
+          name: finalSupplierName,
+          status: 'Ativo',
+        });
+        finalSupplierId = createdSup.id;
       }
-    } else {
-      addPurchase({
-        supplierId: finalSupplierId || undefined,
-        supplierName: finalSupplierName,
-        date,
-        items,
-        subtotal,
-        discount,
-        shipping,
-        total,
-        notes: notes.trim(),
-        status: 'Concluído',
-      });
-    }
 
-    onClose();
+      if (entryToEdit) {
+        const updatedEntry: PurchaseEntry = {
+          ...entryToEdit,
+          supplierId: finalSupplierId || undefined,
+          supplierName: finalSupplierName,
+          date,
+          items,
+          subtotal,
+          discount,
+          shipping,
+          total,
+          notes: notes.trim(),
+        };
+        const res = updatePurchase(updatedEntry);
+        if (!res.success) {
+          setErrorMessage(res.reason || 'Erro ao atualizar compra.');
+          return;
+        }
+      } else {
+        await addPurchase({
+          supplierId: finalSupplierId || undefined,
+          supplierName: finalSupplierName,
+          date,
+          items,
+          subtotal,
+          discount,
+          shipping,
+          total,
+          notes: notes.trim(),
+          status: 'Concluído',
+        });
+      }
+
+      onClose();
+    } catch (err: any) {
+      console.error('[NovaEntradaModal] Erro ao persistir compra:', err);
+      setErrorMessage(err.message || 'Erro ao persistir entrada de compra no banco de dados.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -243,6 +257,11 @@ export const NovaEntradaModal: React.FC<NovaEntradaModalProps> = ({ isOpen, onCl
       maxWidth="4xl"
     >
       <form onSubmit={handleSubmit} className="space-y-5 text-xs text-[#101828]">
+        {errorMessage && (
+          <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-md text-xs font-semibold">
+            {errorMessage}
+          </div>
+        )}
         {/* Header Informações Básicas */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 bg-slate-50 p-3.5 rounded-lg border border-slate-200">
           <div>
@@ -528,12 +547,13 @@ export const NovaEntradaModal: React.FC<NovaEntradaModalProps> = ({ isOpen, onCl
           </button>
           <button
             type="submit"
-            disabled={items.length === 0}
-            className={`px-5 py-2 rounded-md font-bold text-xs text-white transition-all shadow-xs cursor-pointer ${
-              items.length > 0 ? 'bg-[#173E75] hover:bg-[#0F284C]' : 'bg-slate-300 cursor-not-allowed'
+            disabled={items.length === 0 || isSaving}
+            className={`px-5 py-2 rounded-md font-bold text-xs text-white transition-all shadow-xs cursor-pointer flex items-center gap-2 ${
+              items.length > 0 && !isSaving ? 'bg-[#173E75] hover:bg-[#0F284C]' : 'bg-slate-300 cursor-not-allowed'
             }`}
           >
-            {entryToEdit ? 'Salvar Alterações' : 'Confirmar e Abastecer Estoque'}
+            {isSaving && <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+            {entryToEdit ? (isSaving ? 'Salvando...' : 'Salvar Alterações') : (isSaving ? 'Gravando Entrada...' : 'Confirmar e Abastecer Estoque')}
           </button>
         </div>
       </form>

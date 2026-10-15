@@ -3,7 +3,7 @@ import { useERP } from '../../context/ERPContext';
 import { useAuth } from '../../context/AuthContext';
 import { Modal } from '../common/Modal';
 import type { Sale, SaleItem, PaymentMethod, SaleStatus, DiscountType } from '../../types';
-import { Plus, Trash2, ShoppingCart, UserPlus, CheckCircle2, Package, Sparkles, UserCheck, Tag, Gift, Calendar } from 'lucide-react';
+import { Plus, Trash2, ShoppingCart, UserPlus, CheckCircle2, Package, Sparkles, UserCheck, Tag, Gift, Calendar, AlertCircle } from 'lucide-react';
 
 interface NovaVendaModalProps {
   isOpen: boolean;
@@ -224,21 +224,28 @@ export const NovaVendaModal: React.FC<NovaVendaModalProps> = ({ isOpen, onClose,
     setCartItems(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleCreateCustomer = () => {
+  const [isSavingSale, setIsSavingSale] = useState(false);
+  const [saleError, setSaleError] = useState<string | null>(null);
+
+  const handleCreateCustomer = async () => {
     if (!newCustName.trim()) return;
-    const created = addCustomer({
-      name: newCustName.trim(),
-      email: newCustEmail.trim() || undefined,
-      phone: newCustPhone.trim() || undefined,
-      city: newCustCity.trim() || undefined,
-      state: 'SP',
-    });
-    setSelectedCustomerId(created.id);
-    setShowNewCustomerForm(false);
-    setNewCustName('');
-    setNewCustEmail('');
-    setNewCustPhone('');
-    setNewCustCity('');
+    try {
+      const created = await addCustomer({
+        name: newCustName.trim(),
+        email: newCustEmail.trim() || undefined,
+        phone: newCustPhone.trim() || undefined,
+        city: newCustCity.trim() || undefined,
+        state: 'SP',
+      });
+      setSelectedCustomerId(created.id);
+      setShowNewCustomerForm(false);
+      setNewCustName('');
+      setNewCustEmail('');
+      setNewCustPhone('');
+      setNewCustCity('');
+    } catch (err: any) {
+      alert(err.message || 'Erro ao cadastrar cliente');
+    }
   };
 
   // Calculations
@@ -259,8 +266,11 @@ export const NovaVendaModal: React.FC<NovaVendaModalProps> = ({ isOpen, onClose,
   const total = Math.max(0, subtotal - calculatedDiscountAmount + safeShipping);
   const estimatedProfit = total - totalCost;
 
-  const handleFinalizeSale = () => {
-    if (!selectedCustomerId || cartItems.length === 0) return;
+  const handleFinalizeSale = async () => {
+    if (!selectedCustomerId || cartItems.length === 0 || isSavingSale) return;
+
+    setIsSavingSale(true);
+    setSaleError(null);
 
     const customer = customers.find(c => c.id === selectedCustomerId);
     const seller = employees.find(e => e.id === selectedSellerId);
@@ -304,16 +314,22 @@ export const NovaVendaModal: React.FC<NovaVendaModalProps> = ({ isOpen, onClose,
       } : undefined,
     };
 
-    if (saleToEdit) {
-      updateSale({
-        ...saleToEdit,
-        ...salePayload,
-      });
-    } else {
-      addSale(salePayload);
+    try {
+      if (saleToEdit) {
+        await updateSale({
+          ...saleToEdit,
+          ...salePayload,
+        });
+      } else {
+        await addSale(salePayload);
+      }
+      onClose();
+    } catch (err: any) {
+      console.error('[NovaVendaModal] Erro ao persistir venda:', err);
+      setSaleError(err.message || 'Erro ao persistir venda no Supabase.');
+    } finally {
+      setIsSavingSale(false);
     }
-
-    onClose();
   };
 
   return (
@@ -328,6 +344,12 @@ export const NovaVendaModal: React.FC<NovaVendaModalProps> = ({ isOpen, onClose,
       }
       maxWidth="4xl"
     >
+      {saleError && (
+        <div className="mb-4 p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-md text-xs font-semibold flex items-center gap-2">
+          <AlertCircle size={16} className="shrink-0 text-rose-600" />
+          <span>{saleError}</span>
+        </div>
+      )}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* Left Form: 8 cols */}
         <div className="lg:col-span-8 space-y-4">
@@ -969,14 +991,16 @@ export const NovaVendaModal: React.FC<NovaVendaModalProps> = ({ isOpen, onClose,
           <div className="mt-5 space-y-2">
             <button
               onClick={handleFinalizeSale}
-              disabled={cartItems.length === 0}
-              className="w-full uze-btn-primary py-2.5 text-xs font-bold justify-center disabled:bg-slate-800 disabled:text-slate-400 disabled:border-slate-700 disabled:cursor-not-allowed shadow-md"
+              disabled={cartItems.length === 0 || isSavingSale}
+              className="w-full uze-btn-primary py-2.5 text-xs font-bold justify-center disabled:bg-slate-800 disabled:text-slate-400 disabled:border-slate-700 disabled:cursor-not-allowed shadow-md flex items-center gap-2"
             >
-              <CheckCircle2 size={15} /> {saleToEdit ? 'Salvar Alterações da Venda' : 'Finalizar Venda'}
+              {isSavingSale && <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+              <CheckCircle2 size={15} /> {saleToEdit ? (isSavingSale ? 'Salvando Alterações...' : 'Salvar Alterações da Venda') : (isSavingSale ? 'Finalizando Venda...' : 'Finalizar Venda')}
             </button>
             <button
               onClick={onClose}
-              className="w-full text-center text-xs font-semibold text-slate-300 hover:text-white py-1.5 transition-colors"
+              disabled={isSavingSale}
+              className="w-full text-center text-xs font-semibold text-slate-300 hover:text-white py-1.5 transition-colors disabled:opacity-50"
             >
               Cancelar
             </button>

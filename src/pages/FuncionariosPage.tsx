@@ -122,7 +122,7 @@ export const FuncionariosPage: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
       setFormError('O nome do colaborador é obrigatório.');
@@ -133,39 +133,48 @@ export const FuncionariosPage: React.FC = () => {
       return;
     }
 
-    if (editingEmployee) {
-      updateEmployee(editingEmployee.id, {
-        name: name.trim(),
-        jobTitle: jobTitle.trim(),
-        isSeller,
-        phone: phone.trim() || undefined,
-        email: email.trim().toLowerCase() || undefined,
-        notes: notes.trim() || undefined,
-        status,
-      });
-    } else {
-      addEmployee({
-        name: name.trim(),
-        jobTitle: jobTitle.trim(),
-        isSeller,
-        phone: phone.trim() || undefined,
-        email: email.trim().toLowerCase() || undefined,
-        notes: notes.trim() || undefined,
-        status,
-      });
-    }
+    try {
+      if (editingEmployee) {
+        await updateEmployee(editingEmployee.id, {
+          name: name.trim(),
+          jobTitle: jobTitle.trim(),
+          isSeller,
+          phone: phone.trim() || undefined,
+          email: email.trim().toLowerCase() || undefined,
+          notes: notes.trim() || undefined,
+          status,
+        });
+      } else {
+        await addEmployee({
+          name: name.trim(),
+          jobTitle: jobTitle.trim(),
+          isSeller,
+          phone: phone.trim() || undefined,
+          email: email.trim().toLowerCase() || undefined,
+          notes: notes.trim() || undefined,
+          status,
+        });
+      }
 
-    setIsModalOpen(false);
+      setIsModalOpen(false);
+    } catch (err: any) {
+      console.error('[FuncionariosPage] Erro ao persistir funcionário:', err);
+      setFormError(err.message || 'Erro ao persistir colaborador no banco de dados.');
+    }
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
-    const res = deleteEmployee(deleteTarget.id);
-    if (!res.success) {
-      setDeleteError(res.reason || 'Não foi possível excluir.');
-    } else {
-      setDeleteTarget(null);
-      setDeleteError('');
+    try {
+      const res = await deleteEmployee(deleteTarget.id);
+      if (!res.success) {
+        setDeleteError(res.reason || 'Não foi possível excluir.');
+      } else {
+        setDeleteTarget(null);
+        setDeleteError('');
+      }
+    } catch (err: any) {
+      setDeleteError(err.message || 'Erro ao excluir colaborador.');
     }
   };
 

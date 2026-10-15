@@ -51,19 +51,20 @@ export const supabaseService = {
     }
   },
 
-  async insertModel(model: ProductModel, variants: ProductVariant[]): Promise<boolean> {
+  async insertModel(model: ProductModel, variants: ProductVariant[]): Promise<{ success: boolean; error?: string }> {
     try {
       const modelPayload: Record<string, any> = {
         id: model.id,
         name: model.name,
         category: model.category,
-        description: model.description,
+        description: model.description || '',
         base_price: model.basePrice,
         base_cost: model.baseCost,
         gender: model.gender,
         status: model.status,
         image_url: model.imageUrl || null,
         image_path: model.imagePath || null,
+        is_active: model.status !== 'Inativo' && model.status !== 'Arquivado',
       };
 
       if (model.availableColors) modelPayload.available_colors = model.availableColors;
@@ -73,7 +74,7 @@ export const supabaseService = {
 
       if (modelError) {
         console.error('[Supabase] insertModel error:', modelError);
-        return false;
+        return { success: false, error: `Falha ao salvar produto: ${modelError.message}` };
       }
 
       if (variants.length > 0) {
@@ -81,44 +82,97 @@ export const supabaseService = {
           id: v.id,
           model_id: v.modelId,
           sku: v.sku,
+          color_id: v.colorId || null,
           color_name: v.colorName,
           color_hex: v.colorHex,
           size: v.size,
-          current_stock: v.currentStock,
-          min_stock: v.minStock,
+          current_stock: v.currentStock ?? 0,
+          min_stock: v.minStock ?? 5,
+          cost_price: v.costPrice ?? null,
+          sale_price: v.salePrice ?? null,
+          is_active: v.status !== 'Inativo' && v.status !== 'Arquivado',
         }));
 
         const { error: varError } = await supabase.from('variants').insert(variantRows);
         if (varError) {
           console.error('[Supabase] insertVariants error:', varError);
+          // Rollback do modelo para não deixar produto corrompido sem variantes
+          await supabase.from('models').delete().eq('id', model.id);
+          return { success: false, error: `Falha ao salvar variantes do produto: ${varError.message}` };
+        }
+
+        // Sincronização obrigatória com a tabela inventory (Item 30: Criar inventory automaticamente)
+        const inventoryRows = variants.map(v => ({
+          variant_id: v.id,
+          current_stock: v.currentStock ?? 0,
+          minimum_stock: v.minStock ?? 5,
+          location: 'Depósito Central',
+        }));
+
+        const { error: invError } = await supabase.from('inventory').upsert(inventoryRows);
+        if (invError) {
+          console.warn('[Supabase] inventory sync warning:', invError.message);
         }
       }
 
-      return true;
-    } catch (err) {
+      return { success: true };
+    } catch (err: any) {
       console.error('[Supabase] insertModel exception:', err);
-      return false;
+      return { success: false, error: err.message || 'Erro inesperado na comunicação com o banco de dados.' };
     }
   },
 
   async fetchVariants(): Promise<ProductVariant[] | null> {
     try {
-      const { data, error } = await supabase.from('variants').select('*');
+      // Busca variantes com join em inventory para garantir integridade do saldo e estoque mínimo
+      const { data, error } = await supabase
+        .from('variants')
+        .select('*, inventory(current_stock, minimum_stock)');
+
       if (error) {
-        console.warn('[Supabase] fetchVariants warning:', error.message);
-        return null;
+        // Fallback para select direto caso a view ou relação não esteja no cache do PostgREST
+        const { data: directData, error: directErr } = await supabase.from('variants').select('*');
+        if (directErr) {
+          console.warn('[Supabase] fetchVariants warning:', directErr.message);
+          return null;
+        }
+
+        return (directData || []).map((row: any) => ({
+          id: row.id,
+          modelId: row.model_id,
+          sku: row.sku,
+          colorId: row.color_id || undefined,
+          colorName: row.color_name,
+          colorHex: row.color_hex,
+          size: row.size,
+          currentStock: Number(row.current_stock) || 0,
+          minStock: Number(row.min_stock) || 5,
+          costPrice: row.cost_price ? Number(row.cost_price) : undefined,
+          salePrice: row.sale_price ? Number(row.sale_price) : undefined,
+          status: row.is_active === false ? 'Inativo' : 'Ativo',
+        }));
       }
 
-      return (data || []).map((row: any) => ({
-        id: row.id,
-        modelId: row.model_id,
-        sku: row.sku,
-        colorName: row.color_name,
-        colorHex: row.color_hex,
-        size: row.size,
-        currentStock: Number(row.current_stock) || 0,
-        minStock: Number(row.min_stock) || 5,
-      }));
+      return (data || []).map((row: any) => {
+        const inv = Array.isArray(row.inventory) ? row.inventory[0] : row.inventory;
+        const stock = inv?.current_stock !== undefined ? Number(inv.current_stock) : (Number(row.current_stock) || 0);
+        const minStock = inv?.minimum_stock !== undefined ? Number(inv.minimum_stock) : (Number(row.min_stock) || 5);
+
+        return {
+          id: row.id,
+          modelId: row.model_id,
+          sku: row.sku,
+          colorId: row.color_id || undefined,
+          colorName: row.color_name,
+          colorHex: row.color_hex,
+          size: row.size,
+          currentStock: stock,
+          minStock: minStock,
+          costPrice: row.cost_price ? Number(row.cost_price) : undefined,
+          salePrice: row.sale_price ? Number(row.sale_price) : undefined,
+          status: row.is_active === false ? 'Inativo' : 'Ativo',
+        };
+      });
     } catch (err) {
       console.warn('[Supabase] fetchVariants exception:', err);
       return null;
@@ -140,6 +194,8 @@ export const supabaseService = {
       }
       if (updates.imageUrl !== undefined) payload.image_url = updates.imageUrl;
       if (updates.imagePath !== undefined) payload.image_path = updates.imagePath;
+      if (updates.availableColors !== undefined) payload.available_colors = updates.availableColors;
+      if (updates.availableSizes !== undefined) payload.available_sizes = updates.availableSizes;
       payload.updated_at = new Date().toISOString();
 
       const { error } = await supabase.from('models').update(payload).eq('id', id);
@@ -156,12 +212,11 @@ export const supabaseService = {
 
   async deleteModel(id: string): Promise<boolean> {
     try {
-      // 1. Fetch variant IDs for this model
+      // 1. Buscar IDs de variantes para limpeza consistente em cascata
       const { data: vars } = await supabase.from('variants').select('id').eq('model_id', id);
       const varIds = (vars || []).map((v: any) => v.id);
 
       if (varIds.length > 0) {
-        // Safe cleanup of child records linked to these variants
         await supabase.from('stock_movements').delete().in('variant_id', varIds);
         await supabase.from('inventory').delete().in('variant_id', varIds);
         await supabase.from('sale_items').delete().in('variant_id', varIds);
@@ -180,39 +235,54 @@ export const supabaseService = {
     }
   },
 
-  async insertVariant(variant: ProductVariant): Promise<boolean> {
+  async insertVariant(variant: ProductVariant): Promise<{ success: boolean; error?: string }> {
     try {
       const { error } = await supabase.from('variants').insert({
         id: variant.id,
         model_id: variant.modelId,
         sku: variant.sku,
+        color_id: variant.colorId || null,
         color_name: variant.colorName,
         color_hex: variant.colorHex,
         size: variant.size,
-        current_stock: variant.currentStock,
-        min_stock: variant.minStock,
+        current_stock: variant.currentStock ?? 0,
+        min_stock: variant.minStock ?? 5,
+        cost_price: variant.costPrice ?? null,
+        sale_price: variant.salePrice ?? null,
       });
 
       if (error) {
         console.error('[Supabase] insertVariant error:', error);
-        return false;
+        return { success: false, error: error.message };
       }
-      return true;
-    } catch (err) {
+
+      // Sincronizar na tabela inventory
+      await supabase.from('inventory').upsert({
+        variant_id: variant.id,
+        current_stock: variant.currentStock ?? 0,
+        minimum_stock: variant.minStock ?? 5,
+        location: 'Depósito Central',
+      });
+
+      return { success: true };
+    } catch (err: any) {
       console.error('[Supabase] insertVariant exception:', err);
-      return false;
+      return { success: false, error: err.message || 'Erro ao persistir variante.' };
     }
   },
 
   async updateVariant(id: string, updates: Partial<ProductVariant>): Promise<boolean> {
     try {
       const payload: Record<string, any> = {};
+      if (updates.colorId !== undefined) payload.color_id = updates.colorId;
       if (updates.colorName !== undefined) payload.color_name = updates.colorName;
       if (updates.colorHex !== undefined) payload.color_hex = updates.colorHex;
       if (updates.size !== undefined) payload.size = updates.size;
       if (updates.sku !== undefined) payload.sku = updates.sku;
       if (updates.currentStock !== undefined) payload.current_stock = updates.currentStock;
       if (updates.minStock !== undefined) payload.min_stock = updates.minStock;
+      if (updates.costPrice !== undefined) payload.cost_price = updates.costPrice;
+      if (updates.salePrice !== undefined) payload.sale_price = updates.salePrice;
       if (updates.status !== undefined) {
         payload.is_active = updates.status !== 'Inativo' && updates.status !== 'Arquivado';
       }
@@ -223,6 +293,17 @@ export const supabaseService = {
         console.error('[Supabase] updateVariant error:', error);
         return false;
       }
+
+      // Se estoque ou estoque mínimo foram alterados, sincronizar em inventory
+      if (updates.currentStock !== undefined || updates.minStock !== undefined) {
+        const invPayload: Record<string, any> = { variant_id: id };
+        if (updates.currentStock !== undefined) invPayload.current_stock = updates.currentStock;
+        if (updates.minStock !== undefined) invPayload.minimum_stock = updates.minStock;
+        invPayload.updated_at = new Date().toISOString();
+
+        await supabase.from('inventory').upsert(invPayload);
+      }
+
       return true;
     } catch (err) {
       console.error('[Supabase] updateVariant exception:', err);
@@ -232,7 +313,6 @@ export const supabaseService = {
 
   async deleteVariant(id: string): Promise<boolean> {
     try {
-      // Safe cleanup of dependent rows before deleting variant
       await supabase.from('stock_movements').delete().eq('variant_id', id);
       await supabase.from('inventory').delete().eq('variant_id', id);
       await supabase.from('sale_items').delete().eq('variant_id', id);
@@ -249,7 +329,31 @@ export const supabaseService = {
   },
 
   async updateVariantStock(variantId: string, newStock: number): Promise<boolean> {
-    return this.updateVariant(variantId, { currentStock: newStock });
+    try {
+      // 1. Atualizar na tabela variants
+      const { error: varErr } = await supabase
+        .from('variants')
+        .update({ current_stock: newStock, updated_at: new Date().toISOString() })
+        .eq('id', variantId);
+
+      // 2. Atualizar na tabela inventory (fonte única de estoque)
+      await supabase
+        .from('inventory')
+        .upsert({
+          variant_id: variantId,
+          current_stock: newStock,
+          updated_at: new Date().toISOString(),
+        });
+
+      if (varErr) {
+        console.error('[Supabase] updateVariantStock error:', varErr);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.error('[Supabase] updateVariantStock exception:', err);
+      return false;
+    }
   },
 
   // ==========================================
@@ -566,8 +670,7 @@ export const supabaseService = {
         total: sale.total,
         total_cost: sale.totalCost,
         estimated_profit: sale.estimatedProfit,
-        paymentMethod: sale.paymentMethod,
-        payment_method: sale.paymentMethod,
+        payment_method: sale.paymentMethod || 'PIX',
         status: sale.status,
         notes: sale.notes || null,
         items: sale.items,
@@ -577,6 +680,29 @@ export const supabaseService = {
         console.error('[Supabase] insertSale error:', error);
         return false;
       }
+
+      // Persistir itens na tabela normalizada sale_items
+      if (sale.items && sale.items.length > 0) {
+        const itemRows = sale.items.map(it => ({
+          sale_id: sale.id,
+          variant_id: it.variantId || null,
+          product_name: it.productName,
+          color_name: it.colorName || null,
+          size: it.size || null,
+          sku: it.sku || null,
+          unit_cost: it.unitCost || 0,
+          unit_price: it.unitPrice || 0,
+          quantity: it.quantity || 1,
+          discount: 0,
+          subtotal: it.subtotal || 0,
+        }));
+
+        const { error: itemsErr } = await supabase.from('sale_items').insert(itemRows);
+        if (itemsErr) {
+          console.warn('[Supabase] insertSaleItems warning:', itemsErr.message);
+        }
+      }
+
       return true;
     } catch (err) {
       console.error('[Supabase] insertSale exception:', err);
@@ -1284,48 +1410,59 @@ export const supabaseService = {
   // ==========================================
   async fetchPayments(): Promise<PaymentRecord[] | null> {
     try {
+      const { data, error } = await supabase.from('payments').select('*').order('created_at', { ascending: false });
+      if (!error && data) {
+        const mapped: PaymentRecord[] = data.map((r: any) => ({
+          id: r.id,
+          saleId: r.sale_id,
+          customerId: r.customer_id,
+          amount: Number(r.amount),
+          paymentDate: r.payment_date,
+          paymentMethod: r.payment_method,
+          notes: r.notes || '',
+          createdBy: r.created_by,
+          createdAt: r.created_at,
+          allocations: r.allocations || [],
+        }));
+        try {
+          localStorage.setItem('uze_payments', JSON.stringify(mapped));
+        } catch {}
+        return mapped;
+      }
+
       const local = localStorage.getItem('uze_payments');
       if (local) {
         return JSON.parse(local);
       }
-      const { data, error } = await supabase.from('payments').select('*');
-      if (error || !data) return null;
-      return data.map((r: any) => ({
-        id: r.id,
-        saleId: r.sale_id,
-        customerId: r.customer_id,
-        amount: Number(r.amount),
-        paymentDate: r.payment_date,
-        paymentMethod: r.payment_method,
-        notes: r.notes || '',
-        createdBy: r.created_by,
-        createdAt: r.created_at,
-        allocations: r.allocations || [],
-      }));
+      return null;
     } catch {
+      const local = localStorage.getItem('uze_payments');
+      if (local) {
+        return JSON.parse(local);
+      }
       return null;
     }
   },
 
   async insertPayment(payment: PaymentRecord): Promise<boolean> {
     try {
-      // Atualizar cache local
-      const local = localStorage.getItem('uze_payments');
-      const list: PaymentRecord[] = local ? JSON.parse(local) : [];
-      localStorage.setItem('uze_payments', JSON.stringify([payment, ...list]));
-
       // Salvar payment no Supabase
-      await supabase.from('payments').insert({
+      const { error: payErr } = await supabase.from('payments').insert({
         id: payment.id,
         sale_id: payment.saleId,
         customer_id: payment.customerId,
         amount: payment.amount,
         payment_date: payment.paymentDate,
         payment_method: payment.paymentMethod,
-        notes: payment.notes,
-        created_by: payment.createdBy,
+        notes: payment.notes || null,
+        created_by: payment.createdBy || null,
         created_at: payment.createdAt,
       });
+
+      if (payErr) {
+        console.error('[Supabase] insertPayment error:', payErr);
+        return false;
+      }
 
       // Salvar allocations
       if (payment.allocations && payment.allocations.length > 0) {
@@ -1336,12 +1473,21 @@ export const supabaseService = {
           amount: a.amount,
           created_at: a.createdAt,
         }));
-        await supabase.from('payment_allocations').insert(allocRows);
+        const { error: allocErr } = await supabase.from('payment_allocations').insert(allocRows);
+        if (allocErr) {
+          console.error('[Supabase] insertPaymentAllocations error:', allocErr);
+        }
       }
 
+      // Atualizar cache local apenas como backup
+      const local = localStorage.getItem('uze_payments');
+      const list: PaymentRecord[] = local ? JSON.parse(local) : [];
+      localStorage.setItem('uze_payments', JSON.stringify([payment, ...list.filter(p => p.id !== payment.id)]));
+
       return true;
-    } catch {
-      return true;
+    } catch (err) {
+      console.error('[Supabase] insertPayment exception:', err);
+      return false;
     }
   },
 
@@ -1353,11 +1499,19 @@ export const supabaseService = {
         localStorage.setItem('uze_payments', JSON.stringify(list.filter(p => p.id !== paymentId)));
       }
 
-      await supabase.from('payment_allocations').delete().eq('payment_id', paymentId);
-      await supabase.from('payments').delete().eq('id', paymentId);
+      const { error: allocErr } = await supabase.from('payment_allocations').delete().eq('payment_id', paymentId);
+      if (allocErr) {
+        console.warn('[Supabase] deletePaymentAllocations warning:', allocErr.message);
+      }
+      const { error: payErr } = await supabase.from('payments').delete().eq('id', paymentId);
+      if (payErr) {
+        console.error('[Supabase] deletePayment error:', payErr);
+        return false;
+      }
       return true;
-    } catch {
-      return true;
+    } catch (err) {
+      console.error('[Supabase] deletePayment exception:', err);
+      return false;
     }
   },
 
@@ -1377,12 +1531,17 @@ export const supabaseService = {
       if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
 
       if (Object.keys(dbUpdates).length > 0) {
-        await supabase.from('payments').update(dbUpdates).eq('id', paymentId);
+        const { error } = await supabase.from('payments').update(dbUpdates).eq('id', paymentId);
+        if (error) {
+          console.error('[Supabase] updatePayment error:', error);
+          return false;
+        }
       }
 
       return true;
-    } catch {
-      return true;
+    } catch (err) {
+      console.error('[Supabase] updatePayment exception:', err);
+      return false;
     }
   },
 };

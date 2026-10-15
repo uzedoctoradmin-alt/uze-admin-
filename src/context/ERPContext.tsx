@@ -19,6 +19,7 @@ import type {
   PaymentMethod,
   PaymentRecord,
   PaymentAllocation,
+  ColorItem,
 } from '../types';
 
 import { 
@@ -33,6 +34,7 @@ import {
 
 import { supabaseService } from '../services/supabaseService';
 import { checkSupabaseHealth, type SupabaseHealth } from '../services/supabase';
+import { colorService, DEFAULT_PRESET_COLORS } from '../services/colorService';
 import { useAuth } from './AuthContext';
 import { authService } from '../services/authService';
 
@@ -58,6 +60,7 @@ interface ERPContextType {
   // State
   models: ProductModel[];
   variants: ProductVariant[];
+  colors: ColorItem[];
   customers: Customer[];
   employees: Employee[];
   sales: Sale[];
@@ -78,6 +81,7 @@ interface ERPContextType {
   supabaseHealth: SupabaseHealth | null;
   isLoadingData: boolean;
   refreshData: () => Promise<void>;
+  refreshColors: () => Promise<void>;
 
   // Setters & Actions
   setPeriodFilter: (filter: PeriodFilter) => void;
@@ -86,8 +90,8 @@ interface ERPContextType {
   toggleSidebarCollapse: () => void;
   setIsMobileSidebarOpen: (open: boolean) => void;
 
-  addSale: (saleData: Omit<Sale, 'id'> & { date?: string }) => Sale;
-  updateSale: (updatedSale: Sale) => void;
+  addSale: (saleData: Omit<Sale, 'id'> & { date?: string }) => Promise<Sale>;
+  updateSale: (updatedSale: Sale) => Promise<boolean>;
   updateSaleStatus: (saleId: string, newStatus: SaleStatus) => void;
   cancelSale: (saleId: string, reason?: string) => void;
   deleteSale: (saleId: string, options?: { force?: boolean; reason?: string }) => { success: boolean; reason?: string };
@@ -95,36 +99,40 @@ interface ERPContextType {
   addModel: (
     modelData: Omit<ProductModel, 'id' | 'createdAt'>, 
     variantsData: Array<Omit<ProductVariant, 'id' | 'modelId'>>
-  ) => void;
-  updateModel: (id: string, modelData: Partial<ProductModel>) => void;
+  ) => Promise<{ success: boolean; modelId?: string; error?: string }>;
+  updateModel: (id: string, modelData: Partial<ProductModel>) => Promise<{ success: boolean; error?: string }>;
   archiveModel: (id: string) => void;
   reactivateModel: (id: string) => void;
   deleteModel: (id: string, options?: { force?: boolean; reason?: string }) => { success: boolean; reason?: string };
 
-  addVariant: (variantData: Omit<ProductVariant, 'id'>) => ProductVariant;
-  updateVariant: (id: string, variantData: Partial<ProductVariant>) => void;
+  addVariant: (variantData: Omit<ProductVariant, 'id'>) => Promise<{ success: boolean; variant?: ProductVariant; error?: string }>;
+  updateVariant: (id: string, variantData: Partial<ProductVariant>) => Promise<{ success: boolean; error?: string }>;
   deleteVariant: (id: string, options?: { force?: boolean; reason?: string }) => { success: boolean; reason?: string };
   
+  // Cores Salvas / Biblioteca de Cores
+  addColor: (params: { name: string; hexCode: string; isFavorite?: boolean }) => Promise<{ success: boolean; color?: ColorItem; error?: string; warning?: string }>;
+  toggleFavoriteColor: (colorId: string, isFavorite: boolean) => Promise<boolean>;
+
   updateVariantStock: (variantId: string, newQty: number, type: MovementType, reason: string) => void;
   addStockMovement: (variantId: string, type: MovementType, qty: number, reason: string) => void;
   
-  addCustomer: (customerData: Omit<Customer, 'id' | 'firstPurchaseDate' | 'lastPurchaseDate' | 'totalOrders' | 'totalSpent'>) => Customer;
-  updateCustomer: (id: string, customerData: Partial<Customer>) => void;
-  archiveCustomer: (id: string) => void;
-  reactivateCustomer: (id: string) => void;
-  deleteCustomer: (id: string) => { success: boolean; reason?: string };
+  addCustomer: (customerData: Omit<Customer, 'id' | 'firstPurchaseDate' | 'lastPurchaseDate' | 'totalOrders' | 'totalSpent'>) => Promise<Customer>;
+  updateCustomer: (id: string, customerData: Partial<Customer>) => Promise<boolean>;
+  archiveCustomer: (id: string) => Promise<boolean>;
+  reactivateCustomer: (id: string) => Promise<boolean>;
+  deleteCustomer: (id: string) => Promise<{ success: boolean; reason?: string }>;
 
-  addEmployee: (employeeData: Omit<Employee, 'id' | 'createdAt'>) => Employee;
-  updateEmployee: (id: string, employeeData: Partial<Employee>) => void;
-  archiveEmployee: (id: string) => void;
-  reactivateEmployee: (id: string) => void;
-  deleteEmployee: (id: string) => { success: boolean; reason?: string };
+  addEmployee: (employeeData: Omit<Employee, 'id' | 'createdAt'>) => Promise<Employee>;
+  updateEmployee: (id: string, employeeData: Partial<Employee>) => Promise<boolean>;
+  archiveEmployee: (id: string) => Promise<boolean>;
+  reactivateEmployee: (id: string) => Promise<boolean>;
+  deleteEmployee: (id: string) => Promise<{ success: boolean; reason?: string }>;
 
-  addSupplier: (supplierData: Omit<Supplier, 'id' | 'createdAt'>) => Supplier;
-  updateSupplier: (id: string, updates: Partial<Supplier>) => void;
-  deleteSupplier: (id: string) => { success: boolean; reason?: string };
+  addSupplier: (supplierData: Omit<Supplier, 'id' | 'createdAt'>) => Promise<Supplier>;
+  updateSupplier: (id: string, updates: Partial<Supplier>) => Promise<boolean>;
+  deleteSupplier: (id: string) => Promise<{ success: boolean; reason?: string }>;
 
-  addPurchase: (purchaseData: Omit<PurchaseEntry, 'id' | 'entryNumber' | 'createdAt'>) => PurchaseEntry;
+  addPurchase: (purchaseData: Omit<PurchaseEntry, 'id' | 'entryNumber' | 'createdAt'>) => Promise<PurchaseEntry>;
   updatePurchase: (purchase: PurchaseEntry) => { success: boolean; reason?: string };
   deletePurchase: (purchaseId: string) => { success: boolean; reason?: string };
 
@@ -146,8 +154,8 @@ interface ERPContextType {
   undoInstallmentPayment: (installmentId: string, paymentId: string) => void;
   updateInstallmentDueDate: (installmentId: string, newDueDate: string) => { success: boolean; error?: string };
 
-  addRevenue: (revenueData: Omit<Revenue, 'id'>) => Revenue;
-  addExpense: (expenseData: Omit<Expense, 'id'>) => Expense;
+  addRevenue: (revenueData: Omit<Revenue, 'id'>) => Promise<Revenue>;
+  addExpense: (expenseData: Omit<Expense, 'id'>) => Promise<Expense>;
 
   // Analytics Helpers
   dashboardMetrics: DashboardMetrics;
@@ -234,6 +242,19 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
+  const [colors, setColors] = useState<ColorItem[]>(DEFAULT_PRESET_COLORS);
+
+  const refreshColors = useCallback(async () => {
+    try {
+      const palette = await colorService.fetchColors();
+      if (palette && palette.length > 0) {
+        setColors(palette);
+      }
+    } catch (err) {
+      console.warn('[ERPContext] Error fetching colors palette:', err);
+    }
+  }, []);
+
   // Hydrate data from Supabase
   const refreshData = useCallback(async () => {
     setIsLoadingData(true);
@@ -241,6 +262,8 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const health = await checkSupabaseHealth();
       setSupabaseHealth(health);
       setSupabaseStatus(health.status);
+
+      await refreshColors();
 
       if (health.status === 'connected') {
         const [
@@ -390,12 +413,17 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // MUTATIONS (SALES, MODELS, CUSTOMERS, EMPLOYEES, FINANCE)
   // ============================================================================
 
-  const addSale = (saleData: Omit<Sale, 'id'> & { date?: string }): Sale => {
+  const addSale = async (saleData: Omit<Sale, 'id'> & { date?: string }): Promise<Sale> => {
     if (!hasPermission('sales.create')) {
       throw new Error('403 Forbidden: Usuário não tem permissão para cadastrar vendas.');
     }
 
-    const saleId = `#${String(rawSales.length + 1).padStart(6, '0')}`;
+    const existingNums = rawSales.map(s => {
+      const match = (s.saleNumber || s.id).match(/(\d+)/);
+      return match ? parseInt(match[1], 10) : 0;
+    });
+    const nextNum = (existingNums.length > 0 ? Math.max(...existingNums, 0) : 0) + 1;
+    const saleId = `#${String(nextNum).padStart(6, '0')}`;
     const nowStr = new Date().toISOString().replace('T', ' ').slice(0, 16);
     const commercialDate = saleData.date?.trim() || nowStr;
     
@@ -547,7 +575,10 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       supabaseService.updateCustomerStats(targetCustomer.id, dateOnly, updatedTotalOrders, updatedTotalSpent);
     }
 
-    supabaseService.insertSale(newSale);
+    const saved = await supabaseService.insertSale(newSale);
+    if (!saved) {
+      throw new Error('Falha ao persistir venda no banco de dados Supabase.');
+    }
     authService.logAudit(
       user ? { id: user.id, name: user.name, email: user.email } : { id: 'system', name: 'Sistema', email: 'system' },
       'SALE_CREATED',
@@ -557,13 +588,18 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return newSale;
   };
 
-  const updateSale = (updatedSale: Sale) => {
+  const updateSale = async (updatedSale: Sale): Promise<boolean> => {
     if (!hasPermission('sales.edit')) {
       throw new Error('403 Forbidden: Usuário não tem permissão para alterar vendas.');
     }
 
     const previousSale = rawSales.find(s => s.id === updatedSale.id);
-    if (!previousSale) return;
+    if (!previousSale) return false;
+
+    const saved = await supabaseService.updateSale(updatedSale);
+    if (!saved) {
+      throw new Error('Falha ao atualizar venda no banco de dados Supabase.');
+    }
 
     const nowStr = new Date().toISOString().replace('T', ' ').slice(0, 16);
 
@@ -660,7 +696,6 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     setRawSales(prev => prev.map(s => s.id === updatedSale.id ? updatedSale : s));
-    supabaseService.updateSale(updatedSale);
 
     authService.logAudit(
       user ? { id: user.id, name: user.name, email: user.email } : { id: 'system', name: 'Sistema', email: 'system' },
@@ -668,6 +703,7 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       { id: updatedSale.id, name: `Venda ${updatedSale.id}` },
       { previousTotal: previousSale.total, newTotal: updatedSale.total, seller: updatedSale.sellerName }
     );
+    return true;
   };
 
   const cancelSale = (saleId: string, reason?: string) => {
@@ -838,15 +874,24 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     supabaseService.updateSaleStatus(saleId, newStatus);
   };
 
-  const addModel = (
+  const addModel = async (
     modelData: Omit<ProductModel, 'id' | 'createdAt'>, 
     variantsData: Array<Omit<ProductVariant, 'id' | 'modelId'>>
-  ) => {
+  ): Promise<{ success: boolean; modelId?: string; error?: string }> => {
     if (!hasPermission('products.create')) {
-      throw new Error('403 Forbidden: Usuário não tem permissão para cadastrar modelos.');
+      return { success: false, error: '403 Forbidden: Usuário não tem permissão para cadastrar produtos.' };
     }
 
-    const modelId = `mod-${String(rawModels.length + 1).padStart(3, '0')}`;
+    // 1. Geração de ID robusta e sem colisões com IDs existentes
+    const existingNums = rawModels
+      .map(m => {
+        const match = m.id.match(/^mod-(\d+)$/i);
+        return match ? parseInt(match[1], 10) : 0;
+      })
+      .filter(n => !isNaN(n));
+    const maxNum = existingNums.length > 0 ? Math.max(...existingNums) : 0;
+    const modelId = `mod-${String(maxNum + 1).padStart(3, '0')}`;
+
     const newModel: ProductModel = {
       ...modelData,
       id: modelId,
@@ -859,29 +904,44 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       modelId: modelId,
     }));
 
-    setRawModels(prev => [...prev, newModel]);
-    setRawVariants(prev => [...prev, ...newVariants]);
+    // 2. Persistir no Supabase com validação e rollback de integridade
+    const res = await supabaseService.insertModel(newModel, newVariants);
+    if (!res.success) {
+      console.error('[ERPContext] addModel error:', res.error);
+      return { success: false, error: res.error || 'Erro ao persistir produto e variantes no Supabase.' };
+    }
 
-    supabaseService.insertModel(newModel, newVariants);
+    // 3. Atualizar estado local após confirmação real
+    setRawModels(prev => [newModel, ...prev]);
+    setRawVariants(prev => [...newVariants, ...prev]);
+
     authService.logAudit(
       user ? { id: user.id, name: user.name, email: user.email } : { id: 'system', name: 'Sistema', email: 'system' },
       'PRODUCT_CREATED',
       { id: modelId, name: newModel.name }
     );
+
+    return { success: true, modelId };
   };
 
-  const updateModel = (id: string, modelData: Partial<ProductModel>) => {
+  const updateModel = async (id: string, modelData: Partial<ProductModel>): Promise<{ success: boolean; error?: string }> => {
     if (!hasPermission('products.edit')) {
-      throw new Error('403 Forbidden: Usuário não tem permissão para editar produtos.');
+      return { success: false, error: '403 Forbidden: Usuário não tem permissão para editar produtos.' };
     }
+
+    const ok = await supabaseService.updateModel(id, modelData);
+    if (!ok) {
+      return { success: false, error: 'Falha ao atualizar dados do produto no banco.' };
+    }
+
     setRawModels(prev => prev.map(m => m.id === id ? { ...m, ...modelData } : m));
-    supabaseService.updateModel(id, modelData);
     authService.logAudit(
       user ? { id: user.id, name: user.name, email: user.email } : { id: 'system', name: 'Sistema', email: 'system' },
       'PRODUCT_UPDATED',
       { id, name: modelData.name || id },
       modelData
     );
+    return { success: true };
   };
 
   const archiveModel = (id: string) => {
@@ -940,9 +1000,9 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return { success: true };
   };
 
-  const addVariant = (variantData: Omit<ProductVariant, 'id'>): ProductVariant => {
+  const addVariant = async (variantData: Omit<ProductVariant, 'id'>): Promise<{ success: boolean; variant?: ProductVariant; error?: string }> => {
     if (!hasPermission('products.create' as any) && !hasPermission('products.edit')) {
-      throw new Error('403 Forbidden: Usuário não tem permissão para cadastrar variantes.');
+      return { success: false, error: '403 Forbidden: Usuário não tem permissão para cadastrar variantes.' };
     }
 
     const newVariant: ProductVariant = {
@@ -950,17 +1010,42 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: `var-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
     };
 
-    setRawVariants(prev => [...prev, newVariant]);
-    supabaseService.insertVariant(newVariant);
-    return newVariant;
+    const res = await supabaseService.insertVariant(newVariant);
+    if (!res.success) {
+      console.error('[ERPContext] addVariant error:', res.error);
+      return { success: false, error: res.error || 'Erro ao persistir variante no Supabase.' };
+    }
+
+    setRawVariants(prev => [newVariant, ...prev]);
+    return { success: true, variant: newVariant };
   };
 
-  const updateVariant = (id: string, variantData: Partial<ProductVariant>) => {
+  const updateVariant = async (id: string, variantData: Partial<ProductVariant>): Promise<{ success: boolean; error?: string }> => {
     if (!hasPermission('products.edit')) {
-      throw new Error('403 Forbidden: Usuário não tem permissão para editar variantes.');
+      return { success: false, error: '403 Forbidden: Usuário não tem permissão para editar variantes.' };
+    }
+    const ok = await supabaseService.updateVariant(id, variantData);
+    if (!ok) {
+      return { success: false, error: 'Falha ao atualizar variante no Supabase.' };
     }
     setRawVariants(prev => prev.map(v => v.id === id ? { ...v, ...variantData } : v));
-    supabaseService.updateVariant(id, variantData);
+    return { success: true };
+  };
+
+  const addColor = async (params: { name: string; hexCode: string; isFavorite?: boolean }): Promise<{ success: boolean; color?: ColorItem; error?: string; warning?: string }> => {
+    const res = await colorService.createColor({ ...params, existingColors: colors });
+    if (res.success && res.color) {
+      setColors(prev => [res.color!, ...prev.filter(c => c.id !== res.color!.id)]);
+    }
+    return res;
+  };
+
+  const toggleFavoriteColor = async (colorId: string, isFavorite: boolean): Promise<boolean> => {
+    const ok = await colorService.toggleFavorite(colorId, isFavorite);
+    if (ok) {
+      setColors(prev => prev.map(c => c.id === colorId ? { ...c, isFavorite } : c));
+    }
+    return ok;
   };
 
   const deleteVariant = (id: string, options?: { force?: boolean; reason?: string }): { success: boolean; reason?: string } => {
@@ -986,38 +1071,58 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // ============================================================================
   // FORNECEDORES (SUPPLIERS)
   // ============================================================================
-  const addSupplier = (supplierData: Omit<Supplier, 'id' | 'createdAt'>): Supplier => {
-    const id = `sup-${Date.now()}`;
+  const addSupplier = async (supplierData: Omit<Supplier, 'id' | 'createdAt'>): Promise<Supplier> => {
+    const existingNums = rawSuppliers.map(s => {
+      const match = s.id.match(/^sup-(\d+)$/);
+      return match ? parseInt(match[1], 10) : 0;
+    });
+    const nextNum = (existingNums.length > 0 ? Math.max(...existingNums, 0) : 0) + 1;
+    const id = `sup-${String(nextNum).padStart(3, '0')}`;
     const newSupplier: Supplier = {
       ...supplierData,
       id,
       createdAt: new Date().toISOString().split('T')[0],
     };
+    const saved = await supabaseService.insertSupplier(newSupplier);
+    if (!saved) {
+      throw new Error('Falha ao persistir fornecedor no banco de dados Supabase.');
+    }
     setRawSuppliers(prev => [newSupplier, ...prev]);
-    supabaseService.insertSupplier(newSupplier);
     return newSupplier;
   };
 
-  const updateSupplier = (id: string, updates: Partial<Supplier>) => {
+  const updateSupplier = async (id: string, updates: Partial<Supplier>): Promise<boolean> => {
+    const saved = await supabaseService.updateSupplier(id, updates);
+    if (!saved) {
+      throw new Error('Falha ao atualizar fornecedor no banco de dados Supabase.');
+    }
     setRawSuppliers(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
-    supabaseService.updateSupplier(id, updates);
+    return true;
   };
 
-  const deleteSupplier = (id: string): { success: boolean; reason?: string } => {
+  const deleteSupplier = async (id: string): Promise<{ success: boolean; reason?: string }> => {
+    const deleted = await supabaseService.deleteSupplier(id);
+    if (!deleted) {
+      return { success: false, reason: 'Erro ao excluir fornecedor no banco de dados Supabase.' };
+    }
     setRawSuppliers(prev => prev.filter(s => s.id !== id));
-    supabaseService.deleteSupplier(id);
     return { success: true };
   };
 
   // ============================================================================
   // ENTRADAS / COMPRAS DE MERCADORIAS (PURCHASES)
   // ============================================================================
-  const addPurchase = (purchaseData: Omit<PurchaseEntry, 'id' | 'entryNumber' | 'createdAt'>): PurchaseEntry => {
+  const addPurchase = async (purchaseData: Omit<PurchaseEntry, 'id' | 'entryNumber' | 'createdAt'>): Promise<PurchaseEntry> => {
     if (!hasPermission('purchases.create' as any)) {
       throw new Error('403 Forbidden: Usuário não tem permissão para registrar compras/entradas.');
     }
 
-    const entryNum = `ENT-${String(rawPurchases.length + 1).padStart(5, '0')}`;
+    const existingNums = rawPurchases.map(p => {
+      const match = (p.entryNumber || p.id).match(/(\d+)/);
+      return match ? parseInt(match[1], 10) : 0;
+    });
+    const nextNum = (existingNums.length > 0 ? Math.max(...existingNums, 0) : 0) + 1;
+    const entryNum = `ENT-${String(nextNum).padStart(5, '0')}`;
     const id = `pur-${Date.now()}`;
     const nowStr = new Date().toISOString().replace('T', ' ').slice(0, 16);
 
@@ -1029,10 +1134,15 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdBy: user?.name || 'Administrador ERP',
     };
 
+    const saved = await supabaseService.insertPurchase(newPurchase);
+    if (!saved) {
+      throw new Error('Falha ao persistir compra/entrada no banco de dados Supabase.');
+    }
+
     setRawPurchases(prev => [newPurchase, ...prev]);
 
     // Aumentar o estoque de cada variante e gerar stock_movements com motivo auditável
-    newPurchase.items.forEach(item => {
+    for (const item of newPurchase.items) {
       let updatedStock = 0;
       setRawVariants(prev =>
         prev.map(v => {
@@ -1064,11 +1174,9 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
 
       setRawMovements(prev => [movement, ...prev]);
-      supabaseService.insertMovement(movement);
-      supabaseService.updateVariantStock(item.variantId, updatedStock);
-    });
-
-    supabaseService.insertPurchase(newPurchase);
+      await supabaseService.insertMovement(movement);
+      await supabaseService.updateVariantStock(item.variantId, updatedStock);
+    }
 
     authService.logAudit(
       user ? { id: user.id, name: user.name, email: user.email } : { id: 'admin', name: 'Administrador', email: 'admin' },
@@ -1539,22 +1647,32 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // ============================================================================
   // CUSTOMERS
   // ============================================================================
-  const addCustomer = (customerData: Omit<Customer, 'id' | 'firstPurchaseDate' | 'lastPurchaseDate' | 'totalOrders' | 'totalSpent'>): Customer => {
+  const addCustomer = async (customerData: Omit<Customer, 'id' | 'firstPurchaseDate' | 'lastPurchaseDate' | 'totalOrders' | 'totalSpent'>): Promise<Customer> => {
     if (!hasPermission('customers.create')) {
       throw new Error('403 Forbidden: Usuário não tem permissão para cadastrar clientes.');
     }
 
     const todayStr = new Date().toISOString().split('T')[0];
+    const existingNums = rawCustomers.map(c => {
+      const match = c.id.match(/^cust-(\d+)$/);
+      return match ? parseInt(match[1], 10) : 0;
+    });
+    const nextNum = (existingNums.length > 0 ? Math.max(...existingNums, 0) : 0) + 1;
     const newCustomer: Customer = {
       ...customerData,
-      id: `cust-${String(rawCustomers.length + 1).padStart(3, '0')}`,
+      id: `cust-${String(nextNum).padStart(3, '0')}`,
       firstPurchaseDate: todayStr,
       lastPurchaseDate: todayStr,
       totalOrders: 0,
       totalSpent: 0,
     };
+    
+    const saved = await supabaseService.insertCustomer(newCustomer);
+    if (!saved) {
+      throw new Error('Falha ao persistir cliente no banco de dados Supabase.');
+    }
+
     setRawCustomers(prev => [...prev, newCustomer]);
-    supabaseService.insertCustomer(newCustomer);
     authService.logAudit(
       user ? { id: user.id, name: user.name, email: user.email } : { id: 'system', name: 'Sistema', email: 'system' },
       'CUSTOMER_CREATED',
@@ -1563,43 +1681,55 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return newCustomer;
   };
 
-  const updateCustomer = (id: string, customerData: Partial<Customer>) => {
+  const updateCustomer = async (id: string, customerData: Partial<Customer>): Promise<boolean> => {
     if (!hasPermission('customers.edit')) {
       throw new Error('403 Forbidden: Usuário não tem permissão para editar clientes.');
     }
+    const saved = await supabaseService.updateCustomer(id, customerData);
+    if (!saved) {
+      throw new Error('Falha ao atualizar cliente no banco de dados Supabase.');
+    }
     setRawCustomers(prev => prev.map(c => c.id === id ? { ...c, ...customerData } : c));
-    supabaseService.updateCustomer(id, customerData);
     authService.logAudit(
       user ? { id: user.id, name: user.name, email: user.email } : { id: 'system', name: 'Sistema', email: 'system' },
       'CUSTOMER_UPDATED',
       { id, name: customerData.name || id },
       customerData
     );
+    return true;
   };
 
-  const archiveCustomer = (id: string) => {
+  const archiveCustomer = async (id: string): Promise<boolean> => {
     if (!hasPermission('customers.edit')) {
       throw new Error('403 Forbidden: Usuário não tem permissão para arquivar clientes.');
     }
     const target = rawCustomers.find(c => c.id === id);
+    const saved = await supabaseService.updateCustomer(id, { status: 'Arquivado' });
+    if (!saved) {
+      throw new Error('Falha ao arquivar cliente no banco de dados Supabase.');
+    }
     setRawCustomers(prev => prev.map(c => c.id === id ? { ...c, status: 'Arquivado' } : c));
-    supabaseService.updateCustomer(id, { status: 'Arquivado' });
     authService.logAudit(
       user ? { id: user.id, name: user.name, email: user.email } : { id: 'system', name: 'Sistema', email: 'system' },
       'CUSTOMER_ARCHIVED',
       { id, name: target?.name || id }
     );
+    return true;
   };
 
-  const reactivateCustomer = (id: string) => {
+  const reactivateCustomer = async (id: string): Promise<boolean> => {
     if (!hasPermission('customers.edit')) {
       throw new Error('403 Forbidden: Usuário não tem permissão para reativar clientes.');
     }
+    const saved = await supabaseService.updateCustomer(id, { status: 'Ativo' });
+    if (!saved) {
+      throw new Error('Falha ao reativar cliente no banco de dados Supabase.');
+    }
     setRawCustomers(prev => prev.map(c => c.id === id ? { ...c, status: 'Ativo' } : c));
-    supabaseService.updateCustomer(id, { status: 'Ativo' });
+    return true;
   };
 
-  const deleteCustomer = (id: string): { success: boolean; reason?: string } => {
+  const deleteCustomer = async (id: string): Promise<{ success: boolean; reason?: string }> => {
     if (!hasPermission('customers.edit')) {
       throw new Error('403 Forbidden: Usuário não tem permissão para excluir clientes.');
     }
@@ -1610,8 +1740,11 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         reason: 'Este cliente possui histórico de vendas e compras registrado no sistema. Por segurança e conformidade, ele não pode ser excluído fisicamente. Utilize a opção "Arquivar cliente".',
       };
     }
+    const deleted = await supabaseService.deleteCustomer(id);
+    if (!deleted) {
+      return { success: false, reason: 'Erro ao excluir cliente no banco de dados Supabase.' };
+    }
     setRawCustomers(prev => prev.filter(c => c.id !== id));
-    supabaseService.deleteCustomer(id);
     authService.logAudit(
       user ? { id: user.id, name: user.name, email: user.email } : { id: 'system', name: 'Sistema', email: 'system' },
       'CUSTOMER_DELETED',
@@ -1623,21 +1756,30 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // ============================================================================
   // EMPLOYEES (FUNCIONÁRIOS / VENDEDORES)
   // ============================================================================
-  const addEmployee = (employeeData: Omit<Employee, 'id' | 'createdAt'>): Employee => {
+  const addEmployee = async (employeeData: Omit<Employee, 'id' | 'createdAt'>): Promise<Employee> => {
     if (!hasPermission('employees.create')) {
       throw new Error('403 Forbidden: Usuário não tem permissão para cadastrar funcionários.');
     }
 
     const todayStr = new Date().toISOString().split('T')[0];
+    const existingNums = rawEmployees.map(e => {
+      const match = e.id.match(/^emp-(\d+)$/);
+      return match ? parseInt(match[1], 10) : 0;
+    });
+    const nextNum = (existingNums.length > 0 ? Math.max(...existingNums, 0) : 0) + 1;
     const newEmployee: Employee = {
       ...employeeData,
-      id: `emp-${String(rawEmployees.length + 1).padStart(3, '0')}`,
+      id: `emp-${String(nextNum).padStart(3, '0')}`,
       createdAt: todayStr,
       createdBy: user?.name || 'Administrador',
     };
 
+    const saved = await supabaseService.insertEmployee(newEmployee);
+    if (!saved) {
+      throw new Error('Falha ao persistir funcionário no banco de dados Supabase.');
+    }
+
     setRawEmployees(prev => [...prev, newEmployee]);
-    supabaseService.insertEmployee(newEmployee);
     authService.logAudit(
       user ? { id: user.id, name: user.name, email: user.email } : { id: 'system', name: 'Sistema', email: 'system' },
       'EMPLOYEE_CREATED',
@@ -1647,49 +1789,61 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return newEmployee;
   };
 
-  const updateEmployee = (id: string, employeeData: Partial<Employee>) => {
+  const updateEmployee = async (id: string, employeeData: Partial<Employee>): Promise<boolean> => {
     if (!hasPermission('employees.edit')) {
       throw new Error('403 Forbidden: Usuário não tem permissão para editar funcionários.');
     }
+    const saved = await supabaseService.updateEmployee(id, employeeData);
+    if (!saved) {
+      throw new Error('Falha ao atualizar colaborador no banco de dados Supabase.');
+    }
     setRawEmployees(prev => prev.map(e => e.id === id ? { ...e, ...employeeData } : e));
-    supabaseService.updateEmployee(id, employeeData);
     authService.logAudit(
       user ? { id: user.id, name: user.name, email: user.email } : { id: 'system', name: 'Sistema', email: 'system' },
       'EMPLOYEE_UPDATED',
       { id, name: employeeData.name || id },
       employeeData
     );
+    return true;
   };
 
-  const archiveEmployee = (id: string) => {
+  const archiveEmployee = async (id: string): Promise<boolean> => {
     if (!hasPermission('employees.edit')) {
       throw new Error('403 Forbidden: Usuário não tem permissão para desativar funcionários.');
     }
     const target = rawEmployees.find(e => e.id === id);
     const nowIso = new Date().toISOString();
+    const saved = await supabaseService.updateEmployee(id, { status: 'Inativo', archivedAt: nowIso });
+    if (!saved) {
+      throw new Error('Falha ao desativar colaborador no banco de dados Supabase.');
+    }
     setRawEmployees(prev => prev.map(e => e.id === id ? { ...e, status: 'Inativo', archivedAt: nowIso } : e));
-    supabaseService.updateEmployee(id, { status: 'Inativo', archivedAt: nowIso });
     authService.logAudit(
       user ? { id: user.id, name: user.name, email: user.email } : { id: 'system', name: 'Sistema', email: 'system' },
       'EMPLOYEE_ARCHIVED',
       { id, name: target?.name || id }
     );
+    return true;
   };
 
-  const reactivateEmployee = (id: string) => {
+  const reactivateEmployee = async (id: string): Promise<boolean> => {
     if (!hasPermission('employees.edit')) {
       throw new Error('403 Forbidden: Usuário não tem permissão para reativar funcionários.');
     }
+    const saved = await supabaseService.updateEmployee(id, { status: 'Ativo', archivedAt: undefined });
+    if (!saved) {
+      throw new Error('Falha ao reativar colaborador no banco de dados Supabase.');
+    }
     setRawEmployees(prev => prev.map(e => e.id === id ? { ...e, status: 'Ativo', archivedAt: undefined } : e));
-    supabaseService.updateEmployee(id, { status: 'Ativo', archivedAt: undefined });
     authService.logAudit(
       user ? { id: user.id, name: user.name, email: user.email } : { id: 'system', name: 'Sistema', email: 'system' },
       'EMPLOYEE_REACTIVATED',
       { id }
     );
+    return true;
   };
 
-  const deleteEmployee = (id: string): { success: boolean; reason?: string } => {
+  const deleteEmployee = async (id: string): Promise<{ success: boolean; reason?: string }> => {
     if (!hasPermission('employees.delete')) {
       throw new Error('403 Forbidden: Usuário não tem permissão para excluir funcionários.');
     }
@@ -1701,8 +1855,11 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         reason: 'Este colaborador possui histórico de vendas vinculado. Para manter a integridade dos relatórios e comissões, ele não pode ser excluído fisicamente. Utilize a opção "Desativar colaborador".',
       };
     }
+    const deleted = await supabaseService.deleteEmployee(id);
+    if (!deleted) {
+      return { success: false, reason: 'Erro ao excluir colaborador no banco de dados Supabase.' };
+    }
     setRawEmployees(prev => prev.filter(e => e.id !== id));
-    supabaseService.deleteEmployee(id);
     authService.logAudit(
       user ? { id: user.id, name: user.name, email: user.email } : { id: 'system', name: 'Sistema', email: 'system' },
       'EMPLOYEE_DELETED',
@@ -1714,7 +1871,7 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // ============================================================================
   // FINANCE
   // ============================================================================
-  const addRevenue = (revenueData: Omit<Revenue, 'id'>): Revenue => {
+  const addRevenue = async (revenueData: Omit<Revenue, 'id'>): Promise<Revenue> => {
     if (!hasPermission('finance.manage')) {
       throw new Error('403 Forbidden: Usuário não tem permissão para lançar receitas.');
     }
@@ -1723,12 +1880,15 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ...revenueData,
       id: `rev-${Date.now()}`,
     };
+    const saved = await supabaseService.insertRevenue(newRev);
+    if (!saved) {
+      throw new Error('Falha ao persistir receita no banco de dados Supabase.');
+    }
     setRawRevenues(prev => [newRev, ...prev]);
-    supabaseService.insertRevenue(newRev);
     return newRev;
   };
 
-  const addExpense = (expenseData: Omit<Expense, 'id'>): Expense => {
+  const addExpense = async (expenseData: Omit<Expense, 'id'>): Promise<Expense> => {
     if (!hasPermission('finance.manage')) {
       throw new Error('403 Forbidden: Usuário não tem permissão para lançar despesas.');
     }
@@ -1737,8 +1897,11 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ...expenseData,
       id: `exp-${Date.now()}`,
     };
+    const saved = await supabaseService.insertExpense(newExp);
+    if (!saved) {
+      throw new Error('Falha ao persistir despesa no banco de dados Supabase.');
+    }
     setRawExpenses(prev => [newExp, ...prev]);
-    supabaseService.insertExpense(newExp);
     return newExp;
   };
 
@@ -1836,6 +1999,7 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     <ERPContext.Provider value={{
       models,
       variants,
+      colors,
       customers,
       employees,
       sales,
@@ -1854,6 +2018,7 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       supabaseHealth,
       isLoadingData,
       refreshData,
+      refreshColors,
       setPeriodFilter,
       setCurrentTab,
       setSearchQuery,
@@ -1872,6 +2037,8 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addVariant,
       updateVariant,
       deleteVariant,
+      addColor,
+      toggleFavoriteColor,
       updateVariantStock,
       addStockMovement,
       addCustomer,
